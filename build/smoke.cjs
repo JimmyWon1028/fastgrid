@@ -92,6 +92,9 @@ server.listen(port, '127.0.0.1', async function() {
       !result.footerAmountRightEdgeWorks ||
       !result.headerToggleKeyWorks ||
       !result.sortIconNearHeaderTextWorks ||
+      !result.multiColumnSortWorks ||
+      !result.multiColumnDirectionWorks ||
+      !result.singleColumnSortResetWorks ||
       !result.sortSelectedRowWorks ||
       !result.multiSortSelectedRowsWork ||
       !result.headerDividerResizeWorks ||
@@ -102,6 +105,8 @@ server.listen(port, '127.0.0.1', async function() {
       !result.rowHeadersShownWorks ||
       !result.rowHeadersCellOnlyWorks ||
       !result.multiSelectColumnVisibleWorks ||
+      !result.selectionCellBackgroundWorks ||
+      !result.selectAllCheckboxAlignedWorks ||
       !result.multiSelectRowsWorks ||
       !result.multiCellClickToggleOffWorks ||
       !result.multiCellClickToggleOnWorks ||
@@ -282,6 +287,7 @@ server.listen(port, '127.0.0.1', async function() {
       !result.largeExportScrollKeepsScrollableCells ||
       !result.largeFastScrollImmediateRenderWorks ||
       !result.largeFastScrollBufferedRowsWorks ||
+      !result.fixedPaneWheelSyncWorks ||
       result.largeExportScrollCellCount < 1 ||
       !result.busyOverlayWorks ||
       !result.busyOverlayClearsWorks ||

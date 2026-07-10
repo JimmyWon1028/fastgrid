@@ -33,8 +33,8 @@
       groupOrder: 'Order No.',
       groupVendor: 'Vendor + Order No.',
       groupVendorOrder: 'Vendor > Order No.',
-      groupHeader: 'Group: {key} ({count} items)',
-      groupVendorOrderHeader: 'Group: {vendor} + {order} ({count} items)',
+      groupHeader: '{header}: {key} ({count} items)',
+      groupVendorOrderHeader: '{header}: {vendor} + {order} ({count} items)',
       multiSelect: 'Multi select',
       editMode: 'Edit',
       exportCsv: 'Export CSV',
@@ -72,8 +72,8 @@
       groupOrder: '訂單編號',
       groupVendor: '主要廠商 + 訂單編號',
       groupVendorOrder: '主要廠商 > 訂單編號',
-      groupHeader: '群組: {key} ({count} 項目)',
-      groupVendorOrderHeader: '群組: {vendor} + {order} ({count} 項目)',
+      groupHeader: '{header}: {key} ({count} 項目)',
+      groupVendorOrderHeader: '{header}: {vendor} + {order} ({count} 項目)',
       multiSelect: '多選',
       editMode: '編輯',
       exportCsv: '匯出 CSV',
@@ -1078,6 +1078,7 @@
 
   function formatDemoRowGroupHeader(args) {
     return formatDemoText(getDemoText('groupHeader'), {
+      header: getDemoRowGroupHeaderText(args),
       key: args.key,
       count: args.count
     });
@@ -1085,10 +1086,43 @@
 
   function formatDemoVendorOrderRowGroupHeader(args) {
     return formatDemoText(getDemoText('groupVendorOrderHeader'), {
+      header: getDemoRowGroupHeaderText(args),
       vendor: args.item.id,
       order: args.item.refCode,
       count: args.count
     });
+  }
+
+  function getDemoRowGroupHeaderText(args) {
+    var bindings = args.config && (args.config.bindings || args.config.binding || args.config.fields || args.config.field);
+    var header;
+    if (args.header) {
+      return args.header;
+    }
+    if (bindings == null) {
+      if (args.key === args.item.id) {
+        bindings = 'id';
+      } else if (args.key === args.item.refCode) {
+        bindings = 'refCode';
+      } else {
+        bindings = ['id', 'refCode'];
+      }
+    }
+    if (!Array.isArray(bindings)) {
+      bindings = [bindings];
+    }
+    header = bindings.map(getDemoColumnHeader).join(' + ');
+    return header || getDemoText('groupRows');
+  }
+
+  function getDemoColumnHeader(binding) {
+    var i;
+    for (i = 0; i < columns.length; i += 1) {
+      if (columns[i].binding === binding) {
+        return columns[i].header;
+      }
+    }
+    return String(binding);
   }
 
   function getDemoRowGroups(mode) {

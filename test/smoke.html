@@ -286,19 +286,40 @@
         nameHeader = document.querySelector('.fg-header-cell[data-col="1"]');
         var nameHeaderRect = nameHeader ? nameHeader.getBoundingClientRect() : null;
         nameHeaderLabel = nameHeader ? nameHeader.querySelector('.fg-header-label') : null;
+        var nameHeaderSortWrap = nameHeader ? nameHeader.querySelector('.fg-sort-wrap') : null;
         var nameHeaderSort = nameHeader ? nameHeader.querySelector('.fg-sort') : null;
         var nameHeaderLabelRect = nameHeaderLabel ? nameHeaderLabel.getBoundingClientRect() : null;
+        var nameHeaderSortWrapRect = nameHeaderSortWrap ? nameHeaderSortWrap.getBoundingClientRect() : null;
         var nameHeaderSortRect = nameHeaderSort ? nameHeaderSort.getBoundingClientRect() : null;
-        var sortIconNearHeaderTextWorks = nameHeaderRect && nameHeaderLabelRect && nameHeaderSortRect &&
+        var sortIconNearHeaderTextWorks = nameHeaderRect && nameHeaderLabelRect && nameHeaderSortWrapRect && nameHeaderSortRect &&
           nameHeaderSort.className.indexOf('fg-sort-asc') >= 0 &&
           window.getComputedStyle(nameHeaderSort).display !== 'none' &&
           nameHeaderSortRect.width >= 8 &&
           nameHeaderSortRect.height >= 6 &&
-          nameHeaderSortRect.left - nameHeaderLabelRect.right >= 0 &&
-          nameHeaderSortRect.left - nameHeaderLabelRect.right <= 4 &&
-          nameHeaderSortRect.bottom >= nameHeaderLabelRect.bottom - 1 &&
-          nameHeaderRect.right - nameHeaderSortRect.right > 20;
+          nameHeaderSortWrapRect.left - nameHeaderLabelRect.right >= 0 &&
+          nameHeaderSortWrapRect.left - nameHeaderLabelRect.right <= 4 &&
+          nameHeaderSortRect.left >= nameHeaderSortWrapRect.left &&
+          nameHeaderSortRect.right <= nameHeaderSortWrapRect.right &&
+          nameHeaderRect.right - nameHeaderSortWrapRect.right > 20;
+        grid.toggleSort(2, true);
+        grid.toggleSort(0, true);
+        var multiColumnSortWorks = grid.sortStates.length === 3 &&
+          grid.sortStates[0].column.binding === 'name' &&
+          grid.sortStates[1].column.binding === 'amount' &&
+          grid.sortStates[2].column.binding === 'id' &&
+          document.querySelector('.fg-header-cell[data-col="1"] .fg-sort-order').textContent === '1' &&
+          document.querySelector('.fg-header-cell[data-col="2"] .fg-sort-order').textContent === '2' &&
+          document.querySelector('.fg-header-cell[data-col="0"] .fg-sort-order').textContent === '3';
+        grid.toggleSort(0, true);
+        var multiColumnDirectionWorks = grid.sortStates[2].direction === -1 &&
+          document.querySelector('.fg-header-cell[data-col="0"] .fg-sort').className.indexOf('fg-sort-desc') >= 0;
         grid.toggleSort(1);
+        var singleColumnSortResetWorks = grid.sortStates.length === 1 &&
+          grid.sortStates[0].column.binding === 'name' &&
+          grid.sortStates[0].direction === -1 &&
+          document.querySelectorAll('.fg-sort-wrap:not(.fg-sort-wrap-none)').length === 1 &&
+          document.querySelector('.fg-header-cell[data-col="1"] .fg-sort-order').textContent === '' &&
+          window.getComputedStyle(document.querySelector('.fg-header-cell[data-col="1"] .fg-sort-order')).display === 'none';
         grid.toggleSort(1);
         var sortSelectedItem = grid.view[9];
         grid.selectRow(9, 1);
@@ -361,6 +382,29 @@
           grid.getSelectionCheckboxWidth() === 44 &&
           window.getComputedStyle(document.querySelector('.fg-selection-pane')).display === 'block' &&
           document.querySelectorAll('.fg-selection-check').length > 0;
+        var selectionTopStyle = window.getComputedStyle(document.querySelector('.fg-selection-top'));
+        var rowHeaderTopStyle = window.getComputedStyle(document.querySelector('.fg-row-header-top'));
+        var selectionCellStyle = window.getComputedStyle(document.querySelector('.fg-selection-cell'));
+        var rowHeaderCellStyle = window.getComputedStyle(document.querySelector('.fg-row-header-cell'));
+        var selectionCellBackgroundWorks =
+          selectionTopStyle.backgroundColor === rowHeaderTopStyle.backgroundColor &&
+          selectionTopStyle.backgroundImage === rowHeaderTopStyle.backgroundImage &&
+          selectionCellStyle.backgroundColor === rowHeaderCellStyle.backgroundColor &&
+          selectionCellStyle.backgroundImage === rowHeaderCellStyle.backgroundImage;
+        var selectAllCheckbox = document.querySelector('.fg-selection-check-all');
+        var firstRowCheckbox = document.querySelector('.fg-selection-check');
+        var selectAllCheckboxRect = selectAllCheckbox ? selectAllCheckbox.getBoundingClientRect() : null;
+        var firstRowCheckboxRect = firstRowCheckbox ? firstRowCheckbox.getBoundingClientRect() : null;
+        var selectionTopRect = document.querySelector('.fg-selection-top').getBoundingClientRect();
+        var selectAllCheckboxAlignedWorks = selectAllCheckboxRect && firstRowCheckboxRect &&
+          Math.abs(
+            (selectAllCheckboxRect.left + selectAllCheckboxRect.width / 2) -
+            (firstRowCheckboxRect.left + firstRowCheckboxRect.width / 2)
+          ) <= 0.5 &&
+          Math.abs(
+            (selectAllCheckboxRect.top + selectAllCheckboxRect.height / 2) -
+            (selectionTopRect.top + grid.getHeaderTitleHeight() / 2)
+          ) <= 0.5;
         var rowChecks = document.querySelectorAll('.fg-selection-check');
         if (rowChecks[0]) {
           rowChecks[0].click();
@@ -1360,6 +1404,9 @@
                 footerAmountRightEdgeWorks: footerAmountRightEdgeWorks,
                 headerToggleKeyWorks: headerToggleKeyWorks,
                 sortIconNearHeaderTextWorks: sortIconNearHeaderTextWorks,
+                multiColumnSortWorks: multiColumnSortWorks,
+                multiColumnDirectionWorks: multiColumnDirectionWorks,
+                singleColumnSortResetWorks: singleColumnSortResetWorks,
                 sortSelectedRowWorks: sortSelectedRowWorks,
                 multiSortSelectedRowsWork: multiSortSelectedRowsWork,
                 headerDividerResizeWorks: headerDividerResizeWorks,
@@ -1370,6 +1417,8 @@
                 rowHeadersShownWorks: rowHeadersShownWorks,
                 rowHeadersCellOnlyWorks: rowHeadersCellOnlyWorks,
                 multiSelectColumnVisibleWorks: multiSelectColumnVisibleWorks,
+                selectionCellBackgroundWorks: selectionCellBackgroundWorks,
+                selectAllCheckboxAlignedWorks: selectAllCheckboxAlignedWorks,
                 multiSelectRowsWorks: multiSelectRowsWorks,
                 multiCellClickToggleOffWorks: multiCellClickToggleOffWorks,
                 multiCellClickToggleOnWorks: multiCellClickToggleOnWorks,
@@ -1547,6 +1596,7 @@
                 largeExportScrollKeepsScrollableCells: largeExportScrollResult.keepsScrollableCells,
                 largeFastScrollImmediateRenderWorks: largeExportScrollResult.immediateScrollRenderWorks,
                 largeFastScrollBufferedRowsWorks: largeExportScrollResult.fastScrollBufferedRowsWorks,
+                fixedPaneWheelSyncWorks: largeExportScrollResult.fixedPaneWheelSyncWorks,
                 largeExportScrollCellCount: largeExportScrollResult.cellCount,
                 largeExportScrollColumnRange: largeExportScrollResult.columnRange,
                 largeExportScrollRowRange: largeExportScrollResult.rowRange,
@@ -1708,6 +1758,28 @@
         });
         var blob = largeGrid.getExcelBlob();
         var scroller = largeGrid.bodyScroll;
+        var syncScrollCell = largeGrid.cellLayer.querySelector('.fg-cell[data-row="0"][data-col="2"]');
+        var syncWheelEvent;
+        var syncWheelIndex;
+        for (syncWheelIndex = 0; syncWheelIndex < 4; syncWheelIndex += 1) {
+          syncWheelEvent = new WheelEvent('wheel', {
+            deltaY: 16,
+            bubbles: true,
+            cancelable: true
+          });
+          syncScrollCell.dispatchEvent(syncWheelEvent);
+        }
+        var syncFrozenCell = largeGrid.frozenLayer.querySelector('.fg-cell[data-row="0"][data-col="0"]');
+        var syncFrozenRightCell = largeGrid.frozenRightLayer.querySelector('.fg-cell[data-row="0"][data-col="19"]');
+        var syncScrollRect = syncScrollCell ? syncScrollCell.getBoundingClientRect() : null;
+        var syncFrozenRect = syncFrozenCell ? syncFrozenCell.getBoundingClientRect() : null;
+        var syncFrozenRightRect = syncFrozenRightCell ? syncFrozenRightCell.getBoundingClientRect() : null;
+        var fixedPaneWheelSyncWorks = syncScrollRect && syncFrozenRect && syncFrozenRightRect &&
+          syncWheelEvent.defaultPrevented &&
+          scroller.scrollTop === 64 &&
+          Math.abs(syncScrollRect.top - syncFrozenRect.top) <= 1 &&
+          Math.abs(syncScrollRect.top - syncFrozenRightRect.top) <= 1 &&
+          window.getComputedStyle(largeGrid.frozenLayer).transform !== 'none';
         scroller.scrollTop = 810 * 32;
         largeGrid.handleScroll();
         var immediateScrollRenderWorks = largeGrid.rowRange.start <= 810 &&
@@ -1725,6 +1797,7 @@
           keepsScrollableCells: blob.size > 1000 && largeGrid.cellLayer.querySelectorAll('.fg-cell').length > 0,
           immediateScrollRenderWorks: immediateScrollRenderWorks,
           fastScrollBufferedRowsWorks: fastScrollBufferedRowsWorks,
+          fixedPaneWheelSyncWorks: fixedPaneWheelSyncWorks,
           cellCount: largeGrid.cellLayer.querySelectorAll('.fg-cell').length,
           columnRange: largeGrid.columnRange.start + '-' + largeGrid.columnRange.end,
           rowRange: largeGrid.rowRange.start + '-' + largeGrid.rowRange.end,

@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FastGrid Demo</title>
-  <link rel="stylesheet" href="../dist/fastgrid.css?v=20260710-public-demo-group-fix-v1">
-  <link rel="stylesheet" href="../dist/my.icon.css?v=20260710-public-demo-group-fix-v1">
-  <link rel="stylesheet" href="./style.css?v=20260710-public-demo-group-fix-v1">
+  <link rel="stylesheet" href="../dist/fastgrid.css?v=20260710-index-demo-layout-v1">
+  <link rel="stylesheet" href="../dist/my.icon.css?v=20260710-index-demo-layout-v1">
+  <link rel="stylesheet" href="./style.css?v=20260710-index-demo-layout-v1">
 </head>
 <body>
   <main class="page">
@@ -15,7 +15,7 @@
         <h1>FastGrid</h1>
         <p>Pure JS performance-first grid · <span id="datasetSummary">-</span></p>
       </div>
-      <label class="field">
+      <label class="field search-field">
         <span id="searchLabel">搜尋</span>
         <input id="searchInput" type="search" placeholder="輸入關鍵字">
       </label>
@@ -30,11 +30,11 @@
         <span id="themeLabel">主題</span>
         <select id="themeInput"></select>
       </label>
-      <label class="field compact">
+      <label class="field compact narrow-number-field">
         <span id="frozenLabel">凍結欄</span>
         <input id="frozenInput" type="number" min="0" max="6" value="2">
       </label>
-      <label class="field compact">
+      <label class="field compact narrow-number-field">
         <span id="frozenRightLabel">右凍結欄</span>
         <input id="frozenRightInput" type="number" min="0" max="6" value="1">
       </label>
@@ -52,7 +52,7 @@
           <option value="none">沒有群組</option>
           <option value="order">訂單編號</option>
           <option value="vendor">主要廠商 + 訂單編號</option>
-          <option value="vendor-order">主要廠商 &gt; 訂單編號</option>
+          <option value="vendor-order">主要廠商 > 訂單編號</option>
         </select>
       </label>
       <label class="toggle">
@@ -67,8 +67,8 @@
         <input id="editModeInput" type="checkbox" checked>
         <span id="editModeLabel">編輯</span>
       </label>
-      <button id="exportButton" type="button">匯出 CSV</button>
-      <button id="exportExcelButton" type="button">匯出 Excel</button>
+      <button id="exportButton" class="toolbar-icon-button icon-export" type="button" aria-label="匯出 CSV" title="匯出 CSV"></button>
+      <button id="exportExcelButton" class="toolbar-icon-button icon-excel" type="button" aria-label="匯出 Excel" title="匯出 Excel"></button>
     </section>
 
     <section class="stats" aria-label="FastGrid stats">
@@ -83,9 +83,9 @@
     </section>
   </main>
 
-  <script src="../dist/fastgrid.min.js?v=20260710-public-demo-group-fix-v1"></script>
-  <script src="../dist/locales/fastgrid-locale.zh-TW.js?v=20260710-public-demo-group-fix-v1"></script>
-  <script src="../dist/locales/fastgrid-locale.en.js?v=20260710-public-demo-group-fix-v1"></script>
-  <script src="./demo.js?v=20260710-public-demo-group-fix-v1"></script>
+  <script src="../dist/fastgrid.min.js?v=20260710-index-demo-layout-v1"></script>
+  <script src="../dist/locales/fastgrid-locale.zh-TW.js?v=20260710-index-demo-layout-v1"></script>
+  <script src="../dist/locales/fastgrid-locale.en.js?v=20260710-index-demo-layout-v1"></script>
+  <script src="./demo.js?v=20260710-index-demo-layout-v1"></script>
 </body>
 </html>

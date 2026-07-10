@@ -72,6 +72,7 @@ export function createFastGridFactory() {
     this.columnSearchOperators = {};
     this.hasColumnSearch = false;
     this.sortState = null;
+    this.sortStates = [];
     this.headerDisplayMode = normalizeHeaderDisplayMode(this.options.headerDisplayMode);
     this.columnOffsets = [];
     this.totalWidth = 0;
@@ -91,9 +92,12 @@ export function createFastGridFactory() {
       directionY: 0,
       extraRows: 0
     };
+    this.renderedScrollTop = 0;
     this.selection = { row: 0, col: 0 };
     this.rowSelection = null;
     this.selectedRowMap = {};
+    this.selectedItemRefs = [];
+    this._selectedItemSet = typeof WeakSet === 'function' ? new WeakSet() : null;
     this.hoverRow = null;
     this.editing = null;
     this.editorConfig = null;
@@ -648,6 +652,7 @@ export function createFastGridFactory() {
     this.options.multiSelectRows = value === true;
     if (!this.options.multiSelectRows) {
       this.selectedRowMap = {};
+      this.resetSelectedItemSelection([]);
       if (this.rowSelection == null && this.view.length) {
         this.rowSelection = this.selection.row;
       }
@@ -1051,17 +1056,38 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.handleFixedPaneWheel = function(event) {
+    var isFixedTarget;
+    var isScrollableTarget;
     var maxScrollTop;
     var maxScrollLeft;
+    var deltaFactor = 1;
+    var deltaX;
+    var deltaY;
     var nextTop;
     var nextLeft;
-    if (this.busy || !this.bodyScroll || !this.isFixedPaneScrollTarget(event.target)) {
+    if (this.busy || !this.bodyScroll || event.ctrlKey) {
       return;
+    }
+    isFixedTarget = this.isFixedPaneScrollTarget(event.target);
+    isScrollableTarget = !!closest(event.target, 'fg-body-scroll');
+    if (!isFixedTarget && !isScrollableTarget) {
+      return;
+    }
+    if (event.deltaMode === 1) {
+      deltaFactor = Math.max(1, this.options.rowHeight);
+    } else if (event.deltaMode === 2) {
+      deltaFactor = Math.max(1, this.getScrollableContentHeight());
+    }
+    deltaX = event.deltaX * deltaFactor;
+    deltaY = event.deltaY * deltaFactor;
+    if (event.shiftKey && !deltaX && deltaY) {
+      deltaX = deltaY;
+      deltaY = 0;
     }
     maxScrollTop = Math.max(0, this.bodyScroll.scrollHeight - this.bodyScroll.clientHeight);
     maxScrollLeft = Math.max(0, this.bodyScroll.scrollWidth - this.bodyScroll.clientWidth);
-    nextTop = clamp(this.bodyScroll.scrollTop + event.deltaY, 0, maxScrollTop);
-    nextLeft = clamp(this.bodyScroll.scrollLeft + event.deltaX, 0, maxScrollLeft);
+    nextTop = clamp(this.bodyScroll.scrollTop + deltaY, 0, maxScrollTop);
+    nextLeft = clamp(this.bodyScroll.scrollLeft + deltaX, 0, maxScrollLeft);
     if (nextTop === this.bodyScroll.scrollTop && nextLeft === this.bodyScroll.scrollLeft) {
       return;
     }
@@ -1069,6 +1095,7 @@ export function createFastGridFactory() {
     event.stopPropagation();
     this.bodyScroll.scrollTop = nextTop;
     this.bodyScroll.scrollLeft = nextLeft;
+    this.handleScroll();
   };
 
   FastGrid.prototype.isFixedPaneScrollTarget = function(target) {
@@ -1087,8 +1114,9 @@ export function createFastGridFactory() {
     var columnSearchValues = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
     var columnSearchOperators = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
     var columns = this.columns;
-    var sortState = this.sortState;
+    var sortStates = this.getSortStates();
     var selectionState = this.captureSelectionState();
+    var indexedRows;
 
     if (filterPredicate || searchText || columnSearchValues) {
       rows = rows.filter(function(item, index) {
@@ -1102,13 +1130,29 @@ export function createFastGridFactory() {
       });
     }
 
-    if (sortState && sortState.direction) {
-      rows.sort(function(a, b) {
-        return compareValues(
-          getByBinding(a, sortState.column.binding),
-          getByBinding(b, sortState.column.binding),
-          sortState.column.dataType
-        ) * sortState.direction;
+    if (sortStates.length) {
+      indexedRows = rows.map(function(item, index) {
+        return { item: item, index: index };
+      });
+      indexedRows.sort(function(a, b) {
+        var comparison;
+        var sortState;
+        var i;
+        for (i = 0; i < sortStates.length; i += 1) {
+          sortState = sortStates[i];
+          comparison = compareValues(
+            getByBinding(a.item, sortState.column.binding),
+            getByBinding(b.item, sortState.column.binding),
+            sortState.column.dataType
+          ) * sortState.direction;
+          if (comparison) {
+            return comparison;
+          }
+        }
+        return a.index - b.index;
+      });
+      rows = indexedRows.map(function(entry) {
+        return entry.item;
       });
     }
 
@@ -1205,6 +1249,7 @@ export function createFastGridFactory() {
 
   FastGrid.prototype.createRowGroupItem = function(bucket, config, level, stateKey) {
     var formatter = config.header || config.formatter || config.label;
+    var headerText = this.getRowGroupHeaderText(config);
     var label;
     var item = {
       __fgRowType: 'group',
@@ -1223,13 +1268,30 @@ export function createFastGridFactory() {
         item: bucket.firstItem,
         items: bucket.items,
         count: bucket.items.length,
-        level: level
+        level: level,
+        config: config,
+        header: headerText
       });
     } else {
-      label = bucket.key;
+      label = headerText ? headerText + ': ' + bucket.key : bucket.key;
     }
     item.label = label == null ? '' : String(label);
     return item;
+  };
+
+  FastGrid.prototype.getRowGroupHeaderText = function(config) {
+    var bindings = config && (config.bindings || config.binding || config.fields || config.field);
+    var labels = [];
+    var column;
+    var i;
+    if (!Array.isArray(bindings)) {
+      bindings = bindings == null ? [] : [bindings];
+    }
+    for (i = 0; i < bindings.length; i += 1) {
+      column = this.getColumn(bindings[i]);
+      labels.push(column && column.header ? column.header : String(bindings[i]));
+    }
+    return labels.join(' + ');
   };
 
   FastGrid.prototype.createRowGroupFooterItem = function(group) {
@@ -1333,6 +1395,7 @@ export function createFastGridFactory() {
       this.hideComboboxPanel();
     }
     this.updateScrollState();
+    this.syncFixedPaneScrollOffset();
     this.updateVerticalScrollbar();
     if (this.shouldRenderScrollImmediately()) {
       if (this.raf) {
@@ -1367,6 +1430,28 @@ export function createFastGridFactory() {
     this.scrollState.extraRows = Math.max(targetExtraRows, Math.floor(this.scrollState.extraRows * 0.65));
     this.scrollState.top = top;
     this.scrollState.left = left;
+  };
+
+  FastGrid.prototype.syncFixedPaneScrollOffset = function() {
+    var offset;
+    var transform;
+    if (this.options.syncScrollRender === false || !this.bodyScroll) {
+      return;
+    }
+    offset = this.renderedScrollTop - this.bodyScroll.scrollTop;
+    transform = offset ? 'translate3d(0,' + offset + 'px,0)' : '';
+    this.frozenLayer.style.transform = transform;
+    this.frozenRightLayer.style.transform = transform;
+    this.rowHeaderLayer.style.transform = transform;
+    this.selectionLayer.style.transform = transform;
+  };
+
+  FastGrid.prototype.resetFixedPaneScrollOffset = function() {
+    this.renderedScrollTop = this.bodyScroll ? this.bodyScroll.scrollTop : 0;
+    this.frozenLayer.style.transform = '';
+    this.frozenRightLayer.style.transform = '';
+    this.rowHeaderLayer.style.transform = '';
+    this.selectionLayer.style.transform = '';
   };
 
   FastGrid.prototype.updateVerticalScrollbar = function(metrics, totalHeight, bodyPaneBottom) {
@@ -1562,6 +1647,7 @@ export function createFastGridFactory() {
     if (this.emit('updatingView', {}) === false) {
       return;
     }
+    this.resetFixedPaneScrollOffset();
     this.updateLayout();
     this.syncHeaderLayout();
     footerHeight = this.getFooterHeight();
@@ -1838,6 +1924,7 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.renderVisibleRows = function() {
+    this.resetFixedPaneScrollOffset();
     this.renderRowHeaders(this.rowRange);
     this.renderSelectionCheckboxes(this.rowRange);
     this.renderBody(this.rowRange, this.columnRange);
@@ -2050,6 +2137,7 @@ export function createFastGridFactory() {
     var row = this.view[rowIndex];
     var cell = document.createElement('div');
     var checkbox = document.createElement('input');
+    var groupSelectionState = this.isRowGroup(row) ? this.getRowGroupSelectionState(row) : null;
     var top = rowIndex * this.options.rowHeight - this.bodyScroll.scrollTop;
     var height = this.getVisibleRowHeight(top);
     if (height <= 0) {
@@ -2077,7 +2165,8 @@ export function createFastGridFactory() {
     }
     checkbox.className = 'fg-selection-checkbox fg-selection-check';
     checkbox.type = 'checkbox';
-    checkbox.checked = this.isRowSelected(rowIndex);
+    checkbox.checked = groupSelectionState ? groupSelectionState.checked : this.isRowSelected(rowIndex);
+    checkbox.indeterminate = groupSelectionState ? groupSelectionState.indeterminate : false;
     checkbox.setAttribute('aria-label', this.getText('aria.selectRow', { rowNumber: rowIndex + 1 }));
     checkbox.setAttribute('data-row', rowIndex);
     cell.appendChild(checkbox);
@@ -2117,6 +2206,8 @@ export function createFastGridFactory() {
     var cell = document.createElement('div');
     var title = document.createElement('span');
     var label = document.createElement('span');
+    var sortWrap = document.createElement('span');
+    var sortOrder = document.createElement('span');
     var sort = document.createElement('span');
     var filterIcon = document.createElement('span');
     var resize = document.createElement('span');
@@ -2125,6 +2216,8 @@ export function createFastGridFactory() {
     var searchIcons;
     var searchEditorConfig;
     var sortDirection = this.getSortDirection(column);
+    var sortIndex = this.getSortIndex(column);
+    var sortCount = this.getSortStates().length;
     var searchOperator = this.getColumnSearchOperator(column);
 
     cell.className = 'fg-header-cell';
@@ -2140,12 +2233,17 @@ export function createFastGridFactory() {
     title.style.height = this.getHeaderTitleHeight() + 'px';
     label.className = 'fg-header-label';
     label.textContent = this.getHeaderCellText(column);
+    sortWrap.className = 'fg-sort-wrap' + (sortDirection ? '' : ' fg-sort-wrap-none');
+    sortOrder.className = 'fg-sort-order';
+    sortOrder.textContent = sortCount > 1 && sortIndex >= 0 ? String(sortIndex + 1) : '';
     sort.className = 'fg-sort' + (sortDirection === 1 ? ' fg-sort-asc' : sortDirection === -1 ? ' fg-sort-desc' : ' fg-sort-none');
     sort.setAttribute('aria-hidden', 'true');
     resize.className = 'fg-resize';
     resize.setAttribute('data-resize-col', column._viewIndex);
     title.appendChild(label);
-    title.appendChild(sort);
+    sortWrap.appendChild(sortOrder);
+    sortWrap.appendChild(sort);
+    title.appendChild(sortWrap);
     cell.appendChild(title);
     if (this.options.showSearchRow === true) {
       searchEditorConfig = getColumnEditorConfig(column);
@@ -2490,6 +2588,9 @@ export function createFastGridFactory() {
     var paneTop = top;
     var summaryLeftOffset = 0;
     var showLabel = true;
+    var isSelected = this.selection.row === rowIndex;
+    var isFirstPane;
+    var isLastPane;
     var i;
     if (!group || height <= 0) {
       return null;
@@ -2525,7 +2626,22 @@ export function createFastGridFactory() {
       showLabel = paneStart === 0;
     }
 
-    cell.className = 'fg-cell fg-row-group-cell';
+    isFirstPane = pane === 'left' ||
+      (pane === 'scroll' && !this.frozenWidth) ||
+      (pane === 'right' && !this.frozenWidth && !this.scrollableWidth);
+    isLastPane = pane === 'right' ||
+      (pane === 'scroll' && !this.frozenRightWidth) ||
+      (pane === 'left' && !this.scrollableWidth && !this.frozenRightWidth);
+    cell.className = 'fg-cell fg-row-group-cell fg-row-group-pane-' + pane;
+    if (isSelected) {
+      cell.className += ' fg-row-group-selected';
+      if (isFirstPane) {
+        cell.className += ' fg-row-group-selected-start';
+      }
+      if (isLastPane) {
+        cell.className += ' fg-row-group-selected-end';
+      }
+    }
     cell.style.left = paneLeft + 'px';
     cell.style.top = paneTop + 'px';
     cell.style.width = paneWidth + 'px';
@@ -2729,6 +2845,7 @@ export function createFastGridFactory() {
     var header = closest(event.target, 'fg-header-cell');
     var rowHeader = closest(event.target, 'fg-row-header-cell');
     var selectionCell = closest(event.target, 'fg-selection-cell');
+    var groupExpander = closest(event.target, 'fg-row-group-expander');
     var cell = closest(event.target, 'fg-cell');
     var colIndex;
     var rowIndex;
@@ -2803,13 +2920,13 @@ export function createFastGridFactory() {
 
     if (header && this.options.allowSorting) {
       colIndex = toNumber(header.getAttribute('data-col'), -1);
-      this.toggleSort(colIndex);
+      this.toggleSort(colIndex, event.shiftKey === true);
       return;
     }
 
     if (rowHeader) {
       rowIndex = toNumber(rowHeader.getAttribute('data-row'), 0);
-      if (this.isRowGroupFooter(this.view[rowIndex])) {
+      if (this.isRowGroup(this.view[rowIndex]) || this.isRowGroupFooter(this.view[rowIndex])) {
         this.root.focus();
         return;
       }
@@ -2822,7 +2939,12 @@ export function createFastGridFactory() {
       rowIndex = toNumber(cell.getAttribute('data-row'), 0);
       colIndex = toNumber(cell.getAttribute('data-col'), 0);
       if (this.isRowGroup(this.view[rowIndex])) {
-        this.toggleRowGroup(rowIndex);
+        if (groupExpander) {
+          this.toggleRowGroup(rowIndex);
+        } else {
+          this.select(rowIndex, this.selection.col);
+          this.scrollIntoView(rowIndex, this.selection.col);
+        }
         this.root.focus();
         return;
       }
@@ -2864,6 +2986,35 @@ export function createFastGridFactory() {
     this.clampSelection();
     this.render();
     this.emit('groupCollapsedChanged', { group: group, collapsed: this.rowGroupState[group.stateKey || group.key] === true });
+  };
+
+  FastGrid.prototype.toggleAllRowGroups = function() {
+    var groups = [];
+    var shouldCollapse = false;
+    var i;
+    var group;
+    for (i = 0; i < this.view.length; i += 1) {
+      group = this.view[i];
+      if (this.isRowGroup(group)) {
+        groups.push(group);
+        if (!group.collapsed) {
+          shouldCollapse = true;
+        }
+      }
+    }
+    if (!groups.length) {
+      return;
+    }
+    if (shouldCollapse) {
+      for (i = 0; i < groups.length; i += 1) {
+        this.rowGroupState[groups[i].stateKey || groups[i].key] = true;
+      }
+    } else {
+      this.rowGroupState = {};
+    }
+    this.applyView();
+    this.clampSelection();
+    this.render();
   };
 
   FastGrid.prototype.handleHeaderSearchBeforeInput = function(event) {
@@ -3592,12 +3743,24 @@ export function createFastGridFactory() {
 
   FastGrid.prototype.handleDblClick = function(event) {
     var cell = closest(event.target, 'fg-cell');
+    var rowHeader = closest(event.target, 'fg-row-header-cell');
+    var rowIndex;
     if (this.busy) {
       event.preventDefault();
       event.stopPropagation();
       return;
     }
     if (this.handleTopLeftSearchDblClick(event)) {
+      return;
+    }
+    if (rowHeader) {
+      rowIndex = toNumber(rowHeader.getAttribute('data-row'), -1);
+      if (rowIndex === 0 && this.isRowGroup(this.view[rowIndex])) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.toggleAllRowGroups();
+        this.root.focus();
+      }
       return;
     }
     if (!cell || !this.options.allowEditing) {
@@ -3887,6 +4050,7 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.selectRow = function(row, col) {
+    var item;
     row = clamp(row, 0, Math.max(0, this.view.length - 1));
     col = col == null ? this.selection.col : col;
     col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
@@ -3896,6 +4060,10 @@ export function createFastGridFactory() {
     this.rowSelection = row;
     if (this.options.multiSelectRows === true) {
       this.selectedRowMap[row] = true;
+      item = this.view[row];
+      if (!this.isRowGroup(item) && !this.isRowGroupFooter(item)) {
+        this.setItemSelectionState(item, true);
+      }
     }
     this.selection = {
       row: row,
@@ -3907,6 +4075,8 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.toggleRowSelection = function(row, col) {
+    var item;
+    var groupState;
     row = clamp(row, 0, Math.max(0, this.view.length - 1));
     col = col == null ? this.selection.col : col;
     col = clamp(col, 0, Math.max(0, this.visibleColumns.length - 1));
@@ -3914,11 +4084,14 @@ export function createFastGridFactory() {
       this.selectRow(row, col);
       return;
     }
-    if (this.selectedRowMap[row]) {
-      delete this.selectedRowMap[row];
+    item = this.view[row];
+    if (this.isRowGroup(item)) {
+      groupState = this.getRowGroupSelectionState(item);
+      this.setItemsSelectionState(item.items || [], !groupState.checked);
     } else {
-      this.selectedRowMap[row] = true;
+      this.setItemSelectionState(item, !this.isItemSelected(item));
     }
+    this.rebuildSelectedRowMap();
     this.rowSelection = row;
     this.selection = { row: row, col: col };
     this.emit('selectionChanged', { row: row, col: col });
@@ -3927,13 +4100,8 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.setAllRowsSelected = function(selected) {
-    var i;
-    this.selectedRowMap = {};
-    if (this.options.multiSelectRows === true && selected) {
-      for (i = 0; i < this.view.length; i += 1) {
-        this.selectedRowMap[i] = true;
-      }
-    }
+    this.resetSelectedItemSelection(this.options.multiSelectRows === true && selected ? (this.dataView || []).slice() : []);
+    this.rebuildSelectedRowMap();
     this.emit('selectionChanged', { allRows: selected === true });
     this.render();
   };
@@ -3956,11 +4124,117 @@ export function createFastGridFactory() {
     return count;
   };
 
+  FastGrid.prototype.isItemSelected = function(item) {
+    if (!item) {
+      return false;
+    }
+    if (this._selectedItemSet && isWeakSetValue(item)) {
+      return this._selectedItemSet.has(item);
+    }
+    return this.selectedItemRefs.indexOf(item) >= 0;
+  };
+
+  FastGrid.prototype.setItemSelectionState = function(item, selected) {
+    var index;
+    if (!item || this.isRowGroup(item) || this.isRowGroupFooter(item)) {
+      return;
+    }
+    index = this.selectedItemRefs.indexOf(item);
+    if (selected && index < 0) {
+      this.selectedItemRefs.push(item);
+      if (this._selectedItemSet && isWeakSetValue(item)) {
+        this._selectedItemSet.add(item);
+      }
+    } else if (!selected && index >= 0) {
+      this.selectedItemRefs.splice(index, 1);
+      if (this._selectedItemSet && isWeakSetValue(item)) {
+        this._selectedItemSet.delete(item);
+      }
+    }
+  };
+
+  FastGrid.prototype.resetSelectedItemSelection = function(items) {
+    var item;
+    var i;
+    items = Array.isArray(items) ? items : [];
+    this.selectedItemRefs = [];
+    this._selectedItemSet = typeof WeakSet === 'function' ? new WeakSet() : null;
+    for (i = 0; i < items.length; i += 1) {
+      item = items[i];
+      if (this._selectedItemSet && isWeakSetValue(item)) {
+        if (this._selectedItemSet.has(item)) {
+          continue;
+        }
+        this._selectedItemSet.add(item);
+      } else if (this.selectedItemRefs.indexOf(item) >= 0) {
+        continue;
+      }
+      this.selectedItemRefs.push(item);
+    }
+  };
+
+  FastGrid.prototype.setItemsSelectionState = function(items, selected) {
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      this.setItemSelectionState(items[i], selected);
+    }
+  };
+
+  FastGrid.prototype.getRowGroupSelectionState = function(group) {
+    var items = group && Array.isArray(group.items) ? group.items : [];
+    var selectedCount = 0;
+    var i;
+    for (i = 0; i < items.length; i += 1) {
+      if (this.isItemSelected(items[i])) {
+        selectedCount += 1;
+      }
+    }
+    return {
+      checked: items.length > 0 && selectedCount === items.length,
+      indeterminate: selectedCount > 0 && selectedCount < items.length,
+      selectedCount: selectedCount,
+      totalCount: items.length
+    };
+  };
+
+  FastGrid.prototype.syncSelectedItemRefsFromView = function() {
+    var item;
+    var i;
+    if (this.options.multiSelectRows !== true) {
+      return;
+    }
+    for (i = 0; i < this.view.length; i += 1) {
+      item = this.view[i];
+      if (!this.isRowGroup(item) && !this.isRowGroupFooter(item)) {
+        this.setItemSelectionState(item, this.selectedRowMap[i] === true);
+      }
+    }
+  };
+
+  FastGrid.prototype.rebuildSelectedRowMap = function() {
+    var next = {};
+    var item;
+    var i;
+    if (this.options.multiSelectRows !== true) {
+      this.selectedRowMap = next;
+      return;
+    }
+    for (i = 0; i < this.view.length; i += 1) {
+      item = this.view[i];
+      if ((this.isRowGroup(item) && this.getRowGroupSelectionState(item).checked) ||
+          (!this.isRowGroup(item) && !this.isRowGroupFooter(item) && this.isItemSelected(item))) {
+        next[i] = true;
+      }
+    }
+    this.selectedRowMap = next;
+  };
+
   FastGrid.prototype.captureSelectionState = function() {
     var selectedItems = [];
     var key;
     var index;
     if (this.options.multiSelectRows === true) {
+      this.syncSelectedItemRefsFromView();
       for (key in this.selectedRowMap) {
         if (Object.prototype.hasOwnProperty.call(this.selectedRowMap, key) && this.selectedRowMap[key]) {
           index = toNumber(key, -1);
@@ -3978,7 +4252,6 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.restoreSelectionState = function(state) {
-    var next = {};
     var rowIndex;
     var activeIndex;
     var i;
@@ -3987,12 +4260,11 @@ export function createFastGridFactory() {
     }
     if (this.options.multiSelectRows === true) {
       for (i = 0; i < state.selectedItems.length; i += 1) {
-        rowIndex = findRowIndexByItem(this.view, state.selectedItems[i]);
-        if (rowIndex >= 0) {
-          next[rowIndex] = true;
+        if (!this.isRowGroup(state.selectedItems[i]) && !this.isRowGroupFooter(state.selectedItems[i])) {
+          this.setItemSelectionState(state.selectedItems[i], true);
         }
       }
-      this.selectedRowMap = next;
+      this.rebuildSelectedRowMap();
     }
     rowIndex = findRowIndexByItem(this.view, state.rowSelectionItem);
     this.rowSelection = rowIndex >= 0 ? rowIndex : null;
@@ -4005,18 +4277,8 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.pruneSelectedRows = function() {
-    var next = {};
-    var key;
-    var index;
-    for (key in this.selectedRowMap) {
-      if (Object.prototype.hasOwnProperty.call(this.selectedRowMap, key) && this.selectedRowMap[key]) {
-        index = toNumber(key, -1);
-        if (index >= 0 && index < this.view.length) {
-          next[index] = true;
-        }
-      }
-    }
-    this.selectedRowMap = next;
+    this.syncSelectedItemRefsFromView();
+    this.rebuildSelectedRowMap();
   };
 
   FastGrid.prototype.copySelection = function() {
@@ -4164,6 +4426,7 @@ export function createFastGridFactory() {
       this.rowSelection = row;
       if (this.options.multiSelectRows === true) {
         this.selectedRowMap[row] = true;
+        this.setItemSelectionState(item, true);
       }
     }
     this.selection = { row: row, col: col };
@@ -5723,27 +5986,57 @@ export function createFastGridFactory() {
     return this.editor.value;
   };
 
-  FastGrid.prototype.toggleSort = function(colIndex) {
+  FastGrid.prototype.toggleSort = function(colIndex, multiSort) {
     var column = this.visibleColumns[colIndex];
+    var sortStates = this.getSortStates();
+    var sortIndex;
+    var currentState;
+    var nextSortStates;
     var direction = 1;
     if (!column) {
       return;
     }
-    if (this.sortState && this.sortState.column === column) {
-      if (this.sortState.direction === 1) {
+    sortIndex = this.getSortIndex(column);
+    currentState = sortIndex >= 0 ? sortStates[sortIndex] : null;
+    if (currentState) {
+      if (currentState.direction === 1) {
         direction = -1;
-      } else if (this.sortState.direction === -1) {
+      } else if (currentState.direction === -1) {
         direction = 0;
       }
     }
-    if (this.emit('sortingColumn', { column: column, direction: direction }) === false) {
+    if (this.emit('sortingColumn', {
+      column: column,
+      direction: direction,
+      multiSort: multiSort === true,
+      sortIndex: sortIndex
+    }) === false) {
       return;
     }
-    this.sortState = direction ? { column: column, direction: direction } : null;
+    nextSortStates = multiSort === true ? sortStates.slice() : [];
+    if (direction) {
+      if (multiSort === true && sortIndex >= 0) {
+        nextSortStates[sortIndex] = { column: column, direction: direction };
+      } else if (multiSort === true) {
+        nextSortStates.push({ column: column, direction: direction });
+      } else {
+        nextSortStates = [{ column: column, direction: direction }];
+      }
+    } else if (multiSort === true && sortIndex >= 0) {
+      nextSortStates.splice(sortIndex, 1);
+    }
+    this.sortStates = nextSortStates;
+    this.sortState = nextSortStates.length ? nextSortStates[0] : null;
     this.applyView();
     this.resetScroll();
     this.render();
-    this.emit('sortedColumn', { column: column, direction: direction });
+    this.emit('sortedColumn', {
+      column: column,
+      direction: direction,
+      multiSort: multiSort === true,
+      sortIndex: this.getSortIndex(column),
+      sortStates: this.getSortStates().slice()
+    });
   };
 
   FastGrid.prototype.getSortGlyph = function(column) {
@@ -5755,10 +6048,27 @@ export function createFastGridFactory() {
   };
 
   FastGrid.prototype.getSortDirection = function(column) {
-    if (!this.sortState || this.sortState.column !== column) {
-      return 0;
+    var index = this.getSortIndex(column);
+    var sortStates = this.getSortStates();
+    return index >= 0 ? sortStates[index].direction : 0;
+  };
+
+  FastGrid.prototype.getSortIndex = function(column) {
+    var sortStates = this.getSortStates();
+    var i;
+    for (i = 0; i < sortStates.length; i += 1) {
+      if (sortStates[i].column === column) {
+        return i;
+      }
     }
-    return this.sortState.direction;
+    return -1;
+  };
+
+  FastGrid.prototype.getSortStates = function() {
+    if (Array.isArray(this.sortStates) && this.sortStates.length) {
+      return this.sortStates;
+    }
+    return this.sortState && this.sortState.direction ? [this.sortState] : [];
   };
 
   FastGrid.prototype.startResize = function(event, colIndex) {
@@ -6958,7 +7268,7 @@ export function createFastGridFactory() {
       },
       activeCell: {
         get: function() {
-          return this.root ? this.root.querySelector('.fg-cell.fg-selected') : null;
+          return this.root ? this.root.querySelector('.fg-cell.fg-selected, .fg-cell.fg-row-group-selected') : null;
         }
       },
       activeEditor: {
@@ -7168,6 +7478,10 @@ export function createFastGridFactory() {
       }
     }
     return -1;
+  }
+
+  function isWeakSetValue(value) {
+    return value !== null && (typeof value === 'object' || typeof value === 'function');
   }
 
   function rowMatchesSearch(item, columns, searchText) {

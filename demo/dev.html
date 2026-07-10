@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FastGrid Dev Demo</title>
-  <link rel="stylesheet" href="../src/styles/fastgrid.css?v=20260710-public-demo-group-fix-v1">
-  <link rel="stylesheet" href="../src/styles/my.icon.css?v=20260710-public-demo-group-fix-v1">
-  <link rel="stylesheet" href="./style.css?v=20260710-public-demo-group-fix-v1">
+  <link rel="stylesheet" href="../src/styles/fastgrid.css?v=20260710-fixed-pane-scroll-sync-v2">
+  <link rel="stylesheet" href="../src/styles/my.icon.css?v=20260710-fixed-pane-scroll-sync-v1">
+  <link rel="stylesheet" href="./style.css?v=20260710-fixed-pane-scroll-sync-v1">
 </head>
 <body>
   <main class="page">
@@ -84,14 +84,14 @@
   </main>
 
   <script type="module">
-    import { createFastGridFactory } from '../src/fastgrid-core.js?v=20260710-public-demo-group-fix-v1';
+    import { createFastGridFactory } from '../src/fastgrid-core.js?v=20260710-fixed-pane-scroll-sync-v2';
 
     window.FASTGRID_DEMO_THEME_ROOT = '../src/styles/themes';
-    window.FASTGRID_DEMO_THEME_VERSION = '20260710-public-demo-group-fix-v1';
+    window.FASTGRID_DEMO_THEME_VERSION = '20260710-fixed-pane-scroll-sync-v1';
     window.FastGrid = createFastGridFactory();
-    await import('../src/locales/fastgrid-locale.zh-TW.js?v=20260710-public-demo-group-fix-v1');
-    await import('../src/locales/fastgrid-locale.en.js?v=20260710-public-demo-group-fix-v1');
-    await import('./demo.js?v=20260710-public-demo-group-fix-v1');
+    await import('../src/locales/fastgrid-locale.zh-TW.js?v=20260710-fixed-pane-scroll-sync-v1');
+    await import('../src/locales/fastgrid-locale.en.js?v=20260710-fixed-pane-scroll-sync-v1');
+    await import('./demo.js?v=20260710-fixed-pane-scroll-sync-v1');
   </script>
 </body>
 </html>
