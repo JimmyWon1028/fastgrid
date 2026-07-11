@@ -156,6 +156,38 @@ function createEsmJavascriptBundle() {
     'export default fabui;\n';
 }
 
+function verifyCssAssets(file) {
+  const source = fs.readFileSync(file, 'utf8');
+  const sourceDir = path.dirname(file);
+  const missing = [];
+  source.replace(/url\((['"]?)([^)'"\s]+)\1\)/g, function(match, quote, url) {
+    const asset = path.resolve(sourceDir, url);
+    if (/^(?:data:|https?:|#)/i.test(url)) return match;
+    if (!fs.existsSync(asset) || !fs.statSync(asset).isFile()) missing.push(url);
+    return match;
+  });
+  if (missing.length) {
+    throw new Error('Missing built CSS assets in ' + path.basename(file) + ': ' + missing.join(', '));
+  }
+}
+
+function verifyBuildOutput() {
+  const cssFile = path.join(distDir, 'fabui.css');
+  const css = fs.readFileSync(cssFile, 'utf8');
+  const javascript = fs.readFileSync(path.join(distDir, 'fabui.js'), 'utf8');
+  if (css.indexOf('theme/images/clear.png') < 0) {
+    throw new Error('Filter clear icon is missing from the FabUI CSS bundle.');
+  }
+  if (/\.\.\/images\/clear\.png/.test(css)) {
+    throw new Error('Filter clear icon uses an invalid parent-directory path.');
+  }
+  if (/global\.fabui\.(?:TextBox|NumberBox|DateBox|YymmBox|ComboBox|Tabs)\s*=/.test(javascript)) {
+    throw new Error('Standalone components must not be published in the FabGrid bundle.');
+  }
+  verifyCssAssets(cssFile);
+  verifyCssAssets(path.join(distDir, 'fabui.min.css'));
+}
+
 fs.rmSync(distDir, { recursive: true, force: true });
 fs.mkdirSync(distDir, { recursive: true });
 
@@ -170,5 +202,6 @@ fs.writeFileSync(path.join(distDir, 'fabui.esm.min.js'), banner('ES module min')
 fs.writeFileSync(path.join(distDir, 'fabui.css'), css, 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.min.css'), minifyCss(css), 'utf8');
 copyThemeOutput();
+verifyBuildOutput();
 
 console.log('Built FabUI bundles with theme and image dependencies.');

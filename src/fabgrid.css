@@ -1405,7 +1405,6 @@
 .fg-filter-menu-clear .fg-filter-menu-funnel {
   width: 28px;
   height: 32px;
-  background: url("theme/images/clear.png") no-repeat center center;
   background-size: 16px 16px;
   color: inherit;
 }
