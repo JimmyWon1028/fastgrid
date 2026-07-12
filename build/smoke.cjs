@@ -77,6 +77,11 @@ server.listen(port, '127.0.0.1', async function() {
     const dom = await runChrome();
     const result = extractResult(dom);
     if (
+      !result.hasChart ||
+      !result.chartRenderWorks ||
+      !result.chartBindingWorks ||
+      !result.chartPieWorks ||
+      !result.chartDisposeWorks ||
       !result.hasFabGrid ||
       !result.coreBundleOnlyWorks ||
       !result.dangerousBindingBlocked ||

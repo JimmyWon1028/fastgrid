@@ -1,6 +1,7 @@
 /* FabUI public style entry. Keep imports ordered from shared foundations to themes. */
-@import './fabgrid.css';
-@import './fabgrid.icon.css';
+@import './chart/chart.css';
+@import './grid/fabgrid.css';
+@import './fabui.icon.css';
 @import './theme/fabgrid.default.css';
 @import './theme/fabgrid.black.css';
 @import './theme/fabgrid.bootstrap.css';

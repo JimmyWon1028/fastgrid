@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const esbuild = require('esbuild');
 
 const root = path.resolve(__dirname, '..');
 const srcDir = path.join(root, 'src');
@@ -7,6 +8,10 @@ const distDir = path.join(root, 'dist');
 const buildDate = new Date();
 const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
+  'chart/chart.js',
+  'grid/fabgrid-data.js',
+  'grid/fabgrid-editor.js',
+  'grid/fabgrid-export.js',
   'editor/editor-definitions.js',
   'grid/fabgrid.js'
 ];
@@ -21,16 +26,18 @@ function banner(name) {
 }
 
 function stripExports(source) {
-  return source.replace(/export function (create(?:EditorDefinitions|FabGrid|TextBox|NumberBox|DateBox|YymmBox|ComboBox|Tabs)(?:Factory)?)/g, 'function $1');
+  return source
+    .replace(/import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?/g, '')
+    .replace(/export function ([A-Za-z_$][\w$]*)/g, 'function $1');
 }
 
-function minifyJs(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1')
-    .replace(/\s+/g, ' ')
-    .replace(/;}/g, '}')
-    .trim();
+function minifyJs(source, format) {
+  return esbuild.transformSync(source, {
+    format: format,
+    legalComments: 'none',
+    minify: true,
+    target: 'es2017'
+  }).code.trim();
 }
 
 function minifyCss(source) {
@@ -127,6 +134,7 @@ function createJavascriptBundle() {
     'global.fabui = global.fabui || {};\n' +
     'global.fabui.version = ' + JSON.stringify(buildVersion) + ';\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
+    'global.fabui.Chart = createChartFactory();\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
     'global.fabui.FabGridLocales = global.fabui.FabGrid.locales;\n' +
     '}(typeof window !== "undefined" ? window : this));\n' + locales;
@@ -149,10 +157,12 @@ function createEsmJavascriptBundle() {
   const locales = localeSources.map(createEsmLocaleSource).join('\n');
   return banner('ES module') + modules + '\n' +
     'var editorDefinitions = createEditorDefinitions();\n' +
+    'var Chart = createChartFactory();\n' +
     'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
     'var fabui = {\n' +
     '  version: ' + JSON.stringify(buildVersion) + ',\n' +
     '  editorDefinitions: editorDefinitions,\n' +
+    '  Chart: Chart,\n' +
     '  FabGrid: FabGrid,\n' +
     '  FabGridLocales: FabGrid.locales\n' +
     '};\n' + locales + '\n' +
@@ -191,6 +201,12 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.version = ' + JSON.stringify(buildVersion)) < 0) {
     throw new Error('FabUI build version does not match the build date.');
   }
+  if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
+    throw new Error('FabUI Chart is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('function downloadBlob(') < 0) {
+    throw new Error('FabGrid export download helper is missing from the JavaScript bundle.');
+  }
   verifyCssAssets(cssFile);
   verifyCssAssets(path.join(distDir, 'fabui.min.css'));
 }
@@ -203,9 +219,9 @@ const esmJavascript = createEsmJavascriptBundle();
 const css = banner('styles') + bundleCss(path.join(srcDir, 'fabui.css'));
 
 fs.writeFileSync(path.join(distDir, 'fabui.js'), javascript, 'utf8');
-fs.writeFileSync(path.join(distDir, 'fabui.min.js'), banner('browser global min') + minifyJs(javascript), 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.min.js'), banner('browser global min') + minifyJs(javascript, 'iife'), 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.esm.js'), esmJavascript, 'utf8');
-fs.writeFileSync(path.join(distDir, 'fabui.esm.min.js'), banner('ES module min') + minifyJs(esmJavascript), 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.esm.min.js'), banner('ES module min') + minifyJs(esmJavascript, 'esm'), 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.css'), css, 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.min.css'), minifyCss(css), 'utf8');
 copyThemeOutput();

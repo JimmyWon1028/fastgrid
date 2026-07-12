@@ -9,6 +9,7 @@
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: 'No data',
+    chart: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',

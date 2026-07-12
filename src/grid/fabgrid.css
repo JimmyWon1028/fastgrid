@@ -28,7 +28,7 @@
   border: 1px solid var(--fg-border-strong);
   background: #ffffff;
   color: var(--fg-cell-text);
-  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  font-family: helvetica, tahoma, verdana, sans-serif;
   font-size: 14px;
   box-sizing: border-box;
   outline: none;
@@ -1310,7 +1310,7 @@
   background: #ffffff;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
   color: #000000;
-  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  font-family: helvetica, tahoma, verdana, sans-serif;
   font-size: 14px;
 }
 
@@ -1325,7 +1325,7 @@
   background: #ffffff;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
   color: #000000;
-  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  font-family: helvetica, tahoma, verdana, sans-serif;
   font-size: 14px;
 }
 
@@ -1339,7 +1339,7 @@
   background: #ffffff;
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.18);
   color: #333333;
-  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  font-family: helvetica, tahoma, verdana, sans-serif;
   font-size: 14px;
 }
 
@@ -1431,7 +1431,7 @@
   background: #ffffff;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
   color: #111111;
-  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  font-family: helvetica, tahoma, verdana, sans-serif;
   font-size: 12px;
 }
 

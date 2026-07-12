@@ -24,6 +24,7 @@
 <body>
   <div id="grid"></div>
   <div id="largeGrid" style="width: 900px; height: 420px; margin-top: 20px;"></div>
+  <div id="chartSmoke" style="width: 480px; height: 280px;"></div>
   <pre id="result">pending</pre>
   <script src="../dist/fabui.min.js"></script>
   <script>
@@ -1719,7 +1720,22 @@
               var safetyResult = runBindingAndGroupingSafetyCheck();
               var paginationResult = runPaginationCheck();
               var remotePaginationResult = asyncResults[2];
+              var chart = new window.fabui.Chart('#chartSmoke', {
+                chartType: 'Column', bindingX: 'name', itemsSource: [{ name: 'A', value: 10 }, { name: 'B', value: 20 }],
+                series: [{ name: 'Series', binding: 'value' }]
+              });
+              var chartRenderWorks = document.querySelectorAll('#chartSmoke .fui-chart-bar').length === 2;
+              var chartBindingWorks = chart.itemsSource.length === 2 && chart.bindingX === 'name';
+              chart.setOptions({ chartType: 'Pie', bindingName: 'name', binding: 'value', itemsSource: [{ name: 'A', value: 60 }, { name: 'B', value: 40 }] });
+              var chartPieWorks = document.querySelectorAll('#chartSmoke .fui-chart-slice').length === 2;
+              chart.dispose();
+              var chartDisposeWorks = document.getElementById('chartSmoke').children.length === 0;
               finish({
+                hasChart: !!window.fabui && typeof window.fabui.Chart === 'function',
+                chartRenderWorks: chartRenderWorks,
+                chartBindingWorks: chartBindingWorks,
+                chartPieWorks: chartPieWorks,
+                chartDisposeWorks: chartDisposeWorks,
                 hasFabGrid: !!window.fabui &&
                   typeof window.fabui.FabGrid === 'function' &&
                   window.fabui.editorDefinitions === window.fabui.FabGrid.editorDefinitions &&

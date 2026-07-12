@@ -4,11 +4,15 @@
 
 # FabGrid
 
-FabGrid（Fab = fabulous）是一個以效能優先的 pure JavaScript data grid。它提供雙向 virtualization、凍結欄、排序、搜尋、編輯、群組、分頁與 CSV / Excel 匯出，且不依賴 Vue、React 或後端。
+FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、排序、搜尋、編輯、群組、分頁與 CSV / Excel 匯出；Chart 支援直條圖、橫條圖、折線圖與圓餅圖。
 
 ## 文件與 Demo
 
 - [API 操作手冊](./docs/api.md)：完整的建構選項、欄位設定、方法、事件、遠端資料協定與匯出說明。
+- [Chart API](./docs/chart-api.md)
+- [Chart Demo](./demo/chart.html)
+- [FabGrid + Chart 開發版 Demo](./demo/grid-chart.html)：引用 `src` ES module。
+- [FabGrid + Chart ES5 Build Demo](./demo/grid-chart.es5.html)：引用 build 後的 `dist/fabui.min.js` browser global。
 - [線上 Demo](https://jimmywon1028.github.io/fabgrid/demo/)
 - [工作進度](./worklogs/)
 
@@ -52,7 +56,7 @@ ES module 使用者可由 `dist/fabui.esm.js` 匯入 `fabui`，再以 `new fabui
 - 本機資料或 `remote: true` 遠端分頁、排序與搜尋。
 - 單一 cell 選取、多選列、鍵盤導覽、欄寬調整與欄位拖曳重排。
 - `textbox`、`numberbox`、`datebox`、`combobox` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup。
-- CSV 與 Excel 匯出；Excel 支援凍結窗格、篩選、群組、footer、格式與隱藏欄。
+- CSV 與 XLSX 匯出；Excel 支援凍結窗格、篩選、群組、footer、格式與隱藏欄。
 - `en`、`zh-TW`、`zh-CN` locale 檔案與多組內建主題。
 
 ## 套件與原始碼結構

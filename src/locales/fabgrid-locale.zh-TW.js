@@ -9,6 +9,7 @@
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: '沒有資料',
+    chart: { emptyText: '沒有資料', value: '數值', percent: '百分比' },
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
     loadMsg: '正在處理，請稍候...',

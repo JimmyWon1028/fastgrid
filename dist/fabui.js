@@ -1,5 +1,2330 @@
 /*! FabUI browser global | FabGrid-only pure JavaScript bundle */
 (function(global) {
+function normalizeChartType(type) {
+  type = String(type || 'column').toLowerCase();
+  if (type === 'linesymbols') return 'line';
+  return type === 'bar' || type === 'line' || type === 'pie' ? type : 'column';
+}
+
+function createChartFactory() {
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var DEFAULT_COLORS = [
+    'rgba(136, 189, 230, .72)',
+    'rgba(251, 178, 88, .72)',
+    'rgba(144, 205, 151, .72)',
+    'rgba(246, 170, 201, .72)',
+    'rgba(191, 165, 84, .72)',
+    'rgba(188, 153, 199, .72)',
+    'rgba(100, 181, 205, .72)',
+    'rgba(250, 220, 140, .72)'
+  ];
+  var DEFAULT_MESSAGES = {
+    en: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
+    'zh-TW': { emptyText: '沒有資料', value: '數值', percent: '百分比' },
+    'zh-CN': { emptyText: '没有数据', value: '数值', percent: '百分比' }
+  };
+
+  function Chart(element, options) {
+    this.host = typeof element === 'string' ? document.querySelector(element) : element;
+    if (!this.host) throw new Error('fabui.Chart host element was not found.');
+    this.options = mergeOptions({
+      chartType: null, type: 'column', header: '', footer: '', title: '', itemsSource: null,
+      bindingX: '', bindingName: '', binding: '', categories: [], series: [], palette: null, colors: DEFAULT_COLORS,
+      legend: true, tooltip: true, padding: 16, locale: 'en', animation: true,
+      observeData: true, dataRefreshInterval: 120,
+      axisX: {}, axisY: {}, selectionMode: 'None', selection: null, selectedIndex: -1, selectionSource: null,
+      selectedItemOffset: .1, selectedItemPosition: 'Top', isAnimated: true,
+      dataLabel: null, formatValue: null, formatTooltip: null, emptyText: null
+    }, options || {});
+    this.events = {};
+    defineOptionProperties(this, ['chartType', 'itemsSource', 'bindingX', 'bindingName', 'binding', 'header', 'footer', 'series', 'axisX', 'axisY', 'legend', 'tooltip', 'palette', 'selectionMode', 'selection', 'selectedIndex', 'selectedItemOffset', 'selectedItemPosition', 'isAnimated', 'dataLabel', 'animation', 'observeData', 'dataRefreshInterval']);
+    this.disposed = false;
+    this._selectionSource = null;
+    this._selectionSourceHandler = null;
+    this.raf = 0;
+    this._boundPointerMove = this.handlePointerMove.bind(this);
+    this._boundPointerLeave = this.hideTooltip.bind(this);
+    this._boundClick = this.handleClick.bind(this);
+    this.createDom();
+    this.bindEvents();
+    this.refresh();
+    this.startDataObserver();
+    this.bindSelectionSource(this.options.selectionSource);
+  }
+
+  Chart.prototype.createDom = function() {
+    this.host.innerHTML = '';
+    this.root = document.createElement('div');
+    this.root.className = 'fui-chart';
+    this.title = document.createElement('div');
+    this.title.className = 'fui-chart-title';
+    this.body = document.createElement('div');
+    this.body.className = 'fui-chart-body';
+    this.svg = document.createElementNS(SVG_NS, 'svg');
+    this.svg.setAttribute('class', 'fui-chart-svg');
+    this.svg.setAttribute('role', 'img');
+    this.legend = document.createElement('div');
+    this.legend.className = 'fui-chart-legend';
+    this.tooltip = document.createElement('div');
+    this.tooltip.className = 'fui-chart-tooltip';
+    this.tooltip.setAttribute('role', 'tooltip');
+    this.body.appendChild(this.svg);
+    this.root.appendChild(this.title);
+    this.root.appendChild(this.body);
+    this.root.appendChild(this.legend);
+    this.root.appendChild(this.tooltip);
+    this.host.appendChild(this.root);
+  };
+
+  Chart.prototype.bindEvents = function() {
+    this.svg.addEventListener('pointermove', this._boundPointerMove);
+    this.svg.addEventListener('pointerleave', this._boundPointerLeave);
+    this.svg.addEventListener('click', this._boundClick);
+    if (typeof ResizeObserver === 'function') {
+      this.resizeObserver = new ResizeObserver(this.invalidate.bind(this));
+      this.resizeObserver.observe(this.host);
+    }
+  };
+
+  Chart.prototype.setType = function(type) { this.options.chartType = type; this.options.type = type; this.refresh(); return this; };
+  Chart.prototype.setItemsSource = function(itemsSource) { this.options.itemsSource = Array.isArray(itemsSource) ? itemsSource : []; this.refresh(); return this; };
+  Chart.prototype.setOptions = function(options) { this.options = mergeOptions(this.options, options || {}); if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) this.bindSelectionSource(this.options.selectionSource); this.refresh(); return this; };
+  Chart.prototype.setSeries = function(series) { this.options.series = Array.isArray(series) ? series : []; this.refresh(); return this; };
+  Chart.prototype.setData = function(data) {
+    data = data || {};
+    if (Array.isArray(data.categories)) this.options.categories = data.categories;
+    if (Array.isArray(data.series)) this.options.series = data.series;
+    this.refresh(); return this;
+  };
+  Chart.prototype.resize = function() { this.refresh(); return this; };
+  Chart.prototype.bindSelectionSource = function(source) {
+    var self = this;
+    this.unbindSelectionSource();
+    this.options.selectionSource = source || null;
+    if (!source || !source.selectionChanged || typeof source.selectionChanged.addHandler !== 'function') return this;
+    this._selectionSource = source;
+    this._selectionSourceHandler = function() { if (source.selection && source.selection.row != null) self.selectPoint(source.selection.row); };
+    source.selectionChanged.addHandler(this._selectionSourceHandler, this);
+    if (source.selection && source.selection.row != null) this.selectPoint(source.selection.row);
+    return this;
+  };
+  Chart.prototype.unbindSelectionSource = function() {
+    if (this._selectionSource && this._selectionSourceHandler && this._selectionSource.selectionChanged && typeof this._selectionSource.selectionChanged.removeHandler === 'function') this._selectionSource.selectionChanged.removeHandler(this._selectionSourceHandler, this);
+    this._selectionSource = null;
+    this._selectionSourceHandler = null;
+    return this;
+  };
+  Chart.prototype.selectPoint = function(index, seriesIndex) {
+    var nextSeriesIndex = seriesIndex == null ? null : Number(seriesIndex);
+    var currentSelection = this.options.selection;
+    index = Number(index);
+    if (currentSelection && Number(currentSelection.pointIndex) === index && (normalizeChartType(this.options.chartType || this.options.type) === 'pie' || (currentSelection.seriesIndex == null ? nextSeriesIndex == null : Number(currentSelection.seriesIndex) === nextSeriesIndex))) return this;
+    this.options.selectedIndex = isFinite(index) ? index : -1;
+    this.options.selection = this.options.selectedIndex < 0 ? null : { pointIndex: this.options.selectedIndex, seriesIndex: nextSeriesIndex };
+    if (normalizeChartType(this.options.chartType || this.options.type) === 'pie') this.refresh();
+    else this.applySelection();
+    return this;
+  };
+  Chart.prototype.on = function(name, handler) { if (typeof handler === 'function') (this.events[name] || (this.events[name] = [])).push(handler); return this; };
+  Chart.prototype.off = function(name, handler) { this.events[name] = (this.events[name] || []).filter(function(item) { return item !== handler; }); return this; };
+  Chart.prototype.emit = function(name, args) { (this.events[name] || []).slice().forEach(function(handler) { handler(args); }); };
+  Chart.prototype.invalidate = function() {
+    var self = this;
+    if (this.disposed || this.raf) return;
+    this.raf = requestAnimationFrame(function() { self.raf = 0; self.render(); });
+  };
+  Chart.prototype.refresh = function() { if (!this.disposed) this.render(); return this; };
+
+  Chart.prototype.startDataObserver = function() {
+    var self = this;
+    this.dataSignature = getDataSignature(this.options);
+    this.dataObserver = setInterval(function() {
+      var signature;
+      if (self.disposed || self.options.observeData === false) return;
+      signature = getDataSignature(self.options);
+      if (signature !== self.dataSignature) {
+        self.dataSignature = signature;
+        self.refresh();
+      }
+    }, Math.max(50, Number(this.options.dataRefreshInterval) || 120));
+  };
+
+  Chart.prototype.render = function() {
+    var type = normalizeChartType(this.options.chartType || this.options.type);
+    var model = createDataModel(this.options, type);
+    var width = Math.max(240, this.body.clientWidth || this.host.clientWidth || 640);
+    var height = Math.max(180, this.body.clientHeight || this.host.clientHeight || 360);
+    this.svg.innerHTML = '';
+    this.svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+    this.emit('rendering', { chart: this });
+    this.title.textContent = this.options.header || this.options.title || '';
+    this.title.style.display = this.title.textContent ? '' : 'none';
+    this.root.setAttribute('data-chart-type', type);
+    this.dataSignature = getDataSignature(this.options);
+    if (!hasData(model.series)) {
+      this.renderEmpty(width, height);
+      this.renderLegend([]);
+      this.renderFooter(); this.emit('rendered', { chart: this }); return;
+    }
+    if (type === 'pie') this.renderPie(width, height, model);
+    else this.renderCartesian(type, width, height, model);
+    this.renderLegend(type === 'pie' ? model.pieLegend : model.series);
+    this.renderFooter();
+    this.applySelection();
+    this.playAnimation();
+    this.emit('rendered', { chart: this });
+  };
+
+  Chart.prototype.playAnimation = function() {
+    if (this.options.animation === false) return;
+    this.root.classList.remove('fui-chart-animate');
+    void this.root.offsetWidth;
+    this.root.classList.add('fui-chart-animate');
+  };
+
+  Chart.prototype.renderFooter = function() {
+    if (!this.footer) {
+      this.footer = document.createElement('div');
+      this.footer.className = 'fui-chart-footer';
+      this.root.insertBefore(this.footer, this.legend);
+    }
+    this.footer.textContent = this.options.footer || '';
+    this.footer.style.display = this.options.footer ? '' : 'none';
+  };
+
+  Chart.prototype.renderEmpty = function(width, height) {
+    var text = svgElement('text', { x: width / 2, y: height / 2, class: 'fui-chart-empty', 'text-anchor': 'middle' });
+    text.textContent = this.options.emptyText || this.getMessage('emptyText');
+    this.svg.appendChild(text);
+  };
+
+  Chart.prototype.renderCartesian = function(type, width, height, model) {
+    var margin = { top: 16, right: 20, bottom: 44, left: 56 };
+    var plot = { x: margin.left, y: margin.top, width: width - margin.left - margin.right, height: height - margin.top - margin.bottom };
+    var categories = model.categories;
+    var series = model.series;
+    var range = getValueRange(series, this.options.axisY);
+    var zero = valueToY(0, range, plot);
+    var i;
+    this.renderGrid(plot, range, type);
+    if (type === 'line') this.renderLines(plot, range, categories, series);
+    else this.renderBars(type, plot, range, categories, series, zero);
+    for (i = 0; i < categories.length; i += 1) this.renderCategoryLabel(type, plot, categories, i);
+  };
+
+  Chart.prototype.renderGrid = function(plot, range, type) {
+    var i;
+    var ratio;
+    var value;
+    var line;
+    var text;
+    for (i = 0; i <= 5; i += 1) {
+      ratio = i / 5;
+      value = range.max - (range.max - range.min) * ratio;
+      if (type === 'bar') {
+        line = svgElement('line', { x1: plot.x + plot.width * ratio, y1: plot.y, x2: plot.x + plot.width * ratio, y2: plot.y + plot.height, class: 'fui-chart-grid-line' });
+        text = svgElement('text', { x: plot.x + plot.width * ratio, y: plot.y + plot.height + 18, class: 'fui-chart-axis-label', 'text-anchor': 'middle' });
+      } else {
+        line = svgElement('line', { x1: plot.x, y1: plot.y + plot.height * ratio, x2: plot.x + plot.width, y2: plot.y + plot.height * ratio, class: 'fui-chart-grid-line' });
+        text = svgElement('text', { x: plot.x - 8, y: plot.y + plot.height * ratio + 4, class: 'fui-chart-axis-label', 'text-anchor': 'end' });
+      }
+      text.textContent = this.formatValue(value);
+      this.svg.appendChild(line); this.svg.appendChild(text);
+    }
+  };
+
+  Chart.prototype.renderBars = function(type, plot, range, categories, series) {
+    var count = Math.max(categories.length, getMaxDataLength(series));
+    var groupSize = (type === 'bar' ? plot.height : plot.width) / Math.max(count, 1);
+    var barSize = Math.max(2, groupSize * 0.72 / Math.max(series.length, 1));
+    var s; var i; var value; var rect; var attrs;
+    for (s = 0; s < series.length; s += 1) {
+      for (i = 0; i < count; i += 1) {
+        value = Number(series[s].data && series[s].data[i]);
+        if (!isFinite(value)) continue;
+        if (type === 'bar') attrs = getHorizontalBar(plot, range, groupSize, barSize, s, i, value);
+        else attrs = getVerticalBar(plot, range, groupSize, barSize, s, i, value);
+        attrs.fill = this.getColor(s); attrs.class = 'fui-chart-mark fui-chart-bar';
+        rect = svgElement('rect', attrs);
+        setDatum(rect, series[s].name || '', categories[i] || String(i + 1), value, null, i, s);
+        this.svg.appendChild(rect);
+      }
+    }
+  };
+
+  Chart.prototype.renderLines = function(plot, range, categories, series) {
+    var s; var i; var value; var points; var x; var y; var path; var circle;
+    var count = Math.max(categories.length, getMaxDataLength(series));
+    for (s = 0; s < series.length; s += 1) {
+      points = [];
+      for (i = 0; i < count; i += 1) {
+        value = Number(series[s].data && series[s].data[i]);
+        if (!isFinite(value)) { points.push(null); continue; }
+        x = plot.x + (count <= 1 ? plot.width / 2 : plot.width * i / (count - 1));
+        y = valueToY(value, range, plot);
+        points.push([x, y]);
+        circle = svgElement('circle', { cx: x, cy: y, r: 4, fill: this.getColor(s), class: 'fui-chart-mark fui-chart-point' });
+        setDatum(circle, series[s].name || '', categories[i] || String(i + 1), value, null, i, s);
+        this.svg.appendChild(circle);
+      }
+      path = svgElement('path', { d: linePath(points), fill: 'none', stroke: this.getColor(s), class: 'fui-chart-line' });
+      this.svg.insertBefore(path, this.svg.firstChild);
+    }
+  };
+
+  Chart.prototype.renderPie = function(width, height, model) {
+    var data = model.series[0] && model.series[0].data || [];
+    var values = data.map(pieValue);
+    var total = values.reduce(function(sum, value) { return sum + Math.max(0, value); }, 0);
+    var cx = width / 2; var cy = height / 2; var radius = Math.max(20, Math.min(width, height) * 0.36);
+    var previousAngle = this.pieStartAngle;
+    var angle = getPieStartAngle(values, total, this.options.selection, this.options.selectedItemPosition); var startAngle = angle; var next; var i; var path; var percent; var sliceCx; var sliceCy; var midAngle;
+    var group = svgElement('g', { class: 'fui-chart-pie-group' });
+    if (!total) { this.renderEmpty(width, height); return; }
+    this.svg.appendChild(group);
+    for (i = 0; i < data.length; i += 1) {
+      if (values[i] <= 0) continue;
+      next = angle + Math.PI * 2 * values[i] / total;
+      midAngle = angle + (next - angle) / 2;
+      sliceCx = cx;
+      sliceCy = cy;
+      if (this.options.selection && Number(this.options.selection.pointIndex) === i) {
+        sliceCx += Math.cos(midAngle) * radius * clampOffset(this.options.selectedItemOffset);
+        sliceCy += Math.sin(midAngle) * radius * clampOffset(this.options.selectedItemOffset);
+      }
+      path = svgElement('path', { d: piePath(sliceCx, sliceCy, radius, angle, next), fill: this.getColor(i), class: 'fui-chart-mark fui-chart-slice' });
+      percent = values[i] / total * 100;
+      setDatum(path, model.series[0].name || '', pieName(data[i], i), values[i], percent, i, 0);
+      group.appendChild(path);
+      this.renderPieDataLabel(sliceCx, sliceCy, radius, midAngle, data[i], values[i], percent, i);
+      angle = next;
+    }
+    this.animatePieSelection(group, previousAngle, startAngle);
+    this.pieStartAngle = startAngle;
+  };
+
+  Chart.prototype.renderPieDataLabel = function(cx, cy, radius, angle, item, value, percent, index) {
+    var config = this.options.dataLabel;
+    var position;
+    var label;
+    var content;
+    var data;
+    if (!config) return;
+    data = { name: pieName(item, index), value: value, percent: percent, index: index, item: item };
+    content = typeof config.content === 'function' ? config.content(data) : formatDataLabel(config.content == null ? '{percent}%' : config.content, data);
+    if (content == null || content === '') return;
+    position = String(config.position || 'Inside').toLowerCase() === 'outside' ? 1.08 : .62;
+    label = svgElement('text', {
+      x: cx + Math.cos(angle) * radius * position,
+      y: cy + Math.sin(angle) * radius * position + 4,
+      class: 'fui-chart-data-label',
+      'text-anchor': 'middle'
+    });
+    label.textContent = String(content);
+    this.svg.appendChild(label);
+  };
+
+  Chart.prototype.animatePieSelection = function(group, previousAngle, nextAngle) {
+    var delta;
+    var self = this;
+    if (!group || previousAngle == null || this.options.isAnimated === false) return;
+    delta = normalizeAngle(previousAngle - nextAngle) * 180 / Math.PI;
+    if (Math.abs(delta) < .01) return;
+    group.style.transition = 'none';
+    group.style.transform = 'rotate(' + delta + 'deg)';
+    void group.getBoundingClientRect().width;
+    if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
+    this.pieAnimationRaf = requestAnimationFrame(function() {
+      self.pieAnimationRaf = 0;
+      group.style.transition = 'transform .75s cubic-bezier(.22, .8, .3, 1)';
+      group.style.transform = 'rotate(0deg)';
+    });
+  };
+
+  Chart.prototype.renderCategoryLabel = function(type, plot, categories, index) {
+    var count = Math.max(categories.length, 1);
+    var text;
+    if (type === 'bar') text = svgElement('text', { x: plot.x - 8, y: plot.y + plot.height * (index + 0.5) / count + 4, class: 'fui-chart-category-label', 'text-anchor': 'end' });
+    else text = svgElement('text', { x: plot.x + plot.width * (index + 0.5) / count, y: plot.y + plot.height + 28, class: 'fui-chart-category-label', 'text-anchor': 'middle' });
+    text.textContent = categories[index]; this.svg.appendChild(text);
+  };
+
+  Chart.prototype.renderLegend = function(series) {
+    var self = this;
+    this.legend.innerHTML = '';
+    var position = getLegendPosition(this.options.legend);
+    this.root.setAttribute('data-legend-position', position.toLowerCase());
+    this.legend.style.display = position === 'None' ? 'none' : '';
+    if (position === 'None') return;
+    series.forEach(function(item, index) {
+      var entry = document.createElement('span'); var swatch = document.createElement('i');
+      entry.className = 'fui-chart-legend-item'; swatch.style.backgroundColor = self.getColor(index);
+      entry.appendChild(swatch); entry.appendChild(document.createTextNode(item.name || ('Series ' + (index + 1)))); self.legend.appendChild(entry);
+    });
+  };
+
+  Chart.prototype.handleClick = function(event) {
+    var target = event.target.closest ? event.target.closest('.fui-chart-mark') : null;
+    if (!target || String(this.options.selectionMode || 'None').toLowerCase() === 'none') return;
+    this.options.selectedIndex = Number(target.dataset.pointIndex);
+    this.options.selection = { seriesIndex: Number(target.dataset.seriesIndex), pointIndex: this.options.selectedIndex };
+    if (normalizeChartType(this.options.chartType || this.options.type) === 'pie') this.refresh();
+    else this.applySelection();
+    this.emit('selectionChanged', { chart: this, selection: this.options.selection });
+    if (this._selectionSource && typeof this._selectionSource.select === 'function') this._selectionSource.select(this.options.selectedIndex, this._selectionSource.selection && this._selectionSource.selection.col || 0);
+  };
+
+  Chart.prototype.applySelection = function() {
+    var selection = this.options.selection;
+    Array.prototype.forEach.call(this.svg.querySelectorAll('.fui-chart-mark'), function(mark) {
+      var selected = selection && Number(mark.dataset.pointIndex) === Number(selection.pointIndex) && (selection.seriesIndex == null || Number(mark.dataset.seriesIndex) === Number(selection.seriesIndex));
+      mark.classList.toggle('fui-chart-selected', !!selected);
+    });
+  };
+
+  Chart.prototype.handlePointerMove = function(event) {
+    var target = event.target.closest ? event.target.closest('.fui-chart-mark') : null;
+    var content;
+    if (!target || this.options.tooltip === false) { this.hideTooltip(); return; }
+    content = { series: target.dataset.series, category: target.dataset.category, value: Number(target.dataset.value), percent: target.dataset.percent ? Number(target.dataset.percent) : null };
+    this.tooltip.textContent = typeof this.options.formatTooltip === 'function' ? this.options.formatTooltip(content) :
+      this.options.tooltip && typeof this.options.tooltip.content === 'function' ? this.options.tooltip.content(content) :
+      this.options.tooltip && typeof this.options.tooltip.content === 'string' ? formatTemplate(this.options.tooltip.content, content) :
+      (content.series ? content.series + ' · ' : '') + content.category + ': ' + this.formatValue(content.value) + (content.percent == null ? '' : ' (' + content.percent.toFixed(1) + '%)');
+    this.tooltip.style.left = event.offsetX + 12 + 'px'; this.tooltip.style.top = event.offsetY + 12 + 'px'; this.tooltip.classList.add('fui-chart-tooltip-visible');
+  };
+  Chart.prototype.hideTooltip = function() { if (this.tooltip) this.tooltip.classList.remove('fui-chart-tooltip-visible'); };
+  Chart.prototype.formatValue = function(value) { return typeof this.options.formatValue === 'function' ? String(this.options.formatValue(value)) : String(Math.round(value * 100) / 100); };
+  Chart.prototype.getColor = function(index) { var colors = this.options.palette || this.options.colors; colors = colors && colors.length ? colors : DEFAULT_COLORS; return colors[index % colors.length]; };
+  Chart.prototype.getMessage = function(key) { var locale = DEFAULT_MESSAGES[this.options.locale] || DEFAULT_MESSAGES.en; return locale[key] || DEFAULT_MESSAGES.en[key] || key; };
+  Chart.prototype.dispose = function() {
+    if (this.disposed) return;
+    this.disposed = true;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
+    if (this.dataObserver) clearInterval(this.dataObserver);
+    if (this.resizeObserver) this.resizeObserver.disconnect();
+    this.unbindSelectionSource();
+    this.svg.removeEventListener('pointermove', this._boundPointerMove);
+    this.svg.removeEventListener('pointerleave', this._boundPointerLeave);
+    this.svg.removeEventListener('click', this._boundClick);
+    this.host.innerHTML = '';
+  };
+
+  function svgElement(name, attrs) { var element = document.createElementNS(SVG_NS, name); Object.keys(attrs || {}).forEach(function(key) { element.setAttribute(key, attrs[key]); }); return element; }
+  function defineOptionProperties(chart, names) { names.forEach(function(name) { Object.defineProperty(chart, name, { configurable: true, enumerable: true, get: function() { return chart.options[name]; }, set: function(value) { chart.options[name] = value; chart.invalidate(); } }); }); }
+  function mergeOptions(base, override) { var result = {}; Object.keys(base || {}).forEach(function(key) { result[key] = base[key]; }); Object.keys(override || {}).forEach(function(key) { result[key] = override[key]; }); return result; }
+  function hasData(series) { return Array.isArray(series) && series.some(function(item) { return Array.isArray(item.data) && item.data.length; }); }
+  function getMaxDataLength(series) { return series.reduce(function(max, item) { return Math.max(max, item.data && item.data.length || 0); }, 0); }
+  function getValueRange(series, axis) { var values = []; series.forEach(function(item) { (item.data || []).forEach(function(value) { value = Number(value); if (isFinite(value)) values.push(value); }); }); var min = axis && isFinite(Number(axis.min)) ? Number(axis.min) : Math.min.apply(Math, values.concat([0])); var max = axis && isFinite(Number(axis.max)) ? Number(axis.max) : Math.max.apply(Math, values.concat([0])); if (min === max) max = min + 1; return { min: min, max: max }; }
+  function valueToY(value, range, plot) { return plot.y + (range.max - value) / (range.max - range.min) * plot.height; }
+  function valueToX(value, range, plot) { return plot.x + (value - range.min) / (range.max - range.min) * plot.width; }
+  function getVerticalBar(plot, range, groupSize, barSize, seriesIndex, index, value) { var x = plot.x + index * groupSize + groupSize * 0.14 + seriesIndex * barSize; var y = valueToY(Math.max(value, 0), range, plot); var zero = valueToY(0, range, plot); return { x: x, y: Math.min(y, zero), width: Math.max(1, barSize - 1), height: Math.max(1, Math.abs(zero - valueToY(value, range, plot))) }; }
+  function getHorizontalBar(plot, range, groupSize, barSize, seriesIndex, index, value) { var zero = valueToX(0, range, plot); var end = valueToX(value, range, plot); return { x: Math.min(zero, end), y: plot.y + index * groupSize + groupSize * 0.14 + seriesIndex * barSize, width: Math.max(1, Math.abs(end - zero)), height: Math.max(1, barSize - 1) }; }
+  function linePath(points) { var output = ''; var open = false; points.forEach(function(point) { if (!point) { open = false; return; } output += (open ? ' L ' : 'M ') + point[0] + ' ' + point[1]; open = true; }); return output; }
+  function pieValue(item) { return Math.max(0, Number(item && typeof item === 'object' ? item.value : item) || 0); }
+  function pieName(item, index) { return item && typeof item === 'object' && item.name != null ? String(item.name) : String(index + 1); }
+  function getPieStartAngle(values, total, selection, position) {
+    var selectedIndex;
+    var before = 0;
+    var selectedValue;
+    var i;
+    if (!selection || selection.pointIndex == null || String(position || 'None').toLowerCase() === 'none') return -Math.PI / 2;
+    selectedIndex = Number(selection.pointIndex);
+    if (!isFinite(selectedIndex) || selectedIndex < 0 || selectedIndex >= values.length || !total) return -Math.PI / 2;
+    for (i = 0; i < selectedIndex; i += 1) before += Math.max(0, values[i]);
+    selectedValue = Math.max(0, values[selectedIndex]);
+    return getPositionAngle(position) - Math.PI * 2 * (before + selectedValue / 2) / total;
+  }
+  function getPositionAngle(position) { var value = String(position || 'Top').toLowerCase(); if (value === 'right') return 0; if (value === 'bottom') return Math.PI / 2; if (value === 'left') return Math.PI; return -Math.PI / 2; }
+  function clampOffset(value) { value = Number(value); return isFinite(value) ? Math.max(0, Math.min(value, 1)) : 0; }
+  function normalizeAngle(value) { while (value > Math.PI) value -= Math.PI * 2; while (value < -Math.PI) value += Math.PI * 2; return value; }
+  function polar(cx, cy, r, angle) { return [cx + Math.cos(angle) * r, cy + Math.sin(angle) * r]; }
+  function piePath(cx, cy, r, start, end) { var a = polar(cx, cy, r, start); var b = polar(cx, cy, r, end); return 'M ' + cx + ' ' + cy + ' L ' + a[0] + ' ' + a[1] + ' A ' + r + ' ' + r + ' 0 ' + (end - start > Math.PI ? 1 : 0) + ' 1 ' + b[0] + ' ' + b[1] + ' Z'; }
+  function setDatum(element, series, category, value, percent, pointIndex, seriesIndex) { element.dataset.series = series; element.dataset.category = category; element.dataset.value = value; element.dataset.pointIndex = pointIndex == null ? 0 : pointIndex; element.dataset.seriesIndex = seriesIndex == null ? 0 : seriesIndex; if (percent != null) element.dataset.percent = percent; }
+
+  function createDataModel(options, type) {
+    var items = Array.isArray(options.itemsSource) ? options.itemsSource : null;
+    var series = options.series || [];
+    var categories;
+    if (!items) return { categories: options.categories || [], series: series, pieLegend: series };
+    if (type === 'pie') {
+      var data = items.map(function(item, index) { return { name: getBoundValue(item, options.bindingName) == null ? String(index + 1) : getBoundValue(item, options.bindingName), value: getBoundValue(item, options.binding) }; });
+      return { categories: [], series: [{ name: options.header || '', data: data }], pieLegend: data.map(function(item) { return { name: item.name }; }) };
+    }
+    categories = items.map(function(item, index) { var value = getBoundValue(item, options.bindingX); return value == null ? String(index + 1) : value; });
+    series = series.map(function(item) { return mergeOptions(item, { data: items.map(function(source) { return getBoundValue(source, item.binding); }) }); });
+    return { categories: categories, series: series, pieLegend: [] };
+  }
+  function getBoundValue(item, binding) { if (!binding) return item; return String(binding).split('.').reduce(function(value, key) { return value == null ? value : value[key]; }, item); }
+  function getLegendPosition(legend) { if (legend === false || legend && String(legend.position).toLowerCase() === 'none') return 'None'; return legend && legend.position ? String(legend.position) : 'Bottom'; }
+  function formatTemplate(template, data) { return template.replace(/\{(seriesName|series|x|category|y|value|name|percent)\}/g, function(_, key) { var map = { seriesName: 'series', x: 'category', y: 'value', name: 'category' }; var value = data[map[key] || key]; return value == null ? '' : value; }); }
+  function formatDataLabel(template, data) { return String(template).replace(/\{(name|value|percent)\}/g, function(_, key) { return key === 'percent' ? String(Math.round(data.percent * 10) / 10) : String(data[key] == null ? '' : data[key]); }); }
+  function getDataSignature(options) {
+    var items = Array.isArray(options.itemsSource) ? options.itemsSource : [];
+    var bindings = [options.bindingX, options.bindingName, options.binding].concat((options.series || []).map(function(item) { return item.binding; })).filter(Boolean);
+    if (!bindings.length) return JSON.stringify([options.categories, options.series]);
+    return JSON.stringify(items.map(function(item) { return bindings.map(function(binding) { return getBoundValue(item, binding); }); }));
+  }
+
+  Chart.locales = DEFAULT_MESSAGES;
+  Chart.ChartType = { Column: 'Column', Bar: 'Bar', Line: 'Line', Pie: 'Pie' };
+  Chart.Position = { None: 'None', Left: 'Left', Top: 'Top', Right: 'Right', Bottom: 'Bottom' };
+  Chart.SelectionMode = { None: 'None', Point: 'Point', Series: 'Series' };
+  return Chart;
+}
+
+function createDictionary() {
+  return Object.create(null);
+}
+
+function isSafeBinding(binding) {
+  var parts;
+  var i;
+  if (binding == null || binding === '') {
+    return false;
+  }
+  parts = String(binding).split('.');
+  for (i = 0; i < parts.length; i += 1) {
+    if (!parts[i] || parts[i] === '__proto__' || parts[i] === 'prototype' || parts[i] === 'constructor') {
+      return false;
+    }
+  }
+  return true;
+}
+
+function getByBinding(item, binding) {
+  var parts;
+  var i;
+  var value = item;
+  if (!item || !isSafeBinding(binding)) {
+    return undefined;
+  }
+  parts = String(binding).split('.');
+  for (i = 0; i < parts.length; i += 1) {
+    if (value == null) {
+      return undefined;
+    }
+    value = value[parts[i]];
+  }
+  return value;
+}
+
+function setByBinding(item, binding, value) {
+  var parts = String(binding).split('.');
+  var target = item;
+  var i;
+  if (!item || !isSafeBinding(binding)) {
+    return false;
+  }
+  for (i = 0; i < parts.length - 1; i += 1) {
+    if (!Object.prototype.hasOwnProperty.call(target, parts[i]) || target[parts[i]] == null) {
+      target[parts[i]] = {};
+    }
+    if (typeof target[parts[i]] !== 'object' && typeof target[parts[i]] !== 'function') {
+      return false;
+    }
+    target = target[parts[i]];
+  }
+  target[parts[parts.length - 1]] = value;
+  return true;
+}
+
+function compareValues(a, b, type) {
+  if (a == null && b == null) {
+    return 0;
+  }
+  if (a == null) {
+    return -1;
+  }
+  if (b == null) {
+    return 1;
+  }
+  if (type === 'number') {
+    return Number(a) - Number(b);
+  }
+  if (type === 'date') {
+    return new Date(a).getTime() - new Date(b).getTime();
+  }
+  if (type === 'boolean') {
+    return (a ? 1 : 0) - (b ? 1 : 0);
+  }
+  a = String(a).toLowerCase();
+  b = String(b).toLowerCase();
+  if (a < b) {
+    return -1;
+  }
+  if (a > b) {
+    return 1;
+  }
+  return 0;
+}
+
+function normalizePagination(pageNumber, pageSize, total, defaultPageSize) {
+  var normalizedSize = Math.max(1, Math.floor(toFiniteNumber(pageSize, defaultPageSize || 10)));
+  var pageCount = Math.max(1, Math.ceil(Math.max(0, toFiniteNumber(total, 0)) / normalizedSize));
+  return {
+    pageNumber: clampNumber(Math.floor(toFiniteNumber(pageNumber, 1)), 1, pageCount),
+    pageSize: normalizedSize,
+    pageCount: pageCount
+  };
+}
+
+function createRemoteSortParams(sortStates) {
+  var fields = [];
+  var orders = [];
+  (sortStates || []).forEach(function(sortState) {
+    if (sortState && sortState.column && typeof sortState.column.binding === 'string' && sortState.column.binding) {
+      fields.push(sortState.column.binding);
+      orders.push(sortState.direction === -1 ? 'desc' : 'asc');
+    }
+  });
+  return fields.length ? { sort: fields.join(','), order: orders.join(',') } : {};
+}
+
+function normalizeRemoteData(data) {
+  var rows = data && Array.isArray(data.rows) ? data.rows : [];
+  return { rows: rows, total: Math.max(0, toFiniteNumber(data && data.total, rows.length)) };
+}
+
+function createRemoteRequest(url, method, params) {
+  var normalizedMethod = String(method || 'get').toUpperCase();
+  var requestUrl = String(url || '');
+  var headers = { Accept: 'application/json' };
+  var body = new URLSearchParams();
+  Object.keys(params || {}).forEach(function(key) {
+    if (params[key] != null) body.append(key, params[key]);
+  });
+  if (normalizedMethod === 'GET') {
+    requestUrl += (requestUrl.indexOf('?') >= 0 ? '&' : '?') + body.toString();
+  } else if (normalizedMethod === 'POST') {
+    headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
+  } else {
+    throw new Error('Remote method must be GET or POST.');
+  }
+  return {
+    url: requestUrl,
+    options: {
+      method: normalizedMethod,
+      headers: headers,
+      body: normalizedMethod === 'POST' ? body.toString() : undefined
+    }
+  };
+}
+
+function normalizeGroupConfigs(groups, maxLevels) {
+  var source = Array.isArray(groups) ? groups : [];
+  var configs = [];
+  var limit = Math.max(0, maxLevels == null ? 3 : maxLevels);
+  var i;
+  for (i = 0; i < source.length && configs.length < limit; i += 1) {
+    if (source[i]) configs.push(source[i]);
+  }
+  return configs;
+}
+
+function getGroupStateKey(parentStateKey, key, level) {
+  return !parentStateKey && level === 0 ? key : parentStateKey + '\u001f' + level + ':' + key;
+}
+
+function getGroupKey(item, config, index, grid) {
+  var getter = config.key || config.getKey;
+  var bindings = config.bindings || config.binding || config.fields || config.field;
+  var values = [];
+  var i;
+  if (typeof getter === 'function') return String(getter({ grid: grid, item: item, row: index }));
+  if (!Array.isArray(bindings)) bindings = bindings == null ? [] : [bindings];
+  for (i = 0; i < bindings.length; i += 1) values.push(getByBinding(item, bindings[i]));
+  return values.join('_');
+}
+
+function createGroupBuckets(rows, config, grid) {
+  var buckets = [];
+  var lookup = createDictionary();
+  var item;
+  var key;
+  var bucket;
+  var i;
+  for (i = 0; i < rows.length; i += 1) {
+    item = rows[i];
+    key = getGroupKey(item, config, i, grid);
+    if (!Object.prototype.hasOwnProperty.call(lookup, key)) {
+      bucket = { key: key, items: [], firstItem: item };
+      lookup[key] = bucket;
+      buckets.push(bucket);
+    }
+    lookup[key].items.push(item);
+  }
+  return buckets;
+}
+
+function calculateAggregate(aggregate, column, rows, grid) {
+  var count = 0;
+  var sum = 0;
+  var min = null;
+  var max = null;
+  var i;
+  var value;
+  var number;
+  var name;
+  if (typeof aggregate === 'function') {
+    return aggregate({ grid: grid, column: column, rows: rows, getValue: function(item) { return getByBinding(item, column.binding); } });
+  }
+  name = String(aggregate).toLowerCase();
+  if (name === 'count') return rows.length;
+  for (i = 0; i < rows.length; i += 1) {
+    value = getByBinding(rows[i], column.binding);
+    if (value == null || value === '') continue;
+    number = Number(value);
+    if (isNaN(number)) continue;
+    sum += number;
+    count += 1;
+    if (min == null || number < min) min = number;
+    if (max == null || number > max) max = number;
+  }
+  if (name === 'avg' || name === 'average') return count ? sum / count : null;
+  if (name === 'min') return min;
+  if (name === 'max') return max;
+  return count ? sum : null;
+}
+
+function toFiniteNumber(value, fallback) {
+  var number = Number(value);
+  return isFinite(number) ? number : fallback;
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+
+function installFabGridData(FabGrid, context) {
+  var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
+  var getColumnSearchKey = context.getColumnSearchKey;
+  var mergeOptions = context.mergeOptions;
+  var normalizeColumnSearchOperator = context.normalizeColumnSearchOperator;
+  var rowMatchesColumnSearch = context.rowMatchesColumnSearch;
+  var rowMatchesSearch = context.rowMatchesSearch;
+
+  FabGrid.prototype.setItemsSource = function(rows, silent) {
+    if (!silent && this.emit('itemsSourceChanging', { rows: rows || [] }) === false) {
+      return;
+    }
+    if (!silent && this.emit('loadingRows', { rows: rows || [] }) === false) {
+      return;
+    }
+    this.source = this.createObservedItemsSource(rows || []);
+    this.applyView();
+    if (!silent) {
+      this.emit('itemsSourceChanged', { rows: this.source });
+      this.emit('loadedRows', { rows: this.view });
+      this.refresh();
+    }
+  };
+
+  FabGrid.prototype.load = function(params) {
+    var self = this;
+    var loader = this.options.loader;
+    var request;
+    var seq;
+    var result;
+    if (this.options.remote !== true || this.disposed) {
+      return Promise.resolve(false);
+    }
+    if (typeof loader !== 'function' && !this.options.url) {
+      return Promise.resolve(false);
+    }
+    request = mergeOptions(params || {}, {
+      page: this.options.pageNumber,
+      rows: this.options.pageSize
+    });
+    request = mergeOptions(request, this.getRemoteSortParams());
+    request = mergeOptions(request, this.getRemoteFilterParams());
+    if (this.emit('beforeLoad', { params: request }) === false) {
+      return Promise.resolve(false);
+    }
+    this._remoteLoadSeq += 1;
+    seq = this._remoteLoadSeq;
+    this.setRemoteLoading(true);
+    try {
+      result = typeof loader === 'function'
+        ? loader.call(this, request)
+        : this.requestRemoteData(request);
+    } catch (error) {
+      result = Promise.reject(error);
+    }
+    return Promise.resolve(result).then(function(data) {
+      if (self.disposed || seq !== self._remoteLoadSeq) {
+        return false;
+      }
+      self.loadRemoteData(data);
+      self.emit('loadSuccess', { data: data, params: request });
+      return true;
+    }).catch(function(error) {
+      if (!self.disposed && seq === self._remoteLoadSeq) {
+        self.emit('loadError', { error: error, params: request });
+      }
+      return false;
+    }).then(function(success) {
+      if (!self.disposed && seq === self._remoteLoadSeq) {
+        self.setRemoteLoading(false);
+      }
+      return success;
+    });
+  };
+
+  FabGrid.prototype.requestRemoteData = function(params) {
+    var request;
+    try {
+      request = createRemoteRequest(this.options.url, this.options.method, params);
+    } catch (error) {
+      return Promise.reject(new Error('Remote method must be GET or POST.'));
+    }
+    return fetch(request.url, request.options).then(function(response) {
+      if (!response.ok) {
+        throw new Error('Remote request failed with HTTP ' + response.status + '.');
+      }
+      return response.json();
+    });
+  };
+
+  FabGrid.prototype.getRemoteSortParams = function() {
+    return createRemoteSortParams(this.getSortStates());
+  };
+
+  FabGrid.prototype.getRemoteFilterParams = function() {
+    var rules = [];
+    var self = this;
+    if (this.options.showSearchRow === true) {
+      this.columns.forEach(function(column) {
+        var key = getColumnSearchKey(column);
+        var value = self.columnSearchValues[key];
+        if (typeof column.binding === 'string' && column.binding && value != null && String(value).trim()) {
+          rules.push({
+            field: column.binding,
+            op: normalizeColumnSearchOperator(self.columnSearchOperators[key]) || 'starts',
+            value: String(value).trim()
+          });
+        }
+      });
+    }
+    return {
+      q: this.searchText || undefined,
+      filterRules: rules.length ? JSON.stringify(rules) : undefined
+    };
+  };
+
+  FabGrid.prototype.reload = function() {
+    return this.load();
+  };
+
+  FabGrid.prototype.setRemoteLoading = function(value) {
+    this.remoteLoading = value === true;
+    this.busy = this.remoteLoading;
+    this.root.setAttribute('aria-busy', this.remoteLoading ? 'true' : 'false');
+    if (this.remoteLoadText) {
+      this.remoteLoadText.textContent = this.options.loadMsg || this.getText('loadMsg');
+    }
+    if (this.remoteLoadMask) {
+      this.remoteLoadMask.style.display = this.remoteLoading ? 'flex' : 'none';
+    }
+  };
+
+  FabGrid.prototype.loadRemoteData = function(data) {
+    var normalized = normalizeRemoteData(data);
+    this.source = this.createObservedItemsSource(normalized.rows);
+    this.paginationTotal = normalized.total;
+    this.applyView();
+    this.resetVerticalScroll();
+    this.refresh();
+  };
+
+  FabGrid.prototype.applyPagerOptions = function() {
+    var pager = this.options.pager;
+    if (!pager || typeof pager !== 'object') {
+      return;
+    }
+    if (pager.pageNumber != null) {
+      this.options.pageNumber = pager.pageNumber;
+    }
+    if (pager.pageSize != null) {
+      this.options.pageSize = pager.pageSize;
+    }
+    if (Array.isArray(pager.pageList)) {
+      this.options.pageList = pager.pageList.slice();
+    }
+    if (pager.showPageList != null) {
+      this.options.showPageList = pager.showPageList === true;
+    }
+    if (pager.showPageInfo != null) {
+      this.options.showPageInfo = pager.showPageInfo !== false;
+    }
+    if (pager.showRefresh != null) {
+      this.options.showRefresh = pager.showRefresh !== false;
+    }
+  };
+
+  FabGrid.prototype.createObservedItemsSource = function(rows) {
+    var grid = this;
+    var proxyCache;
+    var proxySet;
+
+    if (this.options.observeItemsSource !== true || typeof Proxy !== 'function' || !Array.isArray(rows)) {
+      return rows;
+    }
+
+    proxyCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+    proxySet = typeof WeakSet === 'function' ? new WeakSet() : null;
+
+    function canObserve(value) {
+      return value && typeof value === 'object' &&
+        (Array.isArray(value) || Object.prototype.toString.call(value) === '[object Object]');
+    }
+
+    function isInternalProperty(property) {
+      return typeof property === 'string' && property.indexOf('__fg') === 0;
+    }
+
+    function observe(value) {
+      var proxy;
+      if (!canObserve(value)) {
+        return value;
+      }
+      if (proxySet && proxySet.has(value)) {
+        return value;
+      }
+      if (proxyCache && proxyCache.has(value)) {
+        return proxyCache.get(value);
+      }
+      proxy = new Proxy(value, {
+        get: function(target, property) {
+          return observe(target[property]);
+        },
+        set: function(target, property, nextValue) {
+          var previousValue = target[property];
+          var observedValue = observe(nextValue);
+          target[property] = observedValue;
+          if (previousValue !== observedValue && !isInternalProperty(property)) {
+            grid.handleObservedItemsSourceChange();
+          }
+          return true;
+        },
+        deleteProperty: function(target, property) {
+          var changed = Object.prototype.hasOwnProperty.call(target, property);
+          delete target[property];
+          if (changed && !isInternalProperty(property)) {
+            grid.handleObservedItemsSourceChange();
+          }
+          return true;
+        }
+      });
+      if (proxyCache) {
+        proxyCache.set(value, proxy);
+      }
+      if (proxySet) {
+        proxySet.add(proxy);
+      }
+      return proxy;
+    }
+
+    return observe(rows);
+  };
+
+  FabGrid.prototype.handleObservedItemsSourceChange = function() {
+    if (this.disposed || this._suppressObservedItemChange || this._handlingObservedItemChange) {
+      return;
+    }
+    this._handlingObservedItemChange = true;
+    try {
+      this.applyView();
+      this.refresh();
+    } finally {
+      this._handlingObservedItemChange = false;
+    }
+  };
+
+  FabGrid.prototype.setFilter = function(predicate) {
+    if (this.options.remote === true && typeof predicate === 'function') {
+      throw new Error('setFilter(predicate) is only available when remote is false. Use remote search rules or a custom loader instead.');
+    }
+    this.filterPredicate = typeof predicate === 'function' ? predicate : null;
+    this.applyFilterChange(true);
+  };
+
+  FabGrid.prototype.clearFilter = function() {
+    this.filterPredicate = null;
+    this.searchText = '';
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.cancelHeaderSearchTimer();
+    this.hideFilterMenu();
+    this.updateColumnSearchState();
+    this.applyFilterChange(false);
+  };
+
+  FabGrid.prototype.setSearch = function(text) {
+    this.searchText = String(text || '').toLowerCase();
+    this.applyFilterChange(true);
+  };
+
+  FabGrid.prototype.setColumnSearch = function(column, value) {
+    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var key;
+    if (!col) {
+      return;
+    }
+    this.cancelHeaderSearchTimer();
+    key = getColumnSearchKey(col);
+    value = String(value == null ? '' : value).trim();
+    if (value) {
+      this.columnSearchValues[key] = value;
+    } else {
+      delete this.columnSearchValues[key];
+    }
+    this.updateColumnSearchState();
+    this.applyFilterChange(false);
+  };
+
+  FabGrid.prototype.setColumnSearchOperator = function(column, operator) {
+    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
+    var key;
+    if (!col) {
+      return;
+    }
+    key = getColumnSearchKey(col);
+    operator = normalizeColumnSearchOperator(operator);
+    if (operator) {
+      this.columnSearchOperators[key] = operator;
+    } else {
+      delete this.columnSearchOperators[key];
+    }
+    this.hideFilterMenu();
+    this.applyFilterChange(false);
+  };
+
+  FabGrid.prototype.applyHeaderSearch = function(colIndex, selectionStart, selectionEnd) {
+    this.applyFilterChange(false);
+    this.focusHeaderSearchInput(colIndex, selectionStart, selectionEnd);
+  };
+
+  FabGrid.prototype.clearColumnSearch = function() {
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.cancelHeaderSearchTimer();
+    this.updateColumnSearchState();
+    this.applyFilterChange(true);
+  };
+
+  FabGrid.prototype.clearSearchConditions = function(source) {
+    this.searchText = '';
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.cancelHeaderSearchTimer();
+    this.hideFilterMenu();
+    this.updateColumnSearchState();
+    this.applyFilterChange(false);
+    this.emit('searchCleared', { source: source || 'api' });
+  };
+
+  FabGrid.prototype.applyFilterChange = function(resetHorizontalScroll) {
+    if (this.options.remote === true) {
+      this.options.pageNumber = 1;
+      if (this.options.pager) {
+        this.options.pager.pageNumber = 1;
+      }
+    }
+    this.applyView();
+    if (resetHorizontalScroll === true) {
+      this.resetScroll();
+    } else {
+      this.resetVerticalScroll();
+    }
+    this.refresh();
+    if (this.options.remote === true) {
+      this.load();
+    }
+  };
+
+  FabGrid.prototype.applyView = function() {
+    var rows = this.source.slice();
+    var filterPredicate = this.filterPredicate;
+    var searchText = this.searchText;
+    var columnSearchValues = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
+    var columnSearchOperators = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
+    var columns = this.columns;
+    var sortStates = this.getSortStates();
+    var selectionState = this.captureSelectionState();
+    var indexedRows;
+
+    if (this.options.remote !== true && (filterPredicate || searchText || columnSearchValues)) {
+      rows = rows.filter(function(item, index) {
+        if (filterPredicate && !filterPredicate(item, index)) {
+          return false;
+        }
+        if (!searchText) {
+          return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
+        }
+        return rowMatchesSearch(item, columns, searchText) && (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
+      });
+    }
+
+    if (sortStates.length && this.options.remote !== true) {
+      indexedRows = rows.map(function(item, index) {
+        return { item: item, index: index };
+      });
+      indexedRows.sort(function(a, b) {
+        var comparison;
+        var sortState;
+        var i;
+        for (i = 0; i < sortStates.length; i += 1) {
+          sortState = sortStates[i];
+          comparison = compareValues(
+            getByBinding(a.item, sortState.column.binding),
+            getByBinding(b.item, sortState.column.binding),
+            sortState.column.dataType
+          ) * sortState.direction;
+          if (comparison) {
+            return comparison;
+          }
+        }
+        return a.index - b.index;
+      });
+      rows = indexedRows.map(function(entry) {
+        return entry.item;
+      });
+    }
+
+    if (this.options.remote !== true) {
+      this.paginationTotal = rows.length;
+    }
+    if (this.options.pagination === true && this.options.remote !== true) {
+      this.normalizePaginationOptions();
+      rows = rows.slice(
+        (this.options.pageNumber - 1) * this.options.pageSize,
+        this.options.pageNumber * this.options.pageSize
+      );
+    }
+    this.dataView = rows;
+    this.view = this.createGroupedView(rows);
+    this.refreshInvalidItemRows();
+    this.restoreSelectionState(selectionState);
+    this.clampSelection();
+    this.syncEditingWithView();
+  };
+
+  FabGrid.prototype.normalizePaginationOptions = function() {
+    var pagination = normalizePagination(this.options.pageNumber, this.options.pageSize, this.paginationTotal, DEFAULT_OPTIONS.pageSize);
+    this.options.pageSize = pagination.pageSize;
+    this.options.pageNumber = pagination.pageNumber;
+    if (this.options.pager && typeof this.options.pager === 'object') {
+      this.options.pager.pageNumber = this.options.pageNumber;
+      this.options.pager.pageSize = this.options.pageSize;
+    }
+  };
+
+  FabGrid.prototype.toggleSort = function(colIndex, multiSort) {
+    var column = this.visibleColumns[colIndex];
+    var sortStates = this.getSortStates();
+    var sortIndex;
+    var currentState;
+    var nextSortStates;
+    var direction = 1;
+    if (!column) {
+      return;
+    }
+    sortIndex = this.getSortIndex(column);
+    currentState = sortIndex >= 0 ? sortStates[sortIndex] : null;
+    if (currentState) {
+      if (currentState.direction === 1) {
+        direction = -1;
+      } else if (currentState.direction === -1) {
+        direction = 0;
+      }
+    }
+    if (this.emit('sortingColumn', {
+      column: column,
+      direction: direction,
+      multiSort: multiSort === true,
+      sortIndex: sortIndex
+    }) === false) {
+      return;
+    }
+    nextSortStates = multiSort === true ? sortStates.slice() : [];
+    if (direction) {
+      if (multiSort === true && sortIndex >= 0) {
+        nextSortStates[sortIndex] = { column: column, direction: direction };
+      } else if (multiSort === true) {
+        nextSortStates.push({ column: column, direction: direction });
+      } else {
+        nextSortStates = [{ column: column, direction: direction }];
+      }
+    } else if (multiSort === true && sortIndex >= 0) {
+      nextSortStates.splice(sortIndex, 1);
+    }
+    this.sortStates = nextSortStates;
+    this.sortState = nextSortStates.length ? nextSortStates[0] : null;
+    if (this.options.remote === true) {
+      this.options.pageNumber = 1;
+      if (this.options.pager) {
+        this.options.pager.pageNumber = 1;
+      }
+    }
+    this.applyView();
+    this.resetScroll();
+    this.render();
+    this.emit('sortedColumn', {
+      column: column,
+      direction: direction,
+      multiSort: multiSort === true,
+      sortIndex: this.getSortIndex(column),
+      sortStates: this.getSortStates().slice()
+    });
+    if (this.options.remote === true) {
+      this.load();
+    }
+  };
+
+  FabGrid.prototype.getSortGlyph = function(column) {
+    var direction = this.getSortDirection(column);
+    if (!direction) {
+      return '';
+    }
+    return direction === 1 ? '▲' : '▼';
+  };
+
+  FabGrid.prototype.getSortDirection = function(column) {
+    var index = this.getSortIndex(column);
+    var sortStates = this.getSortStates();
+    return index >= 0 ? sortStates[index].direction : 0;
+  };
+
+  FabGrid.prototype.getSortIndex = function(column) {
+    var sortStates = this.getSortStates();
+    var i;
+    for (i = 0; i < sortStates.length; i += 1) {
+      if (sortStates[i].column === column) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  FabGrid.prototype.getSortStates = function() {
+    if (Array.isArray(this.sortStates) && this.sortStates.length) {
+      return this.sortStates;
+    }
+    return this.sortState && this.sortState.direction ? [this.sortState] : [];
+  };
+}
+
+function getMaskCopyText(value, column) {
+  return isMaskValueIncludingLiterals(column) ? formatMaskText(value, column) : extractMaskCharacters(value, column.mask);
+}
+
+function formatMaskText(value, column) {
+  return applyMask(extractMaskCharacters(value, column.mask), column.mask);
+}
+
+function countMaskCharactersBeforeCaret(value, mask, caret) {
+  return extractMaskCharacters(String(value == null ? '' : value).slice(0, caret), mask).length;
+}
+
+function getMaskCaretPosition(value, mask, rawIndex) {
+  var text = String(value == null ? '' : value);
+  var tokenIndex = 0;
+  var tokens = getMaskTokens(mask);
+  var i;
+  var ch;
+  if (rawIndex <= 0) {
+    return 0;
+  }
+  for (i = 0; i < text.length && tokenIndex < tokens.length; i += 1) {
+    ch = text.charAt(i);
+    if (isMaskCharAllowed(ch, tokens[tokenIndex])) {
+      tokenIndex += 1;
+      if (tokenIndex >= rawIndex) {
+        return i + 1;
+      }
+    }
+  }
+  return text.length;
+}
+
+function isMaskValueIncludingLiterals(column) {
+  return !isMaskAutoUnmask(column);
+}
+
+function isMaskAutoUnmask(column) {
+  if (column.autoUnmask === true) {
+    return true;
+  }
+  if (column.autoUnmask === false) {
+    return false;
+  }
+  return column.maskValueIncludesLiterals === false ||
+    column.maskIncludesLiterals === false ||
+    column.maskLiteralsInValue === false;
+}
+
+function extractMaskCharacters(value, mask) {
+  var text = value == null ? '' : String(value);
+  var chars = [];
+  var tokenIndex = 0;
+  var tokens = getMaskTokens(mask);
+  var i;
+  var ch;
+  if (!mask || !tokens.length) {
+    return text;
+  }
+  for (i = 0; i < text.length && tokenIndex < tokens.length; i += 1) {
+    ch = text.charAt(i);
+    if (isMaskCharAllowed(ch, tokens[tokenIndex])) {
+      chars.push(ch);
+      tokenIndex += 1;
+    }
+  }
+  return chars.join('');
+}
+
+function applyMask(raw, mask) {
+  var value = raw == null ? '' : String(raw);
+  var output = '';
+  var rawIndex = 0;
+  var i;
+  var token;
+  var ch;
+  if (!mask) {
+    return value;
+  }
+  for (i = 0; i < mask.length; i += 1) {
+    token = getMaskToken(mask.charAt(i));
+    if (!token) {
+      if (rawIndex > 0) {
+        output += mask.charAt(i);
+      }
+      continue;
+    }
+    ch = findNextMaskChar(value, rawIndex, token);
+    if (!ch) {
+      break;
+    }
+    output += ch.value;
+    rawIndex = ch.nextIndex;
+  }
+  return output;
+}
+
+function getMaskTokens(mask) {
+  var tokens = [];
+  var i;
+  var token;
+  for (i = 0; i < String(mask || '').length; i += 1) {
+    token = getMaskToken(mask.charAt(i));
+    if (token) {
+      tokens.push(token);
+    }
+  }
+  return tokens;
+}
+
+function isMaskCharAllowed(ch, token) {
+  if (token === 'digit') return /[0-9]/.test(ch);
+  if (token === 'letter') return /[A-Za-z]/.test(ch);
+  if (token === 'alphanumeric') return /[0-9A-Za-z]/.test(ch);
+  return false;
+}
+
+function findNextMaskChar(value, start, token) {
+  var i;
+  var ch;
+  for (i = start; i < value.length; i += 1) {
+    ch = value.charAt(i);
+    if (isMaskCharAllowed(ch, token)) {
+      return { value: ch, nextIndex: i + 1 };
+    }
+  }
+  return null;
+}
+
+function getMaskToken(ch) {
+  if (ch === '9') return 'digit';
+  if (ch === 'A') return 'letter';
+  if (ch === '*') return 'alphanumeric';
+  return '';
+}
+
+function isPromiseLike(value) {
+  return value && typeof value.then === 'function';
+}
+
+function normalizeValidationResult(result, value, type, defaultMessage) {
+  var base;
+  var key;
+  if (result == null || result === false || result === '') {
+    return null;
+  }
+  base = {
+    type: type || 'custom',
+    message: defaultMessage || 'Invalid value',
+    value: value
+  };
+  if (typeof result === 'string') {
+    base.message = result;
+    return base;
+  }
+  if (result === true) {
+    return base;
+  }
+  if (typeof result === 'object') {
+    for (key in result) {
+      if (Object.prototype.hasOwnProperty.call(result, key)) {
+        base[key] = result[key];
+      }
+    }
+    return base;
+  }
+  return null;
+}
+
+var exportContext = {};
+
+function exportGetByBinding(item, binding) {
+  return exportContext.getByBinding ? exportContext.getByBinding(item, binding) : undefined;
+}
+
+function exportToNumber(value, fallback) {
+  return exportContext.toNumber ? exportContext.toNumber(value, fallback) : (isFinite(Number(value)) ? Number(value) : fallback);
+}
+
+function exportGetNumberPrecision(column) {
+  return exportContext.getNumberPrecision ? exportContext.getNumberPrecision(column) : null;
+}
+
+function exportShouldUseThousandsSeparator(column) {
+  return exportContext.shouldUseThousandsSeparator ? exportContext.shouldUseThousandsSeparator(column) : false;
+}
+
+function exportParseValue(value, type) {
+  if (exportContext.parseValue) return exportContext.parseValue(value, type);
+  if (type === 'boolean') return value === true || value === 'true' || value === '1' || value === 'yes' || value === 'Y';
+  return value;
+}
+
+function csvEscape(value) {
+  var text = value == null ? '' : String(value);
+  if (text.indexOf('"') >= 0 || text.indexOf(',') >= 0 || text.indexOf('\n') >= 0) {
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+  return text;
+}
+
+function getExcelColumnName(index) {
+  var name = '';
+  var number = index;
+  while (number > 0) {
+    number -= 1;
+    name = String.fromCharCode(65 + (number % 26)) + name;
+    number = Math.floor(number / 26);
+  }
+  return name;
+}
+
+function getXmlSpaceAttribute(value) {
+  var text = String(value);
+  return /^\s|\s$|\s\s/.test(text) ? ' xml:space="preserve"' : '';
+}
+
+function xmlEscape(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function cssColorToExcelColor(value) {
+  var match;
+  var hex;
+  if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') return '';
+  if (value.charAt(0) === '#') {
+    hex = value.length === 4 ?
+      value.charAt(1) + value.charAt(1) + value.charAt(2) + value.charAt(2) + value.charAt(3) + value.charAt(3) :
+      value.slice(1, 7);
+    return 'FF' + hex.toUpperCase();
+  }
+  match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
+  if (!match || match[4] === '0') return '';
+  return 'FF' + toHexByte(match[1]) + toHexByte(match[2]) + toHexByte(match[3]);
+}
+
+function normalizeExcelStyle(style) {
+  return {
+    color: cssColorToExcelColor(style.color || style.textColor || ''),
+    backgroundColor: cssColorToExcelColor(style.backgroundColor || style.background || ''),
+    bold: style.bold === true || style.fontWeight === 'bold' || Number(style.fontWeight) >= 600,
+    align: normalizeExcelAlign(style.align || style.textAlign || ''),
+    numFmtCode: style.numFmtCode || style.numberFormat || ''
+  };
+}
+
+function mergeExcelStyle(base, override) {
+  var result = {};
+  var key;
+  for (key in base) {
+    if (Object.prototype.hasOwnProperty.call(base, key)) result[key] = base[key];
+  }
+  for (key in override) {
+    if (Object.prototype.hasOwnProperty.call(override, key) && override[key]) result[key] = override[key];
+  }
+  return result;
+}
+
+function normalizeExcelAlign(value) {
+  return value === 'right' || value === 'center' || value === 'left' ? value : '';
+}
+
+function createExcelCell(row, col, value, type, styleId) {
+  var ref = getExcelColumnName(col) + row;
+  var style = styleId ? ' s="' + styleId + '"' : '';
+  if (value == null) return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t></t></is></c>';
+  if (type === 'number' && typeof value !== 'boolean' && isFinite(Number(value))) {
+    return '<c r="' + ref + '"' + style + '><v>' + Number(value) + '</v></c>';
+  }
+  if (type === 'boolean') {
+    return '<c r="' + ref + '"' + style + ' t="b"><v>' + (exportParseValue(value, 'boolean') ? '1' : '0') + '</v></c>';
+  }
+  return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t' + getXmlSpaceAttribute(value) + '>' + xmlEscape(value) + '</t></is></c>';
+}
+
+function toHexByte(value) {
+  var hex = Math.max(0, Math.min(255, Number(value))).toString(16).toUpperCase();
+  return hex.length === 1 ? '0' + hex : hex;
+}
+
+function installFabGridExport(FabGrid, context) {
+  exportContext = context || {};
+  var getByBinding = context.getByBinding;
+
+  FabGrid.prototype.getCsv = function(visibleOnly) {
+    var columns = visibleOnly === false ? this.columns : this.visibleColumns;
+    var lines = [];
+    var i;
+    var r;
+    var row;
+    var values;
+    lines.push(columns.map(function(col) {
+      return csvEscape(col.header || col.binding);
+    }).join(','));
+    for (r = 0; r < this.view.length; r += 1) {
+      row = this.view[r];
+      if (this.isRowGroup(row) || this.isRowGroupFooter(row)) continue;
+      values = [];
+      for (i = 0; i < columns.length; i += 1) {
+        values.push(csvEscape(getByBinding(row, columns[i].binding)));
+      }
+      lines.push(values.join(','));
+    }
+    return lines.join('\n');
+  };
+
+  FabGrid.prototype.exportCsv = function(filename, visibleOnly) {
+    var csv = this.getCsv(visibleOnly);
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    downloadBlob(blob, filename || 'fabgrid.csv');
+  };
+
+  FabGrid.prototype.getExcelBlob = function(visibleOnly) {
+    var columns = visibleOnly === true ? this.visibleColumns : this.columns;
+    var files = createXlsxFiles(columns, this.view || this.dataView, {
+      frozenColumns: visibleOnly === true ? this.frozenColumns : this.getExcelFrozenColumnCount(),
+      grid: this,
+      formatCell: this.options.formatCell,
+      excelCellStyle: this.options.excelCellStyle,
+      includeFooter: this.getFooterHeight() > 0
+    });
+    return new Blob([createZip(files)], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+  };
+
+
+  FabGrid.prototype.getExcelFrozenColumnCount = function() {
+    var lastFrozenColumn;
+    var sourceIndex;
+    if (!this.frozenColumns) return 0;
+    lastFrozenColumn = this.visibleColumns[this.frozenColumns - 1];
+    sourceIndex = this.columns.indexOf(lastFrozenColumn);
+    return sourceIndex < 0 ? 0 : sourceIndex + 1;
+  };
+
+  FabGrid.prototype.exportExcel = function(filename, visibleOnly) {
+    var self = this;
+    var outputName = filename || 'fabgrid.xlsx';
+    if (this.busy) return Promise.resolve(false);
+    this.setBusy(true, this.options.exportBusyText || this.getText('exportBusyText'));
+    this.emit('excelExporting', { filename: outputName });
+    return new Promise(function(resolve, reject) {
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          var blob;
+          try {
+            blob = self.getExcelBlob(visibleOnly);
+            downloadBlob(blob, outputName);
+            self.emit('excelExported', { filename: outputName, blob: blob });
+            resolve(true);
+          } catch (error) {
+            self.emit('excelExportFailed', { filename: outputName, error: error });
+            reject(error);
+          } finally {
+            self.setBusy(false);
+          }
+        }, 0);
+      });
+    });
+  };
+}
+
+function downloadBlob(blob, filename) {
+  var link = document.createElement('a');
+  var url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function createXlsxFiles(columns, rows, options) {
+  var now = new Date().toISOString();
+  var registry = createExcelStyleRegistry();
+  var worksheet = createWorksheetXml(columns, rows, options || {}, registry);
+  return [
+    {
+      name: '[Content_Types].xml',
+      content: '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' +
+        '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        '</Types>'
+    },
+    {
+      name: '_rels/.rels',
+      content: '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>' +
+        '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>' +
+        '</Relationships>'
+    },
+    {
+      name: 'docProps/app.xml',
+      content: '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">' +
+        '<Application>FabGrid</Application>' +
+        '</Properties>'
+    },
+    {
+      name: 'docProps/core.xml',
+      content: '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
+        '<dc:creator>FabGrid</dc:creator>' +
+        '<cp:lastModifiedBy>FabGrid</cp:lastModifiedBy>' +
+        '<dcterms:created xsi:type="dcterms:W3CDTF">' + now + '</dcterms:created>' +
+        '<dcterms:modified xsi:type="dcterms:W3CDTF">' + now + '</dcterms:modified>' +
+        '</cp:coreProperties>'
+    },
+    {
+      name: 'xl/workbook.xml',
+      content: '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>' +
+        '</workbook>'
+    },
+    {
+      name: 'xl/_rels/workbook.xml.rels',
+      content: '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+        '</Relationships>'
+    },
+    {
+      name: 'xl/styles.xml',
+      content: createExcelStylesXml(registry)
+    },
+    {
+      name: 'xl/worksheets/sheet1.xml',
+      content: worksheet
+    }
+  ];
+}
+
+function createExcelStyleRegistry() {
+  var registry = {
+    fonts: [
+      { bold: false, color: null },
+      { bold: true, color: 'FF1F2937' }
+    ],
+    fills: [
+      null,
+      { gray125: true },
+      { color: 'FFF5F7FA' }
+    ],
+    xfs: [
+      { fontId: 0, fillId: 0, borderId: 0, align: '', numFmtId: 0 },
+      { fontId: 1, fillId: 2, borderId: 1, align: 'center', numFmtId: 0 },
+      { fontId: 0, fillId: 0, borderId: 1, align: '', numFmtId: 0 },
+      { fontId: 0, fillId: 0, borderId: 1, align: 'right', numFmtId: 0 },
+      { fontId: 0, fillId: 0, borderId: 1, align: 'center', numFmtId: 0 }
+    ],
+    numFmts: [],
+    fontMap: { 'normal|': 0, 'bold|FF1F2937': 1 },
+    fillMap: { none: 0, gray125: 1, FFF5F7FA: 2 },
+    numFmtMap: {},
+    nextNumFmtId: 164,
+    xfMap: {
+      '0|0|0|0|': 0,
+      '1|2|1|center|0': 1,
+      '0|0|1||0': 2,
+      '0|0|1|right|0': 3,
+      '0|0|1|center|0': 4
+    }
+  };
+  return registry;
+}
+
+function createExcelStylesXml(registry) {
+  var xml = [];
+  var i;
+  xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+  xml.push('<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
+  if (registry.numFmts.length) {
+    xml.push('<numFmts count="' + registry.numFmts.length + '">');
+    for (i = 0; i < registry.numFmts.length; i += 1) {
+      xml.push('<numFmt numFmtId="' + registry.numFmts[i].id + '" formatCode="' + xmlEscape(registry.numFmts[i].code) + '"/>');
+    }
+    xml.push('</numFmts>');
+  }
+  xml.push('<fonts count="' + registry.fonts.length + '">');
+  for (i = 0; i < registry.fonts.length; i += 1) {
+    xml.push(createExcelFontXml(registry.fonts[i]));
+  }
+  xml.push('</fonts>');
+  xml.push('<fills count="' + registry.fills.length + '">');
+  for (i = 0; i < registry.fills.length; i += 1) {
+    xml.push(createExcelFillXml(registry.fills[i]));
+  }
+  xml.push('</fills>');
+  xml.push('<borders count="2">');
+  xml.push('<border><left/><right/><top/><bottom/><diagonal/></border>');
+  xml.push('<border>');
+  xml.push('<left style="thin"><color rgb="FFD7DEE8"/></left>');
+  xml.push('<right style="thin"><color rgb="FFD7DEE8"/></right>');
+  xml.push('<top style="thin"><color rgb="FFD7DEE8"/></top>');
+  xml.push('<bottom style="thin"><color rgb="FFD7DEE8"/></bottom>');
+  xml.push('<diagonal/>');
+  xml.push('</border>');
+  xml.push('</borders>');
+  xml.push('<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>');
+  xml.push('<cellXfs count="' + registry.xfs.length + '">');
+  for (i = 0; i < registry.xfs.length; i += 1) {
+    xml.push(createExcelXfXml(registry.xfs[i]));
+  }
+  xml.push('</cellXfs>');
+  xml.push('<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>');
+  xml.push('</styleSheet>');
+  return xml.join('');
+}
+
+function createExcelFontXml(font) {
+  var xml = ['<font>'];
+  if (font.bold) {
+    xml.push('<b/>');
+  }
+  xml.push('<sz val="11"/>');
+  if (font.color) {
+    xml.push('<color rgb="' + font.color + '"/>');
+  }
+  xml.push('<name val="Arial"/>');
+  xml.push('</font>');
+  return xml.join('');
+}
+
+function createExcelFillXml(fill) {
+  if (!fill) {
+    return '<fill><patternFill patternType="none"/></fill>';
+  }
+  if (fill.gray125) {
+    return '<fill><patternFill patternType="gray125"/></fill>';
+  }
+  return '<fill><patternFill patternType="solid"><fgColor rgb="' + fill.color + '"/><bgColor indexed="64"/></patternFill></fill>';
+}
+
+function createExcelXfXml(xf) {
+  var numFmtId = xf.numFmtId || 0;
+  var xml = '<xf numFmtId="' + numFmtId + '" fontId="' + xf.fontId + '" fillId="' + xf.fillId + '" borderId="' + xf.borderId + '" xfId="0"';
+  if (numFmtId) {
+    xml += ' applyNumberFormat="1"';
+  }
+  if (xf.fontId) {
+    xml += ' applyFont="1"';
+  }
+  if (xf.fillId) {
+    xml += ' applyFill="1"';
+  }
+  if (xf.borderId) {
+    xml += ' applyBorder="1"';
+  }
+  if (xf.align) {
+    xml += ' applyAlignment="1"><alignment horizontal="' + xf.align + '" vertical="center"/></xf>';
+    return xml;
+  }
+  if (xf.borderId) {
+    xml += ' applyAlignment="1"><alignment vertical="center"/></xf>';
+    return xml;
+  }
+  return xml + '/>';
+}
+
+function registerExcelCellStyle(registry, style) {
+  var fontId = registerExcelFont(registry, style);
+  var fillId = registerExcelFill(registry, style);
+  var numFmtId = registerExcelNumberFormat(registry, style.numFmtCode || style.numberFormat || '');
+  var borderId = 1;
+  var align = style.align || '';
+  var key = fontId + '|' + fillId + '|' + borderId + '|' + align + '|' + numFmtId;
+  if (registry.xfMap[key] != null) {
+    return registry.xfMap[key];
+  }
+  registry.xfs.push({
+    fontId: fontId,
+    fillId: fillId,
+    borderId: borderId,
+    align: align,
+    numFmtId: numFmtId
+  });
+  registry.xfMap[key] = registry.xfs.length - 1;
+  return registry.xfs.length - 1;
+}
+
+function registerExcelFont(registry, style) {
+  var color = style.color || null;
+  var bold = style.bold === true;
+  var key = (bold ? 'bold' : 'normal') + '|' + (color || '');
+  if (registry.fontMap[key] != null) {
+    return registry.fontMap[key];
+  }
+  registry.fonts.push({ bold: bold, color: color });
+  registry.fontMap[key] = registry.fonts.length - 1;
+  return registry.fonts.length - 1;
+}
+
+function registerExcelFill(registry, style) {
+  var color = style.backgroundColor || null;
+  if (!color) {
+    return 0;
+  }
+  if (registry.fillMap[color] != null) {
+    return registry.fillMap[color];
+  }
+  registry.fills.push({ color: color });
+  registry.fillMap[color] = registry.fills.length - 1;
+  return registry.fills.length - 1;
+}
+
+function registerExcelNumberFormat(registry, code) {
+  code = code || '';
+  if (!code) {
+    return 0;
+  }
+  if (registry.numFmtMap[code] != null) {
+    return registry.numFmtMap[code];
+  }
+  registry.numFmts.push({
+    id: registry.nextNumFmtId,
+    code: code
+  });
+  registry.numFmtMap[code] = registry.nextNumFmtId;
+  registry.nextNumFmtId += 1;
+  return registry.numFmtMap[code];
+}
+
+function createWorksheetXml(columns, rows, options, registry) {
+  var includeFooter = options.includeFooter === true && options.grid;
+  var dataMaxRow = rows.length + 1;
+  var maxRow = dataMaxRow + (includeFooter ? 1 : 0);
+  var maxCol = Math.max(columns.length, 1);
+  var xml = [];
+  var r;
+  var c;
+  var row;
+  var styleResolver = createExcelStyleResolver(options);
+  xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+  xml.push('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
+  xml.push('<dimension ref="A1:' + getExcelColumnName(maxCol) + maxRow + '"/>');
+  xml.push(createSheetViewsXml(Math.min(exportToNumber(options.frozenColumns, 0), columns.length)));
+  xml.push(createColumnWidthXml(columns));
+  xml.push('<sheetData>');
+  xml.push('<row r="1" ht="22" customHeight="1">');
+  for (c = 0; c < columns.length; c += 1) {
+    xml.push(createExcelCell(1, c + 1, columns[c].header || columns[c].binding, 'string', 1));
+  }
+  xml.push('</row>');
+  for (r = 0; r < rows.length; r += 1) {
+    row = rows[r];
+    if (options.grid && options.grid.isRowGroup(row)) {
+      xml.push(createExcelGroupRowXml(r + 2, row, columns, options.grid, registry));
+      continue;
+    }
+    if (options.grid && options.grid.isRowGroupFooter(row)) {
+      continue;
+    }
+    xml.push('<row r="' + (r + 2) + '">');
+    for (c = 0; c < columns.length; c += 1) {
+      xml.push(createExcelCell(
+        r + 2,
+        c + 1,
+        exportGetByBinding(row, columns[c].binding),
+        columns[c].dataType,
+        getExcelCellStyle(columns[c], row, r, c, options, registry, styleResolver)
+      ));
+    }
+    xml.push('</row>');
+  }
+  if (includeFooter) {
+    xml.push(createExcelFooterRowXml(rows.length + 2, columns, options.grid));
+  }
+  if (styleResolver.dispose) {
+    styleResolver.dispose();
+  }
+  xml.push('</sheetData>');
+  xml.push('<autoFilter ref="A1:' + getExcelColumnName(maxCol) + dataMaxRow + '"/>');
+  xml.push('</worksheet>');
+  return xml.join('');
+}
+
+function createExcelGroupRowXml(rowIndex, group, columns, grid, registry) {
+  var xml = [];
+  var labelColumnIndex = 0;
+  var level = Math.max(0, Math.min(7, exportToNumber(group.level, 0)));
+  var value;
+  var isLabel;
+  var c;
+  for (c = 0; c < columns.length; c += 1) {
+    if (columns[c].visible !== false) {
+      labelColumnIndex = c;
+      break;
+    }
+  }
+  xml.push('<row r="' + rowIndex + '" outlineLevel="' + level + '">');
+  for (c = 0; c < columns.length; c += 1) {
+    isLabel = c === labelColumnIndex;
+    value = isLabel ? repeatString('  ', level) + group.label :
+      (columns[c].aggregate ?
+        grid.formatAggregateValue(grid.getRowGroupAggregateValue(group, columns[c]), columns[c], group.items) :
+        '');
+    xml.push(createExcelCell(
+      rowIndex,
+      c + 1,
+      value,
+      isLabel || columns[c].aggregate ? 'string' : columns[c].dataType,
+      getExcelGroupCellStyle(columns[c], isLabel, registry)
+    ));
+  }
+  xml.push('</row>');
+  return xml.join('');
+}
+
+function createExcelFooterRowXml(rowIndex, columns, grid) {
+  var xml = [];
+  var c;
+  var value;
+  xml.push('<row r="' + rowIndex + '">');
+  for (c = 0; c < columns.length; c += 1) {
+    value = grid.getFooterCellText(columns[c]);
+    xml.push(createExcelCell(rowIndex, c + 1, value, 'string', getExcelFooterCellStyle(columns[c])));
+  }
+  xml.push('</row>');
+  return xml.join('');
+}
+
+function createSheetViewsXml(frozenColumns) {
+  var topLeftCell = getExcelColumnName(frozenColumns + 1) + '2';
+  var activePane = frozenColumns > 0 ? 'bottomRight' : 'bottomLeft';
+  var pane = '<pane ySplit="1"';
+  if (frozenColumns > 0) {
+    pane += ' xSplit="' + frozenColumns + '"';
+  }
+  pane += ' topLeftCell="' + topLeftCell + '" activePane="' + activePane + '" state="frozen"/>';
+  return '<sheetViews><sheetView workbookViewId="0">' + pane + '</sheetView></sheetViews>';
+}
+
+function createColumnWidthXml(columns) {
+  var xml = [];
+  var width;
+  var i;
+  if (!columns.length) {
+    return '';
+  }
+  xml.push('<cols>');
+  for (i = 0; i < columns.length; i += 1) {
+    width = Math.max(8, Math.min(80, Math.round(exportToNumber(columns[i]._width || columns[i].width, 120) / 7)));
+    xml.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + width + '" customWidth="1"' +
+      (columns[i].visible === false ? ' hidden="1"' : '') + '/>');
+  }
+  xml.push('</cols>');
+  return xml.join('');
+}
+
+function getExcelCellStyle(column, item, rowIndex, colIndex, options, registry, styleResolver) {
+  var baseStyle = getExcelBaseCellStyle(column);
+  var extraStyle = styleResolver(item, column, rowIndex, colIndex);
+  if (extraStyle) {
+    if (!extraStyle.align) {
+      extraStyle.align = baseStyle.align;
+    }
+    if (!extraStyle.numFmtCode && !extraStyle.numberFormat && baseStyle.numFmtCode) {
+      extraStyle.numFmtCode = baseStyle.numFmtCode;
+    }
+    return registerExcelCellStyle(registry, extraStyle);
+  }
+  if (baseStyle.numFmtCode) {
+    return registerExcelCellStyle(registry, baseStyle);
+  }
+  if (baseStyle.id) {
+    return baseStyle.id;
+  }
+  return 2;
+}
+
+function getExcelGroupCellStyle(column, isLabel, registry) {
+  var baseStyle = getExcelBaseCellStyle(column);
+  var style = {
+    bold: isLabel,
+    backgroundColor: 'FFE1E1E1',
+    align: isLabel ? '' : baseStyle.align,
+    numFmtCode: baseStyle.numFmtCode || ''
+  };
+  if (column.color) {
+    style.color = cssColorToExcelColor(column.color);
+  }
+  return registerExcelCellStyle(registry, style);
+}
+
+function getExcelBaseCellStyle(column) {
+  var numberFormat;
+  if (column.align === 'right' || column.dataType === 'number') {
+    numberFormat = getExcelNumberFormatCode(column);
+    if (numberFormat) {
+      return { align: 'right', numFmtCode: numberFormat };
+    }
+    return { id: 3, align: 'right' };
+  }
+  if (column.align === 'center' || column.dataType === 'boolean') {
+    return { id: 4, align: 'center' };
+  }
+  return { id: 2, align: '' };
+}
+
+function getExcelFooterCellStyle(column) {
+  if (column.align === 'right' || column.dataType === 'number') {
+    return 3;
+  }
+  if (column.align === 'center' || column.dataType === 'boolean') {
+    return 4;
+  }
+  return 2;
+}
+
+function getExcelNumberFormatCode(column) {
+  var precision;
+  var decimalPart = '';
+  var integerPart;
+  if (!column || column.dataType !== 'number') {
+    return '';
+  }
+  precision = exportGetNumberPrecision(column);
+  integerPart = exportShouldUseThousandsSeparator(column) ? '#,##0' : '0';
+  if (precision != null) {
+    decimalPart = precision > 0 ? '.' + repeatString('0', precision) : '';
+  } else if (exportShouldUseThousandsSeparator(column)) {
+    decimalPart = '.############';
+  } else {
+    return '';
+  }
+  return integerPart + decimalPart;
+}
+
+function repeatString(text, count) {
+  var output = '';
+  while (count > 0) {
+    output += text;
+    count -= 1;
+  }
+  return output;
+}
+
+function createExcelStyleResolver(options) {
+  var sampleCell = null;
+  var formatCell = options.formatCell;
+  var customStyle = options.excelCellStyle;
+  var grid = options.grid;
+  var resolver;
+  if (grid && grid.root && typeof document !== 'undefined' && typeof formatCell === 'function') {
+    sampleCell = document.createElement('div');
+    sampleCell.style.position = 'absolute';
+    sampleCell.style.visibility = 'hidden';
+    sampleCell.style.pointerEvents = 'none';
+    sampleCell.style.top = '-10000px';
+    sampleCell.style.left = '-10000px';
+    grid.root.appendChild(sampleCell);
+  }
+  resolver = function(item, column, rowIndex, colIndex) {
+    var value = exportGetByBinding(item, column.binding);
+    var style = null;
+    var fromCell;
+    var override;
+    if (sampleCell) {
+      sampleCell.removeAttribute('style');
+      sampleCell.style.position = 'absolute';
+      sampleCell.style.visibility = 'hidden';
+      sampleCell.style.pointerEvents = 'none';
+      sampleCell.style.top = '-10000px';
+      sampleCell.style.left = '-10000px';
+      sampleCell.className = 'fg-cell' + (column.align ? ' fg-align-' + column.align : '');
+      sampleCell.removeAttribute('data-row');
+      sampleCell.removeAttribute('data-col');
+      sampleCell.textContent = value == null ? '' : String(value);
+      formatCell({
+        grid: grid,
+        cell: sampleCell,
+        item: item,
+        column: column,
+        value: value,
+        rowIndex: rowIndex,
+        colIndex: colIndex
+      });
+      fromCell = getExcelStyleFromComputedCell(sampleCell);
+      if (fromCell) {
+        style = fromCell;
+      }
+    }
+    if (typeof customStyle === 'function') {
+      override = customStyle({
+        grid: grid,
+        item: item,
+        column: column,
+        value: value,
+        rowIndex: rowIndex,
+        colIndex: colIndex,
+        style: style || {}
+      });
+      if (override) {
+        style = mergeExcelStyle(style || {}, normalizeExcelStyle(override));
+      }
+    }
+    return style;
+  };
+  if (sampleCell) {
+    resolver.dispose = function() {
+      if (sampleCell && sampleCell.parentNode) {
+        sampleCell.parentNode.removeChild(sampleCell);
+      }
+    };
+  }
+  return resolver;
+}
+
+function getExcelStyleFromComputedCell(cell) {
+  var computed = window.getComputedStyle(cell);
+  var style = {};
+  var color = cssColorToExcelColor(computed.color);
+  var backgroundColor = cssColorToExcelColor(computed.backgroundColor);
+  if (color && color !== 'FF1F2937' && color !== 'FF111827') {
+    style.color = color;
+  }
+  if (backgroundColor && backgroundColor !== 'FFFFFFFF') {
+    style.backgroundColor = backgroundColor;
+  }
+  if (Number(computed.fontWeight) >= 600 || computed.fontWeight === 'bold') {
+    style.bold = true;
+  }
+  if (computed.textAlign === 'right' || computed.justifyContent === 'flex-end') {
+    style.align = 'right';
+  } else if (computed.textAlign === 'center' || computed.justifyContent === 'center') {
+    style.align = 'center';
+  }
+  return Object.keys(style).length ? style : null;
+}
+
+function createZip(files) {
+  var localParts = [];
+  var centralParts = [];
+  var offset = 0;
+  var i;
+  var file;
+  var data;
+  var nameBytes;
+  var crc;
+  var dateParts = getZipDateParts(new Date());
+  for (i = 0; i < files.length; i += 1) {
+    file = files[i];
+    data = stringToUtf8Bytes(file.content);
+    nameBytes = stringToUtf8Bytes(file.name);
+    crc = crc32(data);
+    localParts.push(createZipLocalHeader(nameBytes, data, crc, dateParts));
+    localParts.push(data);
+    centralParts.push(createZipCentralHeader(nameBytes, data, crc, offset, dateParts));
+    offset += localParts[localParts.length - 2].length + data.length;
+  }
+  return concatUint8Arrays(localParts.concat(centralParts, [
+    createZipEndRecord(centralParts, offset)
+  ]));
+}
+
+function createZipLocalHeader(nameBytes, data, crc, dateParts) {
+  var header = new Uint8Array(30 + nameBytes.length);
+  writeUint32(header, 0, 0x04034b50);
+  writeUint16(header, 4, 20);
+  writeUint16(header, 6, 2048);
+  writeUint16(header, 8, 0);
+  writeUint16(header, 10, dateParts.time);
+  writeUint16(header, 12, dateParts.date);
+  writeUint32(header, 14, crc);
+  writeUint32(header, 18, data.length);
+  writeUint32(header, 22, data.length);
+  writeUint16(header, 26, nameBytes.length);
+  writeUint16(header, 28, 0);
+  header.set(nameBytes, 30);
+  return header;
+}
+
+function createZipCentralHeader(nameBytes, data, crc, offset, dateParts) {
+  var header = new Uint8Array(46 + nameBytes.length);
+  writeUint32(header, 0, 0x02014b50);
+  writeUint16(header, 4, 20);
+  writeUint16(header, 6, 20);
+  writeUint16(header, 8, 2048);
+  writeUint16(header, 10, 0);
+  writeUint16(header, 12, dateParts.time);
+  writeUint16(header, 14, dateParts.date);
+  writeUint32(header, 16, crc);
+  writeUint32(header, 20, data.length);
+  writeUint32(header, 24, data.length);
+  writeUint16(header, 28, nameBytes.length);
+  writeUint16(header, 30, 0);
+  writeUint16(header, 32, 0);
+  writeUint16(header, 34, 0);
+  writeUint16(header, 36, 0);
+  writeUint32(header, 38, 0);
+  writeUint32(header, 42, offset);
+  header.set(nameBytes, 46);
+  return header;
+}
+
+function createZipEndRecord(centralParts, centralOffset) {
+  var size = 0;
+  var i;
+  var header = new Uint8Array(22);
+  for (i = 0; i < centralParts.length; i += 1) {
+    size += centralParts[i].length;
+  }
+  writeUint32(header, 0, 0x06054b50);
+  writeUint16(header, 8, centralParts.length);
+  writeUint16(header, 10, centralParts.length);
+  writeUint32(header, 12, size);
+  writeUint32(header, 16, centralOffset);
+  writeUint16(header, 20, 0);
+  return header;
+}
+
+function getZipDateParts(date) {
+  var year = Math.max(1980, date.getFullYear());
+  return {
+    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+  };
+}
+
+function writeUint16(bytes, offset, value) {
+  bytes[offset] = value & 255;
+  bytes[offset + 1] = (value >>> 8) & 255;
+}
+
+function writeUint32(bytes, offset, value) {
+  bytes[offset] = value & 255;
+  bytes[offset + 1] = (value >>> 8) & 255;
+  bytes[offset + 2] = (value >>> 16) & 255;
+  bytes[offset + 3] = (value >>> 24) & 255;
+}
+
+function stringToUtf8Bytes(text) {
+  var encoded;
+  var bytes;
+  var i;
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(text);
+  }
+  encoded = unescape(encodeURIComponent(text));
+  bytes = new Uint8Array(encoded.length);
+  for (i = 0; i < encoded.length; i += 1) {
+    bytes[i] = encoded.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function concatUint8Arrays(parts) {
+  var total = 0;
+  var output;
+  var offset = 0;
+  var i;
+  for (i = 0; i < parts.length; i += 1) {
+    total += parts[i].length;
+  }
+  output = new Uint8Array(total);
+  for (i = 0; i < parts.length; i += 1) {
+    output.set(parts[i], offset);
+    offset += parts[i].length;
+  }
+  return output;
+}
+
+function crc32(bytes) {
+  var table = getCrcTable();
+  var crc = -1;
+  var i;
+  for (i = 0; i < bytes.length; i += 1) {
+    crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 255];
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+function getCrcTable() {
+  var table = [];
+  var c;
+  var n;
+  var k;
+  if (getCrcTable.cache) {
+    return getCrcTable.cache;
+  }
+  for (n = 0; n < 256; n += 1) {
+    c = n;
+    for (k = 0; k < 8; k += 1) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[n] = c >>> 0;
+  }
+  getCrcTable.cache = table;
+  return table;
+}
+
 function createEditorDefinitions() {
   'use strict';
 
@@ -316,6 +2641,12 @@ function createEditorDefinitions() {
     }
   };
 }
+
+
+
+
+
+
 
 function createFabGridFactory(editorDefinitions) {
   'use strict';
@@ -880,274 +3211,27 @@ function createFabGridFactory(editorDefinitions) {
     window.addEventListener('resize', this._boundResize);
   };
 
-  FabGrid.prototype.setItemsSource = function(rows, silent) {
-    if (!silent && this.emit('itemsSourceChanging', { rows: rows || [] }) === false) {
-      return;
-    }
-    if (!silent && this.emit('loadingRows', { rows: rows || [] }) === false) {
-      return;
-    }
-    this.source = this.createObservedItemsSource(rows || []);
-    this.applyView();
-    if (!silent) {
-      this.emit('itemsSourceChanged', { rows: this.source });
-      this.emit('loadedRows', { rows: this.view });
-      this.refresh();
-    }
-  };
 
-  FabGrid.prototype.load = function(params) {
-    var self = this;
-    var loader = this.options.loader;
-    var request;
-    var seq;
-    var result;
-    if (this.options.remote !== true || this.disposed) {
-      return Promise.resolve(false);
-    }
-    if (typeof loader !== 'function' && !this.options.url) {
-      return Promise.resolve(false);
-    }
-    request = mergeOptions(params || {}, {
-      page: this.options.pageNumber,
-      rows: this.options.pageSize
-    });
-    request = mergeOptions(request, this.getRemoteSortParams());
-    request = mergeOptions(request, this.getRemoteFilterParams());
-    if (this.emit('beforeLoad', { params: request }) === false) {
-      return Promise.resolve(false);
-    }
-    this._remoteLoadSeq += 1;
-    seq = this._remoteLoadSeq;
-    this.setRemoteLoading(true);
-    try {
-      result = typeof loader === 'function'
-        ? loader.call(this, request)
-        : this.requestRemoteData(request);
-    } catch (error) {
-      result = Promise.reject(error);
-    }
-    return Promise.resolve(result).then(function(data) {
-      if (self.disposed || seq !== self._remoteLoadSeq) {
-        return false;
-      }
-      self.loadRemoteData(data);
-      self.emit('loadSuccess', { data: data, params: request });
-      return true;
-    }).catch(function(error) {
-      if (!self.disposed && seq === self._remoteLoadSeq) {
-        self.emit('loadError', { error: error, params: request });
-      }
-      return false;
-    }).then(function(success) {
-      if (!self.disposed && seq === self._remoteLoadSeq) {
-        self.setRemoteLoading(false);
-      }
-      return success;
-    });
-  };
 
-  FabGrid.prototype.requestRemoteData = function(params) {
-    var method = String(this.options.method || 'get').toUpperCase();
-    var url = String(this.options.url || '');
-    var fetchOptions = {
-      method: method,
-      headers: {
-        Accept: 'application/json'
-      }
-    };
-    var body = new URLSearchParams();
-    Object.keys(params).forEach(function(key) {
-      if (params[key] != null) {
-        body.append(key, params[key]);
-      }
-    });
-    if (method === 'GET') {
-      url += (url.indexOf('?') >= 0 ? '&' : '?') + body.toString();
-    } else if (method === 'POST') {
-      fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
-      fetchOptions.body = body.toString();
-    } else {
-      return Promise.reject(new Error('Remote method must be GET or POST.'));
-    }
-    return fetch(url, fetchOptions).then(function(response) {
-      if (!response.ok) {
-        throw new Error('Remote request failed with HTTP ' + response.status + '.');
-      }
-      return response.json();
-    });
-  };
 
-  FabGrid.prototype.getRemoteSortParams = function() {
-    var sortStates = this.getSortStates();
-    var fields = [];
-    var orders = [];
-    sortStates.forEach(function(sortState) {
-      if (typeof sortState.column.binding === 'string' && sortState.column.binding) {
-        fields.push(sortState.column.binding);
-        orders.push(sortState.direction === -1 ? 'desc' : 'asc');
-      }
-    });
-    if (!fields.length) {
-      return {};
-    }
-    return {
-      sort: fields.join(','),
-      order: orders.join(',')
-    };
-  };
 
-  FabGrid.prototype.getRemoteFilterParams = function() {
-    var rules = [];
-    var self = this;
-    if (this.options.showSearchRow === true) {
-      this.columns.forEach(function(column) {
-        var key = getColumnSearchKey(column);
-        var value = self.columnSearchValues[key];
-        if (typeof column.binding === 'string' && column.binding && value != null && String(value).trim()) {
-          rules.push({
-            field: column.binding,
-            op: normalizeColumnSearchOperator(self.columnSearchOperators[key]) || 'starts',
-            value: String(value).trim()
-          });
-        }
-      });
-    }
-    return {
-      q: this.searchText || undefined,
-      filterRules: rules.length ? JSON.stringify(rules) : undefined
-    };
-  };
 
-  FabGrid.prototype.reload = function() {
-    return this.load();
-  };
 
-  FabGrid.prototype.setRemoteLoading = function(value) {
-    this.remoteLoading = value === true;
-    this.busy = this.remoteLoading;
-    this.root.setAttribute('aria-busy', this.remoteLoading ? 'true' : 'false');
-    if (this.remoteLoadText) {
-      this.remoteLoadText.textContent = this.options.loadMsg || this.getText('loadMsg');
-    }
-    if (this.remoteLoadMask) {
-      this.remoteLoadMask.style.display = this.remoteLoading ? 'flex' : 'none';
-    }
-  };
 
-  FabGrid.prototype.loadRemoteData = function(data) {
-    var rows = data && Array.isArray(data.rows) ? data.rows : [];
-    var total = Math.max(0, toNumber(data && data.total, rows.length));
-    this.source = this.createObservedItemsSource(rows);
-    this.paginationTotal = total;
-    this.applyView();
-    this.resetVerticalScroll();
-    this.refresh();
-  };
 
-  FabGrid.prototype.applyPagerOptions = function() {
-    var pager = this.options.pager;
-    if (!pager || typeof pager !== 'object') {
-      return;
-    }
-    if (pager.pageNumber != null) {
-      this.options.pageNumber = pager.pageNumber;
-    }
-    if (pager.pageSize != null) {
-      this.options.pageSize = pager.pageSize;
-    }
-    if (Array.isArray(pager.pageList)) {
-      this.options.pageList = pager.pageList.slice();
-    }
-    if (pager.showPageList != null) {
-      this.options.showPageList = pager.showPageList === true;
-    }
-    if (pager.showPageInfo != null) {
-      this.options.showPageInfo = pager.showPageInfo !== false;
-    }
-    if (pager.showRefresh != null) {
-      this.options.showRefresh = pager.showRefresh !== false;
-    }
-  };
 
-  FabGrid.prototype.createObservedItemsSource = function(rows) {
-    var grid = this;
-    var proxyCache;
-    var proxySet;
 
-    if (this.options.observeItemsSource !== true || typeof Proxy !== 'function' || !Array.isArray(rows)) {
-      return rows;
-    }
 
-    proxyCache = typeof WeakMap === 'function' ? new WeakMap() : null;
-    proxySet = typeof WeakSet === 'function' ? new WeakSet() : null;
 
-    function canObserve(value) {
-      return value && typeof value === 'object' &&
-        (Array.isArray(value) || Object.prototype.toString.call(value) === '[object Object]');
-    }
 
-    function isInternalProperty(property) {
-      return typeof property === 'string' && property.indexOf('__fg') === 0;
-    }
 
-    function observe(value) {
-      var proxy;
-      if (!canObserve(value)) {
-        return value;
-      }
-      if (proxySet && proxySet.has(value)) {
-        return value;
-      }
-      if (proxyCache && proxyCache.has(value)) {
-        return proxyCache.get(value);
-      }
-      proxy = new Proxy(value, {
-        get: function(target, property) {
-          return observe(target[property]);
-        },
-        set: function(target, property, nextValue) {
-          var previousValue = target[property];
-          var observedValue = observe(nextValue);
-          target[property] = observedValue;
-          if (previousValue !== observedValue && !isInternalProperty(property)) {
-            grid.handleObservedItemsSourceChange();
-          }
-          return true;
-        },
-        deleteProperty: function(target, property) {
-          var changed = Object.prototype.hasOwnProperty.call(target, property);
-          delete target[property];
-          if (changed && !isInternalProperty(property)) {
-            grid.handleObservedItemsSourceChange();
-          }
-          return true;
-        }
-      });
-      if (proxyCache) {
-        proxyCache.set(value, proxy);
-      }
-      if (proxySet) {
-        proxySet.add(proxy);
-      }
-      return proxy;
-    }
 
-    return observe(rows);
-  };
 
-  FabGrid.prototype.handleObservedItemsSourceChange = function() {
-    if (this.disposed || this._suppressObservedItemChange || this._handlingObservedItemChange) {
-      return;
-    }
-    this._handlingObservedItemChange = true;
-    try {
-      this.applyView();
-      this.refresh();
-    } finally {
-      this._handlingObservedItemChange = false;
-    }
-  };
+
+
+
+
+
 
   FabGrid.prototype.setColumns = function(columns, silent) {
     var i;
@@ -1341,107 +3425,23 @@ function createFabGridFactory(editorDefinitions) {
     return this.headerDisplayMode || 'header';
   };
 
-  FabGrid.prototype.setFilter = function(predicate) {
-    if (this.options.remote === true && typeof predicate === 'function') {
-      throw new Error('setFilter(predicate) is only available when remote is false. Use remote search rules or a custom loader instead.');
-    }
-    this.filterPredicate = typeof predicate === 'function' ? predicate : null;
-    this.applyFilterChange(true);
-  };
 
-  FabGrid.prototype.clearFilter = function() {
-    this.filterPredicate = null;
-    this.searchText = '';
-    this.columnSearchValues = {};
-    this.columnSearchOperators = {};
-    this.cancelHeaderSearchTimer();
-    this.hideFilterMenu();
-    this.updateColumnSearchState();
-    this.applyFilterChange(false);
-  };
 
-  FabGrid.prototype.setSearch = function(text) {
-    this.searchText = String(text || '').toLowerCase();
-    this.applyFilterChange(true);
-  };
 
-  FabGrid.prototype.setColumnSearch = function(column, value) {
-    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
-    var key;
-    if (!col) {
-      return;
-    }
-    this.cancelHeaderSearchTimer();
-    key = getColumnSearchKey(col);
-    value = String(value == null ? '' : value).trim();
-    if (value) {
-      this.columnSearchValues[key] = value;
-    } else {
-      delete this.columnSearchValues[key];
-    }
-    this.updateColumnSearchState();
-    this.applyFilterChange(false);
-  };
 
-  FabGrid.prototype.setColumnSearchOperator = function(column, operator) {
-    var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
-    var key;
-    if (!col) {
-      return;
-    }
-    key = getColumnSearchKey(col);
-    operator = normalizeColumnSearchOperator(operator);
-    if (operator) {
-      this.columnSearchOperators[key] = operator;
-    } else {
-      delete this.columnSearchOperators[key];
-    }
-    this.hideFilterMenu();
-    this.applyFilterChange(false);
-  };
 
-  FabGrid.prototype.applyHeaderSearch = function(colIndex, selectionStart, selectionEnd) {
-    this.applyFilterChange(false);
-    this.focusHeaderSearchInput(colIndex, selectionStart, selectionEnd);
-  };
 
-  FabGrid.prototype.clearColumnSearch = function() {
-    this.columnSearchValues = {};
-    this.columnSearchOperators = {};
-    this.cancelHeaderSearchTimer();
-    this.updateColumnSearchState();
-    this.applyFilterChange(true);
-  };
 
-  FabGrid.prototype.clearSearchConditions = function(source) {
-    this.searchText = '';
-    this.columnSearchValues = {};
-    this.columnSearchOperators = {};
-    this.cancelHeaderSearchTimer();
-    this.hideFilterMenu();
-    this.updateColumnSearchState();
-    this.applyFilterChange(false);
-    this.emit('searchCleared', { source: source || 'api' });
-  };
 
-  FabGrid.prototype.applyFilterChange = function(resetHorizontalScroll) {
-    if (this.options.remote === true) {
-      this.options.pageNumber = 1;
-      if (this.options.pager) {
-        this.options.pager.pageNumber = 1;
-      }
-    }
-    this.applyView();
-    if (resetHorizontalScroll === true) {
-      this.resetScroll();
-    } else {
-      this.resetVerticalScroll();
-    }
-    this.refresh();
-    if (this.options.remote === true) {
-      this.load();
-    }
-  };
+
+
+
+
+
+
+
+
+
 
   FabGrid.prototype.cancelHeaderSearchTimer = function() {
     if (this.headerSearchTimer) {
@@ -1780,94 +3780,13 @@ function createFabGridFactory(editorDefinitions) {
     );
   };
 
-  FabGrid.prototype.applyView = function() {
-    var rows = this.source.slice();
-    var filterPredicate = this.filterPredicate;
-    var searchText = this.searchText;
-    var columnSearchValues = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
-    var columnSearchOperators = this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
-    var columns = this.columns;
-    var sortStates = this.getSortStates();
-    var selectionState = this.captureSelectionState();
-    var indexedRows;
 
-    if (this.options.remote !== true && (filterPredicate || searchText || columnSearchValues)) {
-      rows = rows.filter(function(item, index) {
-        if (filterPredicate && !filterPredicate(item, index)) {
-          return false;
-        }
-        if (!searchText) {
-          return !columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators);
-        }
-        return rowMatchesSearch(item, columns, searchText) && (!columnSearchValues || rowMatchesColumnSearch(item, columns, columnSearchValues, columnSearchOperators));
-      });
-    }
 
-    if (sortStates.length && this.options.remote !== true) {
-      indexedRows = rows.map(function(item, index) {
-        return { item: item, index: index };
-      });
-      indexedRows.sort(function(a, b) {
-        var comparison;
-        var sortState;
-        var i;
-        for (i = 0; i < sortStates.length; i += 1) {
-          sortState = sortStates[i];
-          comparison = compareValues(
-            getByBinding(a.item, sortState.column.binding),
-            getByBinding(b.item, sortState.column.binding),
-            sortState.column.dataType
-          ) * sortState.direction;
-          if (comparison) {
-            return comparison;
-          }
-        }
-        return a.index - b.index;
-      });
-      rows = indexedRows.map(function(entry) {
-        return entry.item;
-      });
-    }
 
-    if (this.options.remote !== true) {
-      this.paginationTotal = rows.length;
-    }
-    if (this.options.pagination === true && this.options.remote !== true) {
-      this.normalizePaginationOptions();
-      rows = rows.slice(
-        (this.options.pageNumber - 1) * this.options.pageSize,
-        this.options.pageNumber * this.options.pageSize
-      );
-    }
-    this.dataView = rows;
-    this.view = this.createGroupedView(rows);
-    this.refreshInvalidItemRows();
-    this.restoreSelectionState(selectionState);
-    this.clampSelection();
-    this.syncEditingWithView();
-  };
-
-  FabGrid.prototype.normalizePaginationOptions = function() {
-    var pageSize = Math.max(1, Math.floor(toNumber(this.options.pageSize, DEFAULT_OPTIONS.pageSize)));
-    var pageCount = Math.max(1, Math.ceil(this.paginationTotal / pageSize));
-    this.options.pageSize = pageSize;
-    this.options.pageNumber = clamp(Math.floor(toNumber(this.options.pageNumber, 1)), 1, pageCount);
-    if (this.options.pager && typeof this.options.pager === 'object') {
-      this.options.pager.pageNumber = this.options.pageNumber;
-      this.options.pager.pageSize = this.options.pageSize;
-    }
-  };
 
   FabGrid.prototype.createGroupedView = function(rows) {
-    var groups = Array.isArray(this.options.rowGroups) ? this.options.rowGroups : [];
-    var configs = [];
+    var configs = normalizeGroupConfigs(this.options.rowGroups, 3);
     var output = [];
-    var i;
-    for (i = 0; i < groups.length && configs.length < 3; i += 1) {
-      if (groups[i]) {
-        configs.push(groups[i]);
-      }
-    }
     if (!configs.length) {
       return rows;
     }
@@ -1878,30 +3797,15 @@ function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.appendGroupedRows = function(output, rows, configs, level, parentStateKey) {
     var config = configs[level];
-    var buckets = [];
-    var lookup = createDictionary();
+    var buckets;
     var item;
-    var key;
     var bucket;
     var stateKey;
     var i;
     if (!config) {
       return;
     }
-    for (i = 0; i < rows.length; i += 1) {
-      item = rows[i];
-      key = this.getRowGroupKey(item, config, i);
-      if (!Object.prototype.hasOwnProperty.call(lookup, key)) {
-        bucket = {
-          key: key,
-          items: [],
-          firstItem: item
-        };
-        lookup[key] = bucket;
-        buckets.push(bucket);
-      }
-      lookup[key].items.push(item);
-    }
+    buckets = createGroupBuckets(rows, config, this);
     for (i = 0; i < buckets.length; i += 1) {
       bucket = buckets[i];
       stateKey = this.getRowGroupStateKey(parentStateKey, bucket.key, level);
@@ -1918,27 +3822,11 @@ function createFabGridFactory(editorDefinitions) {
   };
 
   FabGrid.prototype.getRowGroupStateKey = function(parentStateKey, key, level) {
-    if (!parentStateKey && level === 0) {
-      return key;
-    }
-    return parentStateKey + '\u001f' + level + ':' + key;
+    return getGroupStateKey(parentStateKey, key, level);
   };
 
   FabGrid.prototype.getRowGroupKey = function(item, config, index) {
-    var getter = config.key || config.getKey;
-    var bindings = config.bindings || config.binding || config.fields || config.field;
-    var values = [];
-    var i;
-    if (typeof getter === 'function') {
-      return String(getter({ grid: this, item: item, row: index }));
-    }
-    if (!Array.isArray(bindings)) {
-      bindings = bindings == null ? [] : [bindings];
-    }
-    for (i = 0; i < bindings.length; i += 1) {
-      values.push(getByBinding(item, bindings[i]));
-    }
-    return values.join('_');
+    return getGroupKey(item, config, index, this);
   };
 
   FabGrid.prototype.createRowGroupItem = function(bucket, config, level, stateKey) {
@@ -3007,56 +4895,7 @@ function createFabGridFactory(editorDefinitions) {
   };
 
   FabGrid.prototype.calculateAggregateForRows = function(aggregate, column, rows) {
-    var count = 0;
-    var sum = 0;
-    var min = null;
-    var max = null;
-    var i;
-    var value;
-    var number;
-    var name;
-    if (typeof aggregate === 'function') {
-      return aggregate({
-        grid: this,
-        column: column,
-        rows: rows,
-        getValue: function(item) {
-          return getByBinding(item, column.binding);
-        }
-      });
-    }
-    name = String(aggregate).toLowerCase();
-    if (name === 'count') {
-      return rows.length;
-    }
-    for (i = 0; i < rows.length; i += 1) {
-      value = getByBinding(rows[i], column.binding);
-      if (value == null || value === '') {
-        continue;
-      }
-      number = Number(value);
-      if (isNaN(number)) {
-        continue;
-      }
-      sum += number;
-      count += 1;
-      if (min == null || number < min) {
-        min = number;
-      }
-      if (max == null || number > max) {
-        max = number;
-      }
-    }
-    if (name === 'avg' || name === 'average') {
-      return count ? sum / count : null;
-    }
-    if (name === 'min') {
-      return min;
-    }
-    if (name === 'max') {
-      return max;
-    }
-    return count ? sum : null;
+    return calculateAggregate(aggregate, column, rows, this);
   };
 
   FabGrid.prototype.formatAggregateValue = function(value, column, rows) {
@@ -6979,10 +8818,10 @@ function createFabGridFactory(editorDefinitions) {
       result = column.validate(args);
       if (isPromiseLike(result)) {
         return result.then(function(nextResult) {
-          return normalizeValidationResult(nextResult, value, 'custom', self) || getDefaultValidationErrorForGrid(self, config, value, column);
+          return normalizeValidationResult(nextResult, value, 'custom', self.getText('validation.invalidValue')) || getDefaultValidationErrorForGrid(self, config, value, column);
         });
       }
-      result = normalizeValidationResult(result, value, 'custom', this);
+      result = normalizeValidationResult(result, value, 'custom', this.getText('validation.invalidValue'));
       if (result) {
         return result;
       }
@@ -7284,99 +9123,15 @@ function createFabGridFactory(editorDefinitions) {
     return this.editor.value;
   };
 
-  FabGrid.prototype.toggleSort = function(colIndex, multiSort) {
-    var column = this.visibleColumns[colIndex];
-    var sortStates = this.getSortStates();
-    var sortIndex;
-    var currentState;
-    var nextSortStates;
-    var direction = 1;
-    if (!column) {
-      return;
-    }
-    sortIndex = this.getSortIndex(column);
-    currentState = sortIndex >= 0 ? sortStates[sortIndex] : null;
-    if (currentState) {
-      if (currentState.direction === 1) {
-        direction = -1;
-      } else if (currentState.direction === -1) {
-        direction = 0;
-      }
-    }
-    if (this.emit('sortingColumn', {
-      column: column,
-      direction: direction,
-      multiSort: multiSort === true,
-      sortIndex: sortIndex
-    }) === false) {
-      return;
-    }
-    nextSortStates = multiSort === true ? sortStates.slice() : [];
-    if (direction) {
-      if (multiSort === true && sortIndex >= 0) {
-        nextSortStates[sortIndex] = { column: column, direction: direction };
-      } else if (multiSort === true) {
-        nextSortStates.push({ column: column, direction: direction });
-      } else {
-        nextSortStates = [{ column: column, direction: direction }];
-      }
-    } else if (multiSort === true && sortIndex >= 0) {
-      nextSortStates.splice(sortIndex, 1);
-    }
-    this.sortStates = nextSortStates;
-    this.sortState = nextSortStates.length ? nextSortStates[0] : null;
-    if (this.options.remote === true) {
-      this.options.pageNumber = 1;
-      if (this.options.pager) {
-        this.options.pager.pageNumber = 1;
-      }
-    }
-    this.applyView();
-    this.resetScroll();
-    this.render();
-    this.emit('sortedColumn', {
-      column: column,
-      direction: direction,
-      multiSort: multiSort === true,
-      sortIndex: this.getSortIndex(column),
-      sortStates: this.getSortStates().slice()
-    });
-    if (this.options.remote === true) {
-      this.load();
-    }
-  };
 
-  FabGrid.prototype.getSortGlyph = function(column) {
-    var direction = this.getSortDirection(column);
-    if (!direction) {
-      return '';
-    }
-    return direction === 1 ? '▲' : '▼';
-  };
 
-  FabGrid.prototype.getSortDirection = function(column) {
-    var index = this.getSortIndex(column);
-    var sortStates = this.getSortStates();
-    return index >= 0 ? sortStates[index].direction : 0;
-  };
 
-  FabGrid.prototype.getSortIndex = function(column) {
-    var sortStates = this.getSortStates();
-    var i;
-    for (i = 0; i < sortStates.length; i += 1) {
-      if (sortStates[i].column === column) {
-        return i;
-      }
-    }
-    return -1;
-  };
 
-  FabGrid.prototype.getSortStates = function() {
-    if (Array.isArray(this.sortStates) && this.sortStates.length) {
-      return this.sortStates;
-    }
-    return this.sortState && this.sortState.direction ? [this.sortState] : [];
-  };
+
+
+
+
+
 
   FabGrid.prototype.startResize = function(event, colIndex) {
     var column = this.visibleColumns[colIndex];
@@ -7483,104 +9238,6 @@ function createFabGridFactory(editorDefinitions) {
     this.selection = { row: 0, col: 0 };
     this.emit('selectionChanged', { row: 0, col: 0, all: true });
     this.render();
-  };
-
-  FabGrid.prototype.getCsv = function(visibleOnly) {
-    var columns = visibleOnly === false ? this.columns : this.visibleColumns;
-    var lines = [];
-    var i;
-    var r;
-    var row;
-    var values;
-    lines.push(columns.map(function(col) {
-      return csvEscape(col.header || col.binding);
-    }).join(','));
-    for (r = 0; r < this.view.length; r += 1) {
-      row = this.view[r];
-      if (this.isRowGroup(row) || this.isRowGroupFooter(row)) {
-        continue;
-      }
-      values = [];
-      for (i = 0; i < columns.length; i += 1) {
-        values.push(csvEscape(getByBinding(row, columns[i].binding)));
-      }
-      lines.push(values.join(','));
-    }
-    return lines.join('\n');
-  };
-
-  FabGrid.prototype.exportCsv = function(filename, visibleOnly) {
-    var csv = this.getCsv(visibleOnly);
-    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    var url = URL.createObjectURL(blob);
-    link.href = url;
-    link.download = filename || 'fabgrid.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  FabGrid.prototype.getExcelBlob = function(visibleOnly) {
-    var columns = visibleOnly === true ? this.visibleColumns : this.columns;
-    var files = createXlsxFiles(columns, this.view || this.dataView, {
-      frozenColumns: visibleOnly === true ? this.frozenColumns : this.getExcelFrozenColumnCount(),
-      grid: this,
-      formatCell: this.options.formatCell,
-      excelCellStyle: this.options.excelCellStyle,
-      includeFooter: this.getFooterHeight() > 0
-    });
-    return new Blob([createZip(files)], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
-  };
-
-  FabGrid.prototype.getExcelFrozenColumnCount = function() {
-    var lastFrozenColumn;
-    var sourceIndex;
-    if (!this.frozenColumns) {
-      return 0;
-    }
-    lastFrozenColumn = this.visibleColumns[this.frozenColumns - 1];
-    sourceIndex = this.columns.indexOf(lastFrozenColumn);
-    return sourceIndex < 0 ? 0 : sourceIndex + 1;
-  };
-
-  FabGrid.prototype.exportExcel = function(filename, visibleOnly) {
-    var self = this;
-    if (this.busy) {
-      return Promise.resolve(false);
-    }
-    this.setBusy(true, this.options.exportBusyText || this.getText('exportBusyText'));
-    this.emit('excelExporting', { filename: filename || 'fabgrid.xlsx' });
-    return new Promise(function(resolve, reject) {
-      requestAnimationFrame(function() {
-        setTimeout(function() {
-          var blob;
-          var link;
-          var url;
-          try {
-            blob = self.getExcelBlob(visibleOnly);
-            link = document.createElement('a');
-            url = URL.createObjectURL(blob);
-            link.href = url;
-            link.download = filename || 'fabgrid.xlsx';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            self.emit('excelExported', { filename: link.download, blob: blob });
-            resolve(true);
-          } catch (error) {
-            self.emit('excelExportFailed', { filename: filename || 'fabgrid.xlsx', error: error });
-            reject(error);
-          } finally {
-            self.setBusy(false);
-          }
-        }, 0);
-      });
-    });
   };
 
   function mergeOptions(base, override) {
@@ -9078,36 +10735,6 @@ function createFabGridFactory(editorDefinitions) {
     return column.binding != null && column.binding !== '' ? 'binding:' + column.binding : 'index:' + column._index;
   }
 
-  function compareValues(a, b, type) {
-    if (a == null && b == null) {
-      return 0;
-    }
-    if (a == null) {
-      return -1;
-    }
-    if (b == null) {
-      return 1;
-    }
-    if (type === 'number') {
-      return Number(a) - Number(b);
-    }
-    if (type === 'date') {
-      return new Date(a).getTime() - new Date(b).getTime();
-    }
-    if (type === 'boolean') {
-      return (a ? 1 : 0) - (b ? 1 : 0);
-    }
-    a = String(a).toLowerCase();
-    b = String(b).toLowerCase();
-    if (a < b) {
-      return -1;
-    }
-    if (a > b) {
-      return 1;
-    }
-    return 0;
-  }
-
   function parseValue(value, type) {
     var text;
     var number;
@@ -9142,194 +10769,6 @@ function createFabGridFactory(editorDefinitions) {
   function getValidationRowId(key) {
     var index = String(key || '').indexOf('::');
     return index >= 0 ? String(key).slice(0, index) : '';
-  }
-
-  function normalizeValidationResult(result, value, type, grid) {
-    var message = grid ? grid.getText('validation.invalidValue') : 'Invalid value';
-    if (result == null || result === false || result === '') {
-      return null;
-    }
-    if (typeof result === 'string') {
-      return {
-        type: type || 'custom',
-        message: result,
-        value: value
-      };
-    }
-    if (result === true) {
-      return {
-        type: type || 'custom',
-        message: message,
-        value: value
-      };
-    }
-    if (typeof result === 'object') {
-      return mergeOptions({
-        type: type || 'custom',
-        message: message,
-        value: value
-      }, result);
-    }
-    return null;
-  }
-
-  function isPromiseLike(value) {
-    return value && typeof value.then === 'function';
-  }
-
-  function getMaskCopyText(value, column) {
-    if (isMaskValueIncludingLiterals(column)) {
-      return formatMaskText(value, column);
-    }
-    return extractMaskCharacters(value, column.mask);
-  }
-
-  function formatMaskText(value, column) {
-    var raw = extractMaskCharacters(value, column.mask);
-    return applyMask(raw, column.mask);
-  }
-
-  function countMaskCharactersBeforeCaret(value, mask, caret) {
-    return extractMaskCharacters(String(value == null ? '' : value).slice(0, caret), mask).length;
-  }
-
-  function getMaskCaretPosition(value, mask, rawIndex) {
-    var text = String(value == null ? '' : value);
-    var tokenIndex = 0;
-    var tokens = getMaskTokens(mask);
-    var i;
-    var ch;
-    if (rawIndex <= 0) {
-      return 0;
-    }
-    for (i = 0; i < text.length && tokenIndex < tokens.length; i += 1) {
-      ch = text.charAt(i);
-      if (isMaskCharAllowed(ch, tokens[tokenIndex])) {
-        tokenIndex += 1;
-        if (tokenIndex >= rawIndex) {
-          return i + 1;
-        }
-      }
-    }
-    return text.length;
-  }
-
-  function isMaskValueIncludingLiterals(column) {
-    return !isMaskAutoUnmask(column);
-  }
-
-  function isMaskAutoUnmask(column) {
-    if (column.autoUnmask === true) {
-      return true;
-    }
-    if (column.autoUnmask === false) {
-      return false;
-    }
-    return column.maskValueIncludesLiterals === false ||
-      column.maskIncludesLiterals === false ||
-      column.maskLiteralsInValue === false;
-  }
-
-  function extractMaskCharacters(value, mask) {
-    var text = value == null ? '' : String(value);
-    var chars = [];
-    var tokenIndex = 0;
-    var tokens = getMaskTokens(mask);
-    var i;
-    var ch;
-    if (!mask || !tokens.length) {
-      return text;
-    }
-    for (i = 0; i < text.length && tokenIndex < tokens.length; i += 1) {
-      ch = text.charAt(i);
-      if (isMaskCharAllowed(ch, tokens[tokenIndex])) {
-        chars.push(ch);
-        tokenIndex += 1;
-      }
-    }
-    return chars.join('');
-  }
-
-  function applyMask(raw, mask) {
-    var value = raw == null ? '' : String(raw);
-    var output = '';
-    var rawIndex = 0;
-    var i;
-    var token;
-    var ch;
-    if (!mask) {
-      return value;
-    }
-    for (i = 0; i < mask.length; i += 1) {
-      token = getMaskToken(mask.charAt(i));
-      if (!token) {
-        if (rawIndex > 0) {
-          output += mask.charAt(i);
-        }
-        continue;
-      }
-      ch = findNextMaskChar(value, rawIndex, token);
-      if (!ch) {
-        break;
-      }
-      output += ch.value;
-      rawIndex = ch.nextIndex;
-    }
-    return output;
-  }
-
-  function findNextMaskChar(value, start, token) {
-    var i;
-    var ch;
-    for (i = start; i < value.length; i += 1) {
-      ch = value.charAt(i);
-      if (isMaskCharAllowed(ch, token)) {
-        return {
-          value: ch,
-          nextIndex: i + 1
-        };
-      }
-    }
-    return null;
-  }
-
-  function getMaskTokens(mask) {
-    var tokens = [];
-    var i;
-    var token;
-    for (i = 0; i < String(mask || '').length; i += 1) {
-      token = getMaskToken(mask.charAt(i));
-      if (token) {
-        tokens.push(token);
-      }
-    }
-    return tokens;
-  }
-
-  function getMaskToken(ch) {
-    if (ch === '9') {
-      return 'digit';
-    }
-    if (ch === 'A') {
-      return 'letter';
-    }
-    if (ch === '*') {
-      return 'alphanumeric';
-    }
-    return '';
-  }
-
-  function isMaskCharAllowed(ch, token) {
-    if (token === 'digit') {
-      return /[0-9]/.test(ch);
-    }
-    if (token === 'letter') {
-      return /[A-Za-z]/.test(ch);
-    }
-    if (token === 'alphanumeric') {
-      return /[0-9A-Za-z]/.test(ch);
-    }
-    return false;
   }
 
   function stripNumberGroupSeparators(value) {
@@ -9441,62 +10880,6 @@ function createFabGridFactory(editorDefinitions) {
     return sign + integer + (hasDecimal ? '.' + decimal : '');
   }
 
-  function getByBinding(item, binding) {
-    var parts;
-    var i;
-    var value = item;
-    if (!item || !isSafeBinding(binding)) {
-      return undefined;
-    }
-    parts = String(binding).split('.');
-    for (i = 0; i < parts.length; i += 1) {
-      if (value == null) {
-        return undefined;
-      }
-      value = value[parts[i]];
-    }
-    return value;
-  }
-
-  function setByBinding(item, binding, value) {
-    var parts = String(binding).split('.');
-    var target = item;
-    var i;
-    if (!item || !isSafeBinding(binding)) {
-      return false;
-    }
-    for (i = 0; i < parts.length - 1; i += 1) {
-      if (!Object.prototype.hasOwnProperty.call(target, parts[i]) || target[parts[i]] == null) {
-        target[parts[i]] = {};
-      }
-      if (typeof target[parts[i]] !== 'object' && typeof target[parts[i]] !== 'function') {
-        return false;
-      }
-      target = target[parts[i]];
-    }
-    target[parts[parts.length - 1]] = value;
-    return true;
-  }
-
-  function isSafeBinding(binding) {
-    var parts;
-    var i;
-    if (binding == null || binding === '') {
-      return false;
-    }
-    parts = String(binding).split('.');
-    for (i = 0; i < parts.length; i += 1) {
-      if (!parts[i] || parts[i] === '__proto__' || parts[i] === 'prototype' || parts[i] === 'constructor') {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  function createDictionary() {
-    return Object.create(null);
-  }
-
   function findColumnByOffset(columns, start, end, offset) {
     var low = start;
     var high = end - 1;
@@ -9516,841 +10899,22 @@ function createFabGridFactory(editorDefinitions) {
     return result;
   }
 
-  function csvEscape(value) {
-    var text = value == null ? '' : String(value);
-    if (text.indexOf('"') >= 0 || text.indexOf(',') >= 0 || text.indexOf('\n') >= 0) {
-      return '"' + text.replace(/"/g, '""') + '"';
-    }
-    return text;
-  }
-
-  function createXlsxFiles(columns, rows, options) {
-    var now = new Date().toISOString();
-    var registry = createExcelStyleRegistry();
-    var worksheet = createWorksheetXml(columns, rows, options || {}, registry);
-    return [
-      {
-        name: '[Content_Types].xml',
-        content: '<?xml version="1.0" encoding="UTF-8"?>' +
-          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-          '<Default Extension="xml" ContentType="application/xml"/>' +
-          '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' +
-          '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
-          '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-          '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
-          '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
-          '</Types>'
-      },
-      {
-        name: '_rels/.rels',
-        content: '<?xml version="1.0" encoding="UTF-8"?>' +
-          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
-          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>' +
-          '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>' +
-          '</Relationships>'
-      },
-      {
-        name: 'docProps/app.xml',
-        content: '<?xml version="1.0" encoding="UTF-8"?>' +
-          '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">' +
-          '<Application>FabGrid</Application>' +
-          '</Properties>'
-      },
-      {
-        name: 'docProps/core.xml',
-        content: '<?xml version="1.0" encoding="UTF-8"?>' +
-          '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
-          '<dc:creator>FabGrid</dc:creator>' +
-          '<cp:lastModifiedBy>FabGrid</cp:lastModifiedBy>' +
-          '<dcterms:created xsi:type="dcterms:W3CDTF">' + now + '</dcterms:created>' +
-          '<dcterms:modified xsi:type="dcterms:W3CDTF">' + now + '</dcterms:modified>' +
-          '</cp:coreProperties>'
-      },
-      {
-        name: 'xl/workbook.xml',
-        content: '<?xml version="1.0" encoding="UTF-8"?>' +
-          '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-          '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>' +
-          '</workbook>'
-      },
-      {
-        name: 'xl/_rels/workbook.xml.rels',
-        content: '<?xml version="1.0" encoding="UTF-8"?>' +
-          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
-          '</Relationships>'
-      },
-      {
-        name: 'xl/styles.xml',
-        content: createExcelStylesXml(registry)
-      },
-      {
-        name: 'xl/worksheets/sheet1.xml',
-        content: worksheet
-      }
-    ];
-  }
-
-  function createExcelStyleRegistry() {
-    var registry = {
-      fonts: [
-        { bold: false, color: null },
-        { bold: true, color: 'FF1F2937' }
-      ],
-      fills: [
-        null,
-        { gray125: true },
-        { color: 'FFF5F7FA' }
-      ],
-      xfs: [
-        { fontId: 0, fillId: 0, borderId: 0, align: '', numFmtId: 0 },
-        { fontId: 1, fillId: 2, borderId: 1, align: 'center', numFmtId: 0 },
-        { fontId: 0, fillId: 0, borderId: 1, align: '', numFmtId: 0 },
-        { fontId: 0, fillId: 0, borderId: 1, align: 'right', numFmtId: 0 },
-        { fontId: 0, fillId: 0, borderId: 1, align: 'center', numFmtId: 0 }
-      ],
-      numFmts: [],
-      fontMap: { 'normal|': 0, 'bold|FF1F2937': 1 },
-      fillMap: { none: 0, gray125: 1, FFF5F7FA: 2 },
-      numFmtMap: {},
-      nextNumFmtId: 164,
-      xfMap: {
-        '0|0|0|0|': 0,
-        '1|2|1|center|0': 1,
-        '0|0|1||0': 2,
-        '0|0|1|right|0': 3,
-        '0|0|1|center|0': 4
-      }
-    };
-    return registry;
-  }
-
-  function createExcelStylesXml(registry) {
-    var xml = [];
-    var i;
-    xml.push('<?xml version="1.0" encoding="UTF-8"?>');
-    xml.push('<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
-    if (registry.numFmts.length) {
-      xml.push('<numFmts count="' + registry.numFmts.length + '">');
-      for (i = 0; i < registry.numFmts.length; i += 1) {
-        xml.push('<numFmt numFmtId="' + registry.numFmts[i].id + '" formatCode="' + xmlEscape(registry.numFmts[i].code) + '"/>');
-      }
-      xml.push('</numFmts>');
-    }
-    xml.push('<fonts count="' + registry.fonts.length + '">');
-    for (i = 0; i < registry.fonts.length; i += 1) {
-      xml.push(createExcelFontXml(registry.fonts[i]));
-    }
-    xml.push('</fonts>');
-    xml.push('<fills count="' + registry.fills.length + '">');
-    for (i = 0; i < registry.fills.length; i += 1) {
-      xml.push(createExcelFillXml(registry.fills[i]));
-    }
-    xml.push('</fills>');
-    xml.push('<borders count="2">');
-    xml.push('<border><left/><right/><top/><bottom/><diagonal/></border>');
-    xml.push('<border>');
-    xml.push('<left style="thin"><color rgb="FFD7DEE8"/></left>');
-    xml.push('<right style="thin"><color rgb="FFD7DEE8"/></right>');
-    xml.push('<top style="thin"><color rgb="FFD7DEE8"/></top>');
-    xml.push('<bottom style="thin"><color rgb="FFD7DEE8"/></bottom>');
-    xml.push('<diagonal/>');
-    xml.push('</border>');
-    xml.push('</borders>');
-    xml.push('<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>');
-    xml.push('<cellXfs count="' + registry.xfs.length + '">');
-    for (i = 0; i < registry.xfs.length; i += 1) {
-      xml.push(createExcelXfXml(registry.xfs[i]));
-    }
-    xml.push('</cellXfs>');
-    xml.push('<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>');
-    xml.push('</styleSheet>');
-    return xml.join('');
-  }
-
-  function createExcelFontXml(font) {
-    var xml = ['<font>'];
-    if (font.bold) {
-      xml.push('<b/>');
-    }
-    xml.push('<sz val="11"/>');
-    if (font.color) {
-      xml.push('<color rgb="' + font.color + '"/>');
-    }
-    xml.push('<name val="Arial"/>');
-    xml.push('</font>');
-    return xml.join('');
-  }
-
-  function createExcelFillXml(fill) {
-    if (!fill) {
-      return '<fill><patternFill patternType="none"/></fill>';
-    }
-    if (fill.gray125) {
-      return '<fill><patternFill patternType="gray125"/></fill>';
-    }
-    return '<fill><patternFill patternType="solid"><fgColor rgb="' + fill.color + '"/><bgColor indexed="64"/></patternFill></fill>';
-  }
-
-  function createExcelXfXml(xf) {
-    var numFmtId = xf.numFmtId || 0;
-    var xml = '<xf numFmtId="' + numFmtId + '" fontId="' + xf.fontId + '" fillId="' + xf.fillId + '" borderId="' + xf.borderId + '" xfId="0"';
-    if (numFmtId) {
-      xml += ' applyNumberFormat="1"';
-    }
-    if (xf.fontId) {
-      xml += ' applyFont="1"';
-    }
-    if (xf.fillId) {
-      xml += ' applyFill="1"';
-    }
-    if (xf.borderId) {
-      xml += ' applyBorder="1"';
-    }
-    if (xf.align) {
-      xml += ' applyAlignment="1"><alignment horizontal="' + xf.align + '" vertical="center"/></xf>';
-      return xml;
-    }
-    if (xf.borderId) {
-      xml += ' applyAlignment="1"><alignment vertical="center"/></xf>';
-      return xml;
-    }
-    return xml + '/>';
-  }
-
-  function registerExcelCellStyle(registry, style) {
-    var fontId = registerExcelFont(registry, style);
-    var fillId = registerExcelFill(registry, style);
-    var numFmtId = registerExcelNumberFormat(registry, style.numFmtCode || style.numberFormat || '');
-    var borderId = 1;
-    var align = style.align || '';
-    var key = fontId + '|' + fillId + '|' + borderId + '|' + align + '|' + numFmtId;
-    if (registry.xfMap[key] != null) {
-      return registry.xfMap[key];
-    }
-    registry.xfs.push({
-      fontId: fontId,
-      fillId: fillId,
-      borderId: borderId,
-      align: align,
-      numFmtId: numFmtId
-    });
-    registry.xfMap[key] = registry.xfs.length - 1;
-    return registry.xfs.length - 1;
-  }
-
-  function registerExcelFont(registry, style) {
-    var color = style.color || null;
-    var bold = style.bold === true;
-    var key = (bold ? 'bold' : 'normal') + '|' + (color || '');
-    if (registry.fontMap[key] != null) {
-      return registry.fontMap[key];
-    }
-    registry.fonts.push({ bold: bold, color: color });
-    registry.fontMap[key] = registry.fonts.length - 1;
-    return registry.fonts.length - 1;
-  }
-
-  function registerExcelFill(registry, style) {
-    var color = style.backgroundColor || null;
-    if (!color) {
-      return 0;
-    }
-    if (registry.fillMap[color] != null) {
-      return registry.fillMap[color];
-    }
-    registry.fills.push({ color: color });
-    registry.fillMap[color] = registry.fills.length - 1;
-    return registry.fills.length - 1;
-  }
-
-  function registerExcelNumberFormat(registry, code) {
-    code = code || '';
-    if (!code) {
-      return 0;
-    }
-    if (registry.numFmtMap[code] != null) {
-      return registry.numFmtMap[code];
-    }
-    registry.numFmts.push({
-      id: registry.nextNumFmtId,
-      code: code
-    });
-    registry.numFmtMap[code] = registry.nextNumFmtId;
-    registry.nextNumFmtId += 1;
-    return registry.numFmtMap[code];
-  }
-
-  function createWorksheetXml(columns, rows, options, registry) {
-    var includeFooter = options.includeFooter === true && options.grid;
-    var dataMaxRow = rows.length + 1;
-    var maxRow = dataMaxRow + (includeFooter ? 1 : 0);
-    var maxCol = Math.max(columns.length, 1);
-    var xml = [];
-    var r;
-    var c;
-    var row;
-    var styleResolver = createExcelStyleResolver(options);
-    xml.push('<?xml version="1.0" encoding="UTF-8"?>');
-    xml.push('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">');
-    xml.push('<dimension ref="A1:' + getExcelColumnName(maxCol) + maxRow + '"/>');
-    xml.push(createSheetViewsXml(Math.min(toNumber(options.frozenColumns, 0), columns.length)));
-    xml.push(createColumnWidthXml(columns));
-    xml.push('<sheetData>');
-    xml.push('<row r="1" ht="22" customHeight="1">');
-    for (c = 0; c < columns.length; c += 1) {
-      xml.push(createExcelCell(1, c + 1, columns[c].header || columns[c].binding, 'string', 1));
-    }
-    xml.push('</row>');
-    for (r = 0; r < rows.length; r += 1) {
-      row = rows[r];
-      if (options.grid && options.grid.isRowGroup(row)) {
-        xml.push(createExcelGroupRowXml(r + 2, row, columns, options.grid, registry));
-        continue;
-      }
-      if (options.grid && options.grid.isRowGroupFooter(row)) {
-        continue;
-      }
-      xml.push('<row r="' + (r + 2) + '">');
-      for (c = 0; c < columns.length; c += 1) {
-        xml.push(createExcelCell(
-          r + 2,
-          c + 1,
-          getByBinding(row, columns[c].binding),
-          columns[c].dataType,
-          getExcelCellStyle(columns[c], row, r, c, options, registry, styleResolver)
-        ));
-      }
-      xml.push('</row>');
-    }
-    if (includeFooter) {
-      xml.push(createExcelFooterRowXml(rows.length + 2, columns, options.grid));
-    }
-    if (styleResolver.dispose) {
-      styleResolver.dispose();
-    }
-    xml.push('</sheetData>');
-    xml.push('<autoFilter ref="A1:' + getExcelColumnName(maxCol) + dataMaxRow + '"/>');
-    xml.push('</worksheet>');
-    return xml.join('');
-  }
-
-  function createExcelGroupRowXml(rowIndex, group, columns, grid, registry) {
-    var xml = [];
-    var labelColumnIndex = 0;
-    var level = Math.max(0, Math.min(7, toNumber(group.level, 0)));
-    var value;
-    var isLabel;
-    var c;
-    for (c = 0; c < columns.length; c += 1) {
-      if (columns[c].visible !== false) {
-        labelColumnIndex = c;
-        break;
-      }
-    }
-    xml.push('<row r="' + rowIndex + '" outlineLevel="' + level + '">');
-    for (c = 0; c < columns.length; c += 1) {
-      isLabel = c === labelColumnIndex;
-      value = isLabel ? repeatString('  ', level) + group.label :
-        (columns[c].aggregate ?
-          grid.formatAggregateValue(grid.getRowGroupAggregateValue(group, columns[c]), columns[c], group.items) :
-          '');
-      xml.push(createExcelCell(
-        rowIndex,
-        c + 1,
-        value,
-        isLabel || columns[c].aggregate ? 'string' : columns[c].dataType,
-        getExcelGroupCellStyle(columns[c], isLabel, registry)
-      ));
-    }
-    xml.push('</row>');
-    return xml.join('');
-  }
-
-  function createExcelFooterRowXml(rowIndex, columns, grid) {
-    var xml = [];
-    var c;
-    var value;
-    xml.push('<row r="' + rowIndex + '">');
-    for (c = 0; c < columns.length; c += 1) {
-      value = grid.getFooterCellText(columns[c]);
-      xml.push(createExcelCell(rowIndex, c + 1, value, 'string', getExcelFooterCellStyle(columns[c])));
-    }
-    xml.push('</row>');
-    return xml.join('');
-  }
-
-  function createSheetViewsXml(frozenColumns) {
-    var topLeftCell = getExcelColumnName(frozenColumns + 1) + '2';
-    var activePane = frozenColumns > 0 ? 'bottomRight' : 'bottomLeft';
-    var pane = '<pane ySplit="1"';
-    if (frozenColumns > 0) {
-      pane += ' xSplit="' + frozenColumns + '"';
-    }
-    pane += ' topLeftCell="' + topLeftCell + '" activePane="' + activePane + '" state="frozen"/>';
-    return '<sheetViews><sheetView workbookViewId="0">' + pane + '</sheetView></sheetViews>';
-  }
-
-  function createColumnWidthXml(columns) {
-    var xml = [];
-    var width;
-    var i;
-    if (!columns.length) {
-      return '';
-    }
-    xml.push('<cols>');
-    for (i = 0; i < columns.length; i += 1) {
-      width = Math.max(8, Math.min(80, Math.round(toNumber(columns[i]._width || columns[i].width, 120) / 7)));
-      xml.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + width + '" customWidth="1"' +
-        (columns[i].visible === false ? ' hidden="1"' : '') + '/>');
-    }
-    xml.push('</cols>');
-    return xml.join('');
-  }
-
-  function getExcelCellStyle(column, item, rowIndex, colIndex, options, registry, styleResolver) {
-    var baseStyle = getExcelBaseCellStyle(column);
-    var extraStyle = styleResolver(item, column, rowIndex, colIndex);
-    if (extraStyle) {
-      if (!extraStyle.align) {
-        extraStyle.align = baseStyle.align;
-      }
-      if (!extraStyle.numFmtCode && !extraStyle.numberFormat && baseStyle.numFmtCode) {
-        extraStyle.numFmtCode = baseStyle.numFmtCode;
-      }
-      return registerExcelCellStyle(registry, extraStyle);
-    }
-    if (baseStyle.numFmtCode) {
-      return registerExcelCellStyle(registry, baseStyle);
-    }
-    if (baseStyle.id) {
-      return baseStyle.id;
-    }
-    return 2;
-  }
-
-  function getExcelGroupCellStyle(column, isLabel, registry) {
-    var baseStyle = getExcelBaseCellStyle(column);
-    var style = {
-      bold: isLabel,
-      backgroundColor: 'FFE1E1E1',
-      align: isLabel ? '' : baseStyle.align,
-      numFmtCode: baseStyle.numFmtCode || ''
-    };
-    if (column.color) {
-      style.color = cssColorToExcelColor(column.color);
-    }
-    return registerExcelCellStyle(registry, style);
-  }
-
-  function getExcelBaseCellStyle(column) {
-    var numberFormat;
-    if (column.align === 'right' || column.dataType === 'number') {
-      numberFormat = getExcelNumberFormatCode(column);
-      if (numberFormat) {
-        return { align: 'right', numFmtCode: numberFormat };
-      }
-      return { id: 3, align: 'right' };
-    }
-    if (column.align === 'center' || column.dataType === 'boolean') {
-      return { id: 4, align: 'center' };
-    }
-    return { id: 2, align: '' };
-  }
-
-  function getExcelFooterCellStyle(column) {
-    if (column.align === 'right' || column.dataType === 'number') {
-      return 3;
-    }
-    if (column.align === 'center' || column.dataType === 'boolean') {
-      return 4;
-    }
-    return 2;
-  }
-
-  function getExcelNumberFormatCode(column) {
-    var precision;
-    var decimalPart = '';
-    var integerPart;
-    if (!column || column.dataType !== 'number') {
-      return '';
-    }
-    precision = getNumberPrecision(column);
-    integerPart = shouldUseThousandsSeparator(column) ? '#,##0' : '0';
-    if (precision != null) {
-      decimalPart = precision > 0 ? '.' + repeatString('0', precision) : '';
-    } else if (shouldUseThousandsSeparator(column)) {
-      decimalPart = '.############';
-    } else {
-      return '';
-    }
-    return integerPart + decimalPart;
-  }
-
-  function repeatString(text, count) {
-    var output = '';
-    while (count > 0) {
-      output += text;
-      count -= 1;
-    }
-    return output;
-  }
-
-  function createExcelStyleResolver(options) {
-    var sampleCell = null;
-    var formatCell = options.formatCell;
-    var customStyle = options.excelCellStyle;
-    var grid = options.grid;
-    var resolver;
-    if (grid && grid.root && typeof document !== 'undefined' && typeof formatCell === 'function') {
-      sampleCell = document.createElement('div');
-      sampleCell.style.position = 'absolute';
-      sampleCell.style.visibility = 'hidden';
-      sampleCell.style.pointerEvents = 'none';
-      sampleCell.style.top = '-10000px';
-      sampleCell.style.left = '-10000px';
-      grid.root.appendChild(sampleCell);
-    }
-    resolver = function(item, column, rowIndex, colIndex) {
-      var value = getByBinding(item, column.binding);
-      var style = null;
-      var fromCell;
-      var override;
-      if (sampleCell) {
-        sampleCell.removeAttribute('style');
-        sampleCell.style.position = 'absolute';
-        sampleCell.style.visibility = 'hidden';
-        sampleCell.style.pointerEvents = 'none';
-        sampleCell.style.top = '-10000px';
-        sampleCell.style.left = '-10000px';
-        sampleCell.className = 'fg-cell' + (column.align ? ' fg-align-' + column.align : '');
-        sampleCell.removeAttribute('data-row');
-        sampleCell.removeAttribute('data-col');
-        sampleCell.textContent = value == null ? '' : String(value);
-        formatCell({
-          grid: grid,
-          cell: sampleCell,
-          item: item,
-          column: column,
-          value: value,
-          rowIndex: rowIndex,
-          colIndex: colIndex
-        });
-        fromCell = getExcelStyleFromComputedCell(sampleCell);
-        if (fromCell) {
-          style = fromCell;
-        }
-      }
-      if (typeof customStyle === 'function') {
-        override = customStyle({
-          grid: grid,
-          item: item,
-          column: column,
-          value: value,
-          rowIndex: rowIndex,
-          colIndex: colIndex,
-          style: style || {}
-        });
-        if (override) {
-          style = mergeExcelStyle(style || {}, normalizeExcelStyle(override));
-        }
-      }
-      return style;
-    };
-    if (sampleCell) {
-      resolver.dispose = function() {
-        if (sampleCell && sampleCell.parentNode) {
-          sampleCell.parentNode.removeChild(sampleCell);
-        }
-      };
-    }
-    return resolver;
-  }
-
-  function getExcelStyleFromComputedCell(cell) {
-    var computed = window.getComputedStyle(cell);
-    var style = {};
-    var color = cssColorToExcelColor(computed.color);
-    var backgroundColor = cssColorToExcelColor(computed.backgroundColor);
-    if (color && color !== 'FF1F2937' && color !== 'FF111827') {
-      style.color = color;
-    }
-    if (backgroundColor && backgroundColor !== 'FFFFFFFF') {
-      style.backgroundColor = backgroundColor;
-    }
-    if (Number(computed.fontWeight) >= 600 || computed.fontWeight === 'bold') {
-      style.bold = true;
-    }
-    if (computed.textAlign === 'right' || computed.justifyContent === 'flex-end') {
-      style.align = 'right';
-    } else if (computed.textAlign === 'center' || computed.justifyContent === 'center') {
-      style.align = 'center';
-    }
-    return Object.keys(style).length ? style : null;
-  }
-
-  function normalizeExcelStyle(style) {
-    return {
-      color: cssColorToExcelColor(style.color || style.textColor || ''),
-      backgroundColor: cssColorToExcelColor(style.backgroundColor || style.background || ''),
-      bold: style.bold === true || style.fontWeight === 'bold' || Number(style.fontWeight) >= 600,
-      align: normalizeExcelAlign(style.align || style.textAlign || ''),
-      numFmtCode: style.numFmtCode || style.numberFormat || ''
-    };
-  }
-
-  function mergeExcelStyle(base, override) {
-    var result = {};
-    var key;
-    for (key in base) {
-      if (Object.prototype.hasOwnProperty.call(base, key)) {
-        result[key] = base[key];
-      }
-    }
-    for (key in override) {
-      if (Object.prototype.hasOwnProperty.call(override, key) && override[key]) {
-        result[key] = override[key];
-      }
-    }
-    return result;
-  }
-
-  function normalizeExcelAlign(value) {
-    if (value === 'right' || value === 'center' || value === 'left') {
-      return value;
-    }
-    return '';
-  }
-
-  function cssColorToExcelColor(value) {
-    var match;
-    var hex;
-    if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') {
-      return '';
-    }
-    if (value.charAt(0) === '#') {
-      hex = value.length === 4 ?
-        value.charAt(1) + value.charAt(1) + value.charAt(2) + value.charAt(2) + value.charAt(3) + value.charAt(3) :
-        value.slice(1, 7);
-      return 'FF' + hex.toUpperCase();
-    }
-    match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
-    if (!match || match[4] === '0') {
-      return '';
-    }
-    return 'FF' + toHexByte(match[1]) + toHexByte(match[2]) + toHexByte(match[3]);
-  }
-
-  function toHexByte(value) {
-    var hex = Math.max(0, Math.min(255, Number(value))).toString(16).toUpperCase();
-    return hex.length === 1 ? '0' + hex : hex;
-  }
-
-  function createExcelCell(row, col, value, type, styleId) {
-    var ref = getExcelColumnName(col) + row;
-    var style = styleId ? ' s="' + styleId + '"' : '';
-    if (value == null) {
-      return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t></t></is></c>';
-    }
-    if (type === 'number' && typeof value !== 'boolean' && isFinite(Number(value))) {
-      return '<c r="' + ref + '"' + style + '><v>' + Number(value) + '</v></c>';
-    }
-    if (type === 'boolean') {
-      return '<c r="' + ref + '"' + style + ' t="b"><v>' + (parseValue(value, 'boolean') ? '1' : '0') + '</v></c>';
-    }
-    return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t' + getXmlSpaceAttribute(value) + '>' + xmlEscape(value) + '</t></is></c>';
-  }
-
-  function getExcelColumnName(index) {
-    var name = '';
-    var number = index;
-    while (number > 0) {
-      number -= 1;
-      name = String.fromCharCode(65 + (number % 26)) + name;
-      number = Math.floor(number / 26);
-    }
-    return name;
-  }
-
-  function getXmlSpaceAttribute(value) {
-    var text = String(value);
-    return /^\s|\s$|\s\s/.test(text) ? ' xml:space="preserve"' : '';
-  }
-
-  function xmlEscape(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  function createZip(files) {
-    var localParts = [];
-    var centralParts = [];
-    var offset = 0;
-    var i;
-    var file;
-    var data;
-    var nameBytes;
-    var crc;
-    var dateParts = getZipDateParts(new Date());
-    for (i = 0; i < files.length; i += 1) {
-      file = files[i];
-      data = stringToUtf8Bytes(file.content);
-      nameBytes = stringToUtf8Bytes(file.name);
-      crc = crc32(data);
-      localParts.push(createZipLocalHeader(nameBytes, data, crc, dateParts));
-      localParts.push(data);
-      centralParts.push(createZipCentralHeader(nameBytes, data, crc, offset, dateParts));
-      offset += localParts[localParts.length - 2].length + data.length;
-    }
-    return concatUint8Arrays(localParts.concat(centralParts, [
-      createZipEndRecord(centralParts, offset)
-    ]));
-  }
-
-  function createZipLocalHeader(nameBytes, data, crc, dateParts) {
-    var header = new Uint8Array(30 + nameBytes.length);
-    writeUint32(header, 0, 0x04034b50);
-    writeUint16(header, 4, 20);
-    writeUint16(header, 6, 2048);
-    writeUint16(header, 8, 0);
-    writeUint16(header, 10, dateParts.time);
-    writeUint16(header, 12, dateParts.date);
-    writeUint32(header, 14, crc);
-    writeUint32(header, 18, data.length);
-    writeUint32(header, 22, data.length);
-    writeUint16(header, 26, nameBytes.length);
-    writeUint16(header, 28, 0);
-    header.set(nameBytes, 30);
-    return header;
-  }
-
-  function createZipCentralHeader(nameBytes, data, crc, offset, dateParts) {
-    var header = new Uint8Array(46 + nameBytes.length);
-    writeUint32(header, 0, 0x02014b50);
-    writeUint16(header, 4, 20);
-    writeUint16(header, 6, 20);
-    writeUint16(header, 8, 2048);
-    writeUint16(header, 10, 0);
-    writeUint16(header, 12, dateParts.time);
-    writeUint16(header, 14, dateParts.date);
-    writeUint32(header, 16, crc);
-    writeUint32(header, 20, data.length);
-    writeUint32(header, 24, data.length);
-    writeUint16(header, 28, nameBytes.length);
-    writeUint16(header, 30, 0);
-    writeUint16(header, 32, 0);
-    writeUint16(header, 34, 0);
-    writeUint16(header, 36, 0);
-    writeUint32(header, 38, 0);
-    writeUint32(header, 42, offset);
-    header.set(nameBytes, 46);
-    return header;
-  }
-
-  function createZipEndRecord(centralParts, centralOffset) {
-    var size = 0;
-    var i;
-    var header = new Uint8Array(22);
-    for (i = 0; i < centralParts.length; i += 1) {
-      size += centralParts[i].length;
-    }
-    writeUint32(header, 0, 0x06054b50);
-    writeUint16(header, 8, centralParts.length);
-    writeUint16(header, 10, centralParts.length);
-    writeUint32(header, 12, size);
-    writeUint32(header, 16, centralOffset);
-    writeUint16(header, 20, 0);
-    return header;
-  }
-
-  function getZipDateParts(date) {
-    var year = Math.max(1980, date.getFullYear());
-    return {
-      time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
-      date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
-    };
-  }
-
-  function writeUint16(bytes, offset, value) {
-    bytes[offset] = value & 255;
-    bytes[offset + 1] = (value >>> 8) & 255;
-  }
-
-  function writeUint32(bytes, offset, value) {
-    bytes[offset] = value & 255;
-    bytes[offset + 1] = (value >>> 8) & 255;
-    bytes[offset + 2] = (value >>> 16) & 255;
-    bytes[offset + 3] = (value >>> 24) & 255;
-  }
-
-  function stringToUtf8Bytes(text) {
-    var encoded;
-    var bytes;
-    var i;
-    if (typeof TextEncoder !== 'undefined') {
-      return new TextEncoder().encode(text);
-    }
-    encoded = unescape(encodeURIComponent(text));
-    bytes = new Uint8Array(encoded.length);
-    for (i = 0; i < encoded.length; i += 1) {
-      bytes[i] = encoded.charCodeAt(i);
-    }
-    return bytes;
-  }
-
-  function concatUint8Arrays(parts) {
-    var total = 0;
-    var output;
-    var offset = 0;
-    var i;
-    for (i = 0; i < parts.length; i += 1) {
-      total += parts[i].length;
-    }
-    output = new Uint8Array(total);
-    for (i = 0; i < parts.length; i += 1) {
-      output.set(parts[i], offset);
-      offset += parts[i].length;
-    }
-    return output;
-  }
-
-  function crc32(bytes) {
-    var table = getCrcTable();
-    var crc = -1;
-    var i;
-    for (i = 0; i < bytes.length; i += 1) {
-      crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 255];
-    }
-    return (crc ^ -1) >>> 0;
-  }
-
-  function getCrcTable() {
-    var table = [];
-    var c;
-    var n;
-    var k;
-    if (getCrcTable.cache) {
-      return getCrcTable.cache;
-    }
-    for (n = 0; n < 256; n += 1) {
-      c = n;
-      for (k = 0; k < 8; k += 1) {
-        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-      }
-      table[n] = c >>> 0;
-    }
-    getCrcTable.cache = table;
-    return table;
-  }
-
   defineWijmoCompatibility(FabGrid);
+  installFabGridData(FabGrid, {
+    DEFAULT_OPTIONS: DEFAULT_OPTIONS,
+    getColumnSearchKey: getColumnSearchKey,
+    mergeOptions: mergeOptions,
+    normalizeColumnSearchOperator: normalizeColumnSearchOperator,
+    rowMatchesColumnSearch: rowMatchesColumnSearch,
+    rowMatchesSearch: rowMatchesSearch
+  });
+  installFabGridExport(FabGrid, {
+    getByBinding: getByBinding,
+    getNumberPrecision: getNumberPrecision,
+    parseValue: parseValue,
+    shouldUseThousandsSeparator: shouldUseThousandsSeparator,
+    toNumber: toNumber
+  });
 
   FabGrid.locales = getLocaleMap();
   FabGrid.editorDefinitions = editorDefinitions;
@@ -10366,8 +10930,9 @@ function createFabGridFactory(editorDefinitions) {
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.11";
+global.fabui.version = "2026.7.12";
 global.fabui.editorDefinitions = createEditorDefinitions();
+global.fabui.Chart = createChartFactory();
 global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);
 global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
 }(typeof window !== "undefined" ? window : this));
@@ -10382,6 +10947,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: 'No data',
+    chart: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',
@@ -10465,6 +11031,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: '沒有資料',
+    chart: { emptyText: '沒有資料', value: '數值', percent: '百分比' },
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
     loadMsg: '正在處理，請稍候...',
@@ -10548,6 +11115,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
 }(typeof window !== 'undefined' ? window : this, function() {
   return {
     emptyText: '没有数据',
+    chart: { emptyText: '没有数据', value: '数值', percent: '百分比' },
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
     loadMsg: '正在处理，请稍候...',

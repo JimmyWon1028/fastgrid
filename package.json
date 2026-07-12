@@ -9,7 +9,11 @@
   "style": "dist/fabui.css",
   "scripts": {
     "build": "node build/build.cjs",
+    "test": "node --test test/*.test.js",
     "smoke": "npm run build && node build/smoke.cjs",
     "serve": "python3 -m http.server 4173"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabGrid + Chart 共用資料來源</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260712-pie-rotate-only-v1">
+  <link rel="stylesheet" href="../src/chart/chart.css?v=20260712-pie-label-v1">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #1f2937; background: #f3f4f6; font-family: helvetica, tahoma, verdana, sans-serif; }
+    .page { width: min(1400px, 100%); margin: 0 auto; padding: 24px; }
+    .header { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+    .header h1 { margin: 0 0 6px; font-size: 24px; }
+    .header p { margin: 0; color: #6b7280; font-size: 14px; }
+    .field { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .field select { min-width: 112px; padding: 7px 28px 7px 10px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; }
+    .layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .card { min-width: 0; overflow: hidden; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .06); }
+    .card-title { margin: 0; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 15px; }
+    #grid { height: 430px; }
+    #chart, #lineChart, #pieChart { height: 430px; }
+    .note { margin: 14px 2px 0; color: #64748b; font-size: 13px; }
+    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .header { align-items: start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div>
+        <h1>FabGrid + Chart</h1>
+        <p>共用同一個 itemsSource；資料變動自動重繪，Grid 與 Chart 選取會互相連動。</p>
+      </div>
+      <label class="field">
+        <span>圖表類型</span>
+        <select id="chartType">
+          <option value="Column">直條圖</option>
+          <option value="Bar">橫條圖</option>
+          <option value="Line">折線圖</option>
+        </select>
+      </label>
+    </header>
+
+    <section class="layout">
+      <article class="card">
+        <h2 class="card-title">銷售資料（雙擊數值可編輯）</h2>
+        <div id="grid"></div>
+      </article>
+      <article class="card">
+        <h2 class="card-title">營收與成本</h2>
+        <div id="chart"></div>
+      </article>
+      <article class="card">
+        <h2 class="card-title">營收與成本趨勢</h2>
+        <div id="lineChart"></div>
+      </article>
+      <article class="card">
+        <h2 class="card-title">每月訂單占比</h2>
+        <div id="pieChart"></div>
+      </article>
+    </section>
+    <p class="note">Grid 與 Chart 接收到的是同一個陣列參照，不會複製或維護第二份資料。</p>
+  </main>
+
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260712-pie-label-v1';
+
+    const itemsSource = [
+      { month: '1月', revenue: 75, cost: 48, orders: 12 },
+      { month: '2月', revenue: 210, cost: 95, orders: 48 },
+      { month: '3月', revenue: 110, cost: 82, orders: 25 },
+      { month: '4月', revenue: 320, cost: 155, orders: 86 },
+      { month: '5月', revenue: 145, cost: 72, orders: 33 },
+      { month: '6月', revenue: 410, cost: 188, orders: 120 },
+      { month: '7月', revenue: 190, cost: 135, orders: 57 },
+      { month: '8月', revenue: 520, cost: 230, orders: 168 }
+    ];
+
+    const grid = new fabui.FabGrid('#grid', {
+      itemsSource: itemsSource,
+      columns: [
+        { binding: 'month', header: '月份', width: 100, align: 'center', isReadOnly: true },
+        { binding: 'revenue', header: '營收', width: 130, dataType: 'number', format: 'n0' },
+        { binding: 'cost', header: '成本', width: 130, dataType: 'number', format: 'n0' },
+        { binding: 'orders', header: '訂單數', width: 120, dataType: 'number', format: 'n0' }
+      ],
+      allowEditing: true,
+      allowSorting: true,
+      frozenColumns: 1,
+      alternatingRows: true
+    });
+
+    const chart = new fabui.Chart('#chart', {
+      chartType: 'Column',
+      itemsSource: itemsSource,
+      bindingX: 'month',
+      series: [
+        { name: '營收', binding: 'revenue' },
+        { name: '成本', binding: 'cost' }
+      ],
+      axisY: { min: 0 },
+      legend: { position: 'Bottom' },
+      tooltip: { content: '{seriesName} · {x}: {y}' },
+      selectionMode: 'Point',
+      selectionSource: grid,
+      locale: 'zh-TW'
+    });
+
+    const lineChart = new fabui.Chart('#lineChart', {
+      chartType: 'Line',
+      itemsSource: itemsSource,
+      bindingX: 'month',
+      series: [
+        { name: '營收', binding: 'revenue' },
+        { name: '成本', binding: 'cost' }
+      ],
+      axisY: { min: 0 },
+      legend: { position: 'Bottom' },
+      tooltip: { content: '{seriesName} · {x}: {y}' },
+      selectionMode: 'Point',
+      selectionSource: grid,
+      locale: 'zh-TW'
+    });
+
+    const pieChart = new fabui.Chart('#pieChart', {
+      chartType: 'Pie',
+      itemsSource: itemsSource,
+      bindingName: 'month',
+      binding: 'orders',
+      legend: { position: 'Bottom' },
+      tooltip: { content: '{name}: {value} ({percent}%)' },
+      selectionMode: 'Point',
+      selectedItemPosition: 'Top',
+      selectedItemOffset: .12,
+      isAnimated: true,
+      dataLabel: { content: '{percent}%', position: 'Inside' },
+      selectionSource: grid,
+      locale: 'zh-TW'
+    });
+
+    document.getElementById('chartType').addEventListener('change', function(event) {
+      chart.chartType = event.target.value;
+    });
+  </script>
+</body>
+</html>
