@@ -9,12 +9,16 @@ var GRID_EVENTS = [
   'beforeLoad',
   'beginningEdit',
   'bigCheckboxesChanged',
+  'cellCopied',
+  'cellEditStarting',
   'cellEditEnding',
   'cellEditEnded',
   'columnGroupCollapsedChanged',
   'columnGroupCollapsedChanging',
+  'columnVisibilityChanged',
   'copied',
   'copiedCell',
+  'copyFailed',
   'copying',
   'copyingCell',
   'deletedRow',
@@ -23,6 +27,9 @@ var GRID_EVENTS = [
   'draggedRow',
   'draggingColumn',
   'draggingRow',
+  'excelExported',
+  'excelExportFailed',
+  'excelExporting',
   'formatItem',
   'groupCollapsedChanged',
   'groupCollapsedChanging',
@@ -50,7 +57,10 @@ var GRID_EVENTS = [
   'rowEditEnding',
   'rowEditStarted',
   'rowEditStarting',
+  'rowSelectionChanged',
+  'rowSelectionChanging',
   'scrollPositionChanged',
+  'searchCleared',
   'selectionChanged',
   'selectionChanging',
   'sortedColumn',
@@ -58,18 +68,26 @@ var GRID_EVENTS = [
   'updatedLayout',
   'updatedView',
   'updatingLayout',
-  'updatingView'
+  'updatingView',
+  'viewportChanged'
 ];
 
 var SETTER_METHODS = {
   activeCellBorder: 'setActiveCellBorder',
   columns: 'setColumns',
+  editMode: 'setEditMode',
   frozenColumns: 'setFrozenColumns',
   frozenRightColumns: 'setFrozenRightColumns',
+  headerDisplayMode: 'setHeaderDisplayMode',
   itemsSource: 'setItemsSource',
   locale: 'setLocale',
+  multiSelectRows: 'setMultiSelectRows',
+  pageNumber: 'setPage',
+  pageSize: 'setPageSize',
+  rowGroups: 'setRowGroups',
   showFooter: 'setShowFooter',
-  showRowHeaders: 'setShowRowHeaders'
+  showRowHeaders: 'setShowRowHeaders',
+  showSearchRow: 'setShowSearchRow'
 };
 
 export function toJQueryEventName(value) {
@@ -103,20 +121,34 @@ export function createFabGridJQuery($, fabui) {
   function unbindCoreEvents(instance) {
     var bindings = instance.__fabgridJQueryBindings || [];
     bindings.forEach(function(binding) {
-      binding.event.removeHandler(binding.handler, instance);
+      if (binding.event && typeof binding.event.removeHandler === 'function') {
+        binding.event.removeHandler(binding.handler, instance);
+      } else if (binding.name && typeof instance.off === 'function') {
+        instance.off(binding.name, binding.handler);
+      }
     });
     delete instance.__fabgridJQueryBindings;
+    delete instance.__fabgridJQueryCallbacks;
   }
 
-  function bindCoreEvents(element, instance, options) {
+  function updateEventCallbacks(instance, options) {
+    var callbacks = instance.__fabgridJQueryCallbacks || {};
+    GRID_EVENTS.forEach(function(name) {
+      if (Object.prototype.hasOwnProperty.call(options || {}, name)) {
+        callbacks[name] = options[name];
+      }
+    });
+    instance.__fabgridJQueryCallbacks = callbacks;
+  }
+
+  function bindCoreEvents(element, instance) {
     var bindings = [];
     GRID_EVENTS.forEach(function(name) {
       var coreEvent = instance[name];
       var handler;
-      if (!coreEvent || typeof coreEvent.addHandler !== 'function') return;
-      handler = function(sender, args) {
+      var forward = function(args) {
         var event = $.Event(toJQueryEventName(name) + EVENT_NAMESPACE);
-        var callback = options && options[name];
+        var callback = instance.__fabgridJQueryCallbacks[name];
         args = args || {};
         $(element).triggerHandler(event, [args, instance]);
         if (typeof callback === 'function' && callback.call(element, event, args, instance) === false) {
@@ -125,8 +157,19 @@ export function createFabGridJQuery($, fabui) {
         if (event.isDefaultPrevented && event.isDefaultPrevented()) args.cancel = true;
         return args.cancel !== true;
       };
-      coreEvent.addHandler(handler, instance);
-      bindings.push({ event: coreEvent, handler: handler });
+      if (coreEvent && typeof coreEvent.addHandler === 'function') {
+        handler = function(sender, args) {
+          return forward(args);
+        };
+        coreEvent.addHandler(handler, instance);
+        bindings.push({ event: coreEvent, handler: handler });
+      } else if (typeof instance.on === 'function' && typeof instance.off === 'function') {
+        handler = function(args) {
+          return forward(args);
+        };
+        instance.on(name, handler);
+        bindings.push({ name: name, handler: handler });
+      }
     });
     instance.__fabgridJQueryBindings = bindings;
   }
@@ -146,6 +189,7 @@ export function createFabGridJQuery($, fabui) {
   }
 
   function setOptions(instance, options) {
+    updateEventCallbacks(instance, options || {});
     Object.keys(options || {}).forEach(function(name) {
       if (GRID_EVENTS.indexOf(name) >= 0) return;
       setOption(instance, name, options[name]);
@@ -160,7 +204,8 @@ export function createFabGridJQuery($, fabui) {
   function create(element, options) {
     var instance = new fabui.FabGrid(element, options || {});
     setInstance(element, instance);
-    bindCoreEvents(element, instance, options || {});
+    updateEventCallbacks(instance, options || {});
+    bindCoreEvents(element, instance);
     triggerLifecycle(element, 'initialized', instance);
     return instance;
   }

@@ -2,7 +2,7 @@
 
 `fabgrid-vue` 是 FabGrid pure JavaScript core 的 Vue 2 Options API wrapper。Wrapper 只管理 component lifecycle、props 與 events；cell rendering、virtualization、sorting、editing 與 selection 仍由 FabGrid core 執行。
 
-完整 Vue 2 Options API 單檔元件範例請參考 [`demo/js/vue2-grid.vue`](../demo/js/vue2-grid.vue)。
+完整 Vue 2 Options API 單檔元件範例請參考 [`demo/js/demo-vue2.vue`](../demo/js/demo-vue2.vue)。
 
 此 Vue Demo 與 `demo/dev.html` 使用相同資料規模、工具列設定、欄位 editor、theme、locale、群組、篩選、remote、Popup Grid、匯出與 runtime stats；Vue wrapper 不接管 cell rendering。
 
@@ -12,7 +12,7 @@
 npm run dev:vue
 ```
 
-開啟 `http://127.0.0.1:4174/demo/vue2-grid.html`。此頁依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再載入 `demo/js/vue2-systemjs.config.js`，由 `System.import()` 於瀏覽器執行期間動態取得並轉譯 `demo/js/vue2-grid.vue`；每次重新整理都會使用 cache-busting URL。修改 `.vue` 後重新整理瀏覽器即可看到結果。
+開啟 `http://127.0.0.1:4174/demo/demo-vue2.html`。此頁依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再載入 `demo/js/vue2-systemjs.config.js`，由 `System.import()` 於瀏覽器執行期間動態取得並轉譯 `demo/js/demo-vue2.vue`；每次重新整理都會使用 cache-busting URL。修改 `.vue` 後重新整理瀏覽器即可看到結果。
 
 SystemJS runtime loader 只用於本機 source-mode Demo；目前不提供獨立 Vue production HTML 頁面。
 

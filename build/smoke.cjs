@@ -158,8 +158,7 @@ server.listen(port, '127.0.0.1', async function() {
       result.alternatingRowHeaderCells < 1 ||
       result.evenRowCells < 1 ||
       result.evenRowHeaderCells < 1 ||
-      result.alternatingRowBackground !== 'rgb(250, 250, 250)' ||
-      result.alternatingRowVariable !== '#fafafa' ||
+      result.alternatingRowComputedBackground !== 'rgb(250, 250, 250)' ||
       result.sampleCellColor !== 'rgb(0, 0, 0)' ||
       result.sampleRowHeaderColor !== 'rgb(128, 128, 128)' ||
       result.sampleHeaderColor !== 'rgb(128, 128, 128)' ||

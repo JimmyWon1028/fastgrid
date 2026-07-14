@@ -1,116 +1,92 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-TW">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FabGrid jQuery Dev Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260713-cell-padding-v4">
-  <link rel="stylesheet" href="./style/my.icon.css?v=20260713-demo-style-folder-v1">
-  <link rel="stylesheet" href="./style/style.css?v=20260713-demo-style-folder-v1">
-</head>
-<body>
-  <main class="page">
-    <section class="toolbar" aria-label="FabGrid controls">
-      <div class="brand">
-        <h1>FabGrid jQuery</h1>
-        <p>jQuery wrapper · <span id="datasetSummary">-</span></p>
-      </div>
-      <label class="field compact">
-        <span id="languageLabel">語言</span>
-        <select id="languageInput">
-          <option value="zh-TW">繁體中文</option>
-          <option value="zh-CN">简体中文</option>
-          <option value="en">English</option>
-        </select>
-      </label>
-      <label class="field compact theme-field">
-        <span id="themeLabel">主題</span>
-        <select id="themeInput"></select>
-      </label>
-      <label class="field compact narrow-number-field">
-        <span id="frozenLabel">凍結欄</span>
-        <input id="frozenInput" type="number" min="0" max="6" value="2">
-      </label>
-      <label class="field compact narrow-number-field">
-        <span id="frozenRightLabel">右凍結欄</span>
-        <input id="frozenRightInput" type="number" min="0" max="6" value="1">
-      </label>
-      <label class="field compact">
-        <span id="rowHeadersLabel">列號</span>
-        <select id="rowHeadersInput">
-          <option value="false">關閉</option>
-          <option value="true">顯示列號</option>
-          <option value="cell">只顯示 cell</option>
-        </select>
-      </label>
-      <label class="field compact">
-        <span id="groupRowsLabel">群組</span>
-        <select id="groupRowsInput">
-          <option value="none">沒有群組</option>
-          <option value="order">訂單編號</option>
-          <option value="vendor">主要廠商 + 訂單編號</option>
-          <option value="vendor-order">主要廠商 > 訂單編號</option>
-        </select>
-      </label>
-      <label class="toggle">
-        <input id="searchRowInput" type="checkbox">
-        <span id="searchRowLabel">搜尋列</span>
-      </label>
-      <label class="toggle">
-        <input id="paginationInput" type="checkbox">
-        <span id="paginationLabel">分頁</span>
-      </label>
-      <label class="toggle">
-        <input id="remoteInput" type="checkbox">
-        <span id="remoteLabel">遠端</span>
-      </label>
-      <label class="toggle">
-        <input id="multiSelectInput" type="checkbox">
-        <span id="multiSelectLabel">多選</span>
-      </label>
-      <label class="toggle">
-        <input id="editModeInput" type="checkbox">
-        <span id="editModeLabel">編輯</span>
-      </label>
-      <button id="exportButton" class="toolbar-icon-button icon-export" type="button" aria-label="匯出 CSV" title="匯出 CSV"></button>
-      <button id="exportExcelButton" class="toolbar-icon-button icon-excel" type="button" aria-label="匯出 Excel" title="匯出 Excel"></button>
-    </section>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FabGrid jQuery Dev Demo</title>
+    <link rel="stylesheet" href="../src/fabui.css?v=20260713-cell-padding-v4" />
+    <link
+      rel="stylesheet"
+      href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
+    />
+    <link
+      rel="stylesheet"
+      href="./style/style.css?v=20260714-grid-fullscreen-v1"
+    />
+  </head>
+  <body>
+    <main class="page">
+      <section
+        data-fabgrid-demo-toolbar
+        data-toolbar-title="FabGrid jQuery"
+        data-toolbar-description="jQuery wrapper"
+      ></section>
 
-    <section class="stats" aria-label="FabGrid stats">
-      <span id="rowCount">Rows: -</span>
-      <span id="rowRange">Rows visible: -</span>
-      <span id="columnRange">Columns visible: -</span>
-      <span id="cellCount">Rendered cells: -</span>
-    </section>
+      <section class="stats" aria-label="FabGrid stats">
+        <span id="rowCount">Rows: -</span>
+        <span id="rowRange">Rows visible: -</span>
+        <span id="columnRange">Columns visible: -</span>
+        <span id="cellCount">Rendered cells: -</span>
+      </section>
 
-    <section class="grid-shell">
-      <div id="grid"></div>
-      <div class="demo-filter-bar" aria-label="Demo filter">
-        <span id="demoResultCount" class="demo-result-count">筆數: -</span>
-        <label class="demo-filter-control">
-          <span id="demoFilterLabel">篩選:</span>
-          <span class="demo-filter-input-wrap">
-            <input id="demoFilterInput" type="search" placeholder="輸入條件" autocomplete="off">
-            <button id="demoFilterMode" class="demo-filter-mode" type="button" aria-label="OR" title="OR">OR</button>
-            <button id="demoFilterClear" type="button" aria-label="清除篩選" title="清除篩選">🧹</button>
-          </span>
-        </label>
-      </div>
-    </section>
-  </main>
+      <section class="grid-shell">
+        <div id="grid"></div>
+        <div class="demo-filter-bar" aria-label="Demo filter">
+          <span id="demoResultCount" class="demo-result-count">筆數: -</span>
+          <label class="demo-filter-control">
+            <span id="demoFilterLabel">篩選:</span>
+            <span class="demo-filter-input-wrap">
+              <input
+                id="demoFilterInput"
+                type="search"
+                placeholder="輸入條件"
+                autocomplete="off"
+              />
+              <button
+                id="demoFilterMode"
+                class="demo-filter-mode"
+                type="button"
+                aria-label="OR"
+                title="OR"
+              >
+                OR
+              </button>
+              <button
+                id="demoFilterClear"
+                type="button"
+                aria-label="清除篩選"
+                title="清除篩選"
+              >
+                🧹
+              </button>
+            </span>
+          </label>
+        </div>
+      </section>
+    </main>
 
-  <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
-  <script src="./js/demo-data.js?v=20260713-demo-bindings-v2"></script>
-  <script type="module">
-    import fabui from '../src/fabui.js?v=20260713-search-color-v11';
-    import { createFabGridJQuery } from '../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260713-jquery-wrapper-v2';
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
+    <script src="./js/demo-toolbar.js?v=20260714-demo-shared-toolbar-v1"></script>
+    <script src="./js/demo-data.js?v=20260714-demo-shared-lookup-v1"></script>
+    <script src="./js/demo-locales.js?v=20260714-grid-fullscreen-v1"></script>
+    <script src="./js/demo-query.js?v=20260714-demo-shared-query-v1"></script>
+    <script type="module">
+      import fabui from "../src/fabui.js?v=20260714-color-palette-v2";
+      import { createFabGridJQuery } from "../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260714-jquery-wrapper-v3";
 
-    window.fabui = fabui;
-    createFabGridJQuery(window.jQuery, fabui);
-    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260713-color-editor-v1');
-    await import('../src/locales/fabgrid-locale.zh-CN.js?v=20260713-color-editor-v1');
-    await import('../src/locales/fabgrid-locale.en.js?v=20260713-color-editor-v1');
-    await import('./js/demo.js?v=20260713-status-colors-v1');
-  </script>
-</body>
+      window.fabui = fabui;
+      createFabGridJQuery(window.jQuery, fabui);
+      await import("./js/demo-jquery.js?v=20260714-demo-jquery-adapter-v1");
+      await import(
+        "../src/locales/fabgrid-locale.zh-TW.js?v=20260713-color-editor-v1"
+      );
+      await import(
+        "../src/locales/fabgrid-locale.zh-CN.js?v=20260713-color-editor-v1"
+      );
+      await import(
+        "../src/locales/fabgrid-locale.en.js?v=20260713-color-editor-v1"
+      );
+      await import("./js/demo.js?v=20260714-demo-jquery-adapter-v1");
+    </script>
+  </body>
 </html>

@@ -72,7 +72,6 @@ const grid = new fabui.FabGrid('#grid', {
 | `headerDisplayMode` | `'header' \| 'binding'` | `'header'` | 標題顯示欄位標題或 binding。 |
 | `headerToggleKey` | `string \| false` | `false` | 切換標題顯示模式的快捷鍵，例如 `'F4'`。 |
 | `alternatingRows` | `boolean` | `false` | 使用交錯列背景。 |
-| `alternatingRowBackground` | `string` | `'#fafafa'` | 交錯列背景色。 |
 | `locale` | `string \| object` | `null` | Locale 名稱或 locale object。 |
 | `messages` | `object` | `null` | 覆寫 locale 文字。 |
 | `observeItemsSource` | `boolean` | `false` | 以 Proxy 觀察直接修改的資料列；開啟會有額外成本。 |

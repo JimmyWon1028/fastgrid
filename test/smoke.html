@@ -176,7 +176,6 @@
           columns: columns(50),
           itemsSource: rows(5000),
           alternatingRows: true,
-          alternatingRowBackground: '#fafafa',
           formatCell: function(args) {
             if (args.column.binding === 'amount' && Number(args.value) > 1000) {
               args.cell.style.color = '#047857';
@@ -559,8 +558,7 @@
             var evenRowCellsBeforeSearch = document.querySelectorAll('.fg-cell.fg-row-even').length;
             var evenRowHeaderCellsBeforeSearch = document.querySelectorAll('.fg-row-header-cell.fg-row-even').length;
             var alternatingRowCell = document.querySelector('.fg-cell.fg-row-even');
-            var alternatingRowBackground = alternatingRowCell ? window.getComputedStyle(alternatingRowCell).backgroundColor : '';
-            var alternatingRowVariable = document.querySelector('.fg-root').style.getPropertyValue('--fg-cell-alt-bg');
+            var alternatingRowComputedBackground = alternatingRowCell ? window.getComputedStyle(alternatingRowCell).backgroundColor : '';
             var sampleCell = document.querySelector('.fg-cell[data-col="1"]');
             var sampleRowHeader = document.querySelector('.fg-row-header-cell');
             var sampleHeader = document.querySelector('.fg-header-cell[data-col="1"]');
@@ -1548,25 +1546,6 @@
             dateBox.destroy();
             defaultDateBox.destroy();
             document.body.removeChild(dateBoxHost);
-            var yymmBoxHost = document.createElement('div');
-            var yymmBoxInput = document.createElement('input');
-            yymmBoxHost.appendChild(yymmBoxInput);
-            document.body.appendChild(yymmBoxHost);
-            var yymmBox = new fabui.YymmBox(yymmBoxInput, {
-              value: '202607'
-            });
-            yymmBox.showPanel();
-            var sharedYymmEditorDefinitionWorks = window.fabui.YymmBox.editorDefinition === window.fabui.editorDefinitions.datebox &&
-              yymmBox.getValue() === '202607' &&
-              yymmBox.getText() === '2026/07' &&
-              yymmBox.textbox().classList.contains('textbox-f') &&
-              yymmBox.textbox().classList.contains('datebox-f') &&
-              yymmBox.textbox().classList.contains('fg-editor-datebox') &&
-              !yymmBox.panel().querySelector('.fui-calendar-menu').hidden &&
-              yymmBox.panel().querySelectorAll('.fui-calendar-menu-month').length === 12;
-            yymmBox.hidePanel();
-            yymmBox.destroy();
-            document.body.removeChild(yymmBoxHost);
             var comboBoxHost = document.createElement('div');
             var comboBoxInput = document.createElement('input');
             var multiComboBoxInput = document.createElement('input');
@@ -1742,7 +1721,7 @@
                   window.fabui.editorDefinitions === window.fabui.FabGrid.editorDefinitions &&
                   typeof window.FabGrid === 'undefined' &&
                   typeof window.FabGridLocales === 'undefined',
-                coreBundleOnlyWorks: ['TextBox', 'NumberBox', 'DateBox', 'YymmBox', 'ComboBox', 'Tabs'].every(function(name) {
+                coreBundleOnlyWorks: ['TextBox', 'NumberBox', 'DateBox', 'ComboBox', 'Tabs'].every(function(name) {
                   return typeof window.fabui[name] === 'undefined';
                 }),
                 dangerousBindingBlocked: safetyResult.dangerousBindingBlocked,
@@ -1819,8 +1798,7 @@
                 alternatingRowHeaderCells: alternatingRowHeaderCellsBeforeSearch,
                 evenRowCells: evenRowCellsBeforeSearch,
                 evenRowHeaderCells: evenRowHeaderCellsBeforeSearch,
-                alternatingRowBackground: alternatingRowBackground,
-                alternatingRowVariable: alternatingRowVariable,
+                alternatingRowComputedBackground: alternatingRowComputedBackground,
                 sampleCellColor: sampleCellColor,
                 sampleRowHeaderColor: sampleRowHeaderColor,
                 sampleHeaderColor: sampleHeaderColor,

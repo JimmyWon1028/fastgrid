@@ -3,8 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FabGrid Dev Demo</title>
-    <link rel="stylesheet" href="../src/fabui.css?v=20260713-cell-padding-v4" />
+    <title>FabGrid jQuery Demo</title>
+    <link
+      rel="stylesheet"
+      href="../dist/fabui.css?v=20260713-jquery-wrapper-v1"
+    />
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
@@ -16,7 +19,11 @@
   </head>
   <body>
     <main class="page">
-      <section data-fabgrid-demo-toolbar></section>
+      <section
+        data-fabgrid-demo-toolbar
+        data-toolbar-title="FabGrid jQuery"
+        data-toolbar-description="jQuery wrapper"
+      ></section>
 
       <section class="stats" aria-label="FabGrid stats">
         <span id="rowCount">Rows: -</span>
@@ -61,24 +68,14 @@
       </section>
     </main>
 
+    <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
     <script src="./js/demo-toolbar.js?v=20260714-demo-shared-toolbar-v1"></script>
+    <script src="../dist/fabui.min.js?v=20260713-jquery-wrapper-v1"></script>
+    <script src="../dist/wrapper/fabgrid-jquery.min.js?v=20260713-wrapper-dist-v1"></script>
     <script src="./js/demo-data.js?v=20260714-demo-shared-lookup-v1"></script>
     <script src="./js/demo-locales.js?v=20260714-grid-fullscreen-v1"></script>
     <script src="./js/demo-query.js?v=20260714-demo-shared-query-v1"></script>
-    <script type="module">
-      import fabui from "../src/fabui.js?v=20260714-color-palette-v2";
-
-      window.fabui = fabui;
-      await import(
-        "../src/locales/fabgrid-locale.zh-TW.js?v=20260713-color-editor-v1"
-      );
-      await import(
-        "../src/locales/fabgrid-locale.zh-CN.js?v=20260713-color-editor-v1"
-      );
-      await import(
-        "../src/locales/fabgrid-locale.en.js?v=20260713-color-editor-v1"
-      );
-      await import("./js/demo.js?v=20260714-demo-jquery-adapter-v1");
-    </script>
+    <script src="./js/demo-jquery.js?v=20260714-demo-jquery-adapter-v1"></script>
+    <script src="./js/demo.js?v=20260714-demo-jquery-adapter-v1"></script>
   </body>
 </html>

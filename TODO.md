@@ -59,7 +59,6 @@
 - [ ] TextBox
 - [ ] NumberBox
 - [ ] DateBox
-- [ ] YymmBox
 - [ ] ComboBox
 - [ ] Tabs
 

@@ -28,17 +28,9 @@
   <script src="./js/vue2-systemjs.config.js?v=20260714-html-vue-v1"></script>
   <script>
     (function() {
-      var componentUrl = './js/vue2-grid.vue?' + Date.now() + '.vue';
+      var componentUrl = './js/demo-vue2.vue?' + Date.now() + '.vue';
 
-      System.import(componentUrl).then(function(module) {
-        var App = module.default || module;
-
-        new Vue({
-          render: function(createElement) {
-            return createElement(App);
-          }
-        }).$mount('#app');
-      }).catch(function(error) {
+      System.import(componentUrl).catch(function(error) {
         var host = document.getElementById('app');
         host.className = 'vue-sfc-error';
         host.textContent = 'Vue component load failed.\n' + (error && error.stack ? error.stack : error);

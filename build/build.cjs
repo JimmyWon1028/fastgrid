@@ -195,7 +195,7 @@ function verifyBuildOutput() {
   if (/\.\.\/images\/clear\.png/.test(css)) {
     throw new Error('Filter clear icon uses an invalid parent-directory path.');
   }
-  if (/global\.fabui\.(?:TextBox|NumberBox|DateBox|YymmBox|ComboBox|Tabs)\s*=/.test(javascript)) {
+  if (/global\.fabui\.(?:TextBox|NumberBox|DateBox|ComboBox|Tabs)\s*=/.test(javascript)) {
     throw new Error('Standalone components must not be published in the FabGrid bundle.');
   }
   if (javascript.indexOf('global.fabui.version = ' + JSON.stringify(buildVersion)) < 0) {

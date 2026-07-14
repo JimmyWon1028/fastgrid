@@ -14,7 +14,7 @@ FabUI 提供 pure JavaScript FabGrid 與 SVG Chart。FabGrid 支援雙向 virtua
 - [jQuery Wrapper API](./docs/jquery-api.md)
 - [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/)
 - [線上 Chart Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-chart.html)
-- [線上 jQuery Demo](https://jimmywon1028.github.io/fabgrid/demo/jquery-grid.html)
+- [線上 jQuery Demo](https://jimmywon1028.github.io/fabgrid/demo/demo-jquery.html)
 - [工作進度](./worklogs/)
 
 ## 快速使用
@@ -52,7 +52,29 @@ ES module 使用者可由 `dist/fabui.esm.js` 匯入 `fabui`，再以 `new fabui
 
 Vue 2 Options API wrapper 位於 `packages/fabgrid-vue`，透過 `<fab-grid>` 使用 pure JavaScript core；Vue 不接管 cell rendering。
 
-jQuery wrapper 位於 `packages/fabgrid-jquery`，透過 `$(element).fabgrid(options)` 建立或操作同一套 pure JavaScript core；jQuery 不參與 cell rendering。
+jQuery wrapper 位於 `packages/fabgrid-jquery`，透過 `$(element).fabgrid(options)` 建立或操作同一套 pure JavaScript core；jQuery 不參與 cell rendering。jQuery Demo 的初始化、公開方法與事件綁定都明確經過 wrapper：
+
+```js
+var $grid = $('#grid');
+
+$grid.fabgrid({
+  itemsSource: rows,
+  columns: columns
+});
+
+$grid.fabgrid('setFrozenColumns', 2);
+$grid.fabgrid('exportExcel', 'fabgrid-demo.xlsx');
+$grid.on('selectionchanged.fabgrid', function(event, args) {
+  console.log(args.row, args.col);
+});
+```
+
+jQuery Demo 分成以下兩層：
+
+- `demo/js/demo-jquery.js`：jQuery 專用 adapter，集中 `$.fn.fabgrid` 方法、option 與 jQuery event 操作。
+- `demo/js/demo.js`：Pure JS 與 jQuery Demo 共用的資料展示、工具列、Popup、篩選及匯出流程。
+
+開發版入口為 `demo/dev-jquery-grid.html`；引用 build 輸出的 browser global 版本為 `demo/demo-jquery.html`。
 
 ## 主要能力
 

@@ -1,290 +1,152 @@
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   // ---------------------------------------------------------------------------
   // Demo configuration and static data
   // ---------------------------------------------------------------------------
 
   if (!window.FabGridDemoData || !Array.isArray(window.FabGridDemoData.rows)) {
-    throw new Error('FabGrid demo data source is not loaded.');
+    throw new Error("FabGrid demo data source is not loaded.");
   }
-  var DEMO_ROW_COUNT = window.FabGridDemoData.rowCount;
+  if (!window.FabGridDemoQuery) {
+    throw new Error("FabGrid demo query helpers are not loaded.");
+  }
+  if (!window.FabGridDemoLocales) {
+    throw new Error("FabGrid demo locales are not loaded.");
+  }
+  if (!window.FabGridDemoToolbar) {
+    throw new Error("FabGrid demo toolbar is not loaded.");
+  }
+  var DEMO_QUERY = window.FabGridDemoQuery;
   var DEMO_COLUMN_COUNT = window.FabGridDemoData.columnCount;
   var DEMO_ROW_HEADER_WIDTH = 50;
-  var DEMO_SETTINGS_KEY = window.FABGRID_DEMO_SETTINGS_KEY || 'fabgrid.demo.settings.v4.default-toolbar-state';
+  var DEMO_SETTINGS_KEY =
+    window.FABGRID_DEMO_SETTINGS_KEY ||
+    "fabgrid.demo.settings.v4.default-toolbar-state";
   var DEFAULT_DEMO_SETTINGS = {
-    locale: 'zh-TW',
-    theme: 'default',
-    searchText: '',
+    locale: "zh-TW",
+    theme: "default",
+    searchText: "",
     frozenColumns: 2,
     frozenRightColumns: 1,
     showRowHeaders: true,
     showSearchRow: false,
     pagination: false,
     remote: false,
-    rowGroupMode: 'none',
+    rowGroupMode: "none",
     multiSelectRows: false,
-    editMode: false
+    editMode: false,
   };
-  var DEMO_LOCALES = {
-    en: {
-      search: 'Search',
-      searchPlaceholder: 'Keyword',
-      language: 'Language',
-      theme: 'Theme',
-      frozen: 'Frozen',
-      frozenRight: 'Right frozen',
-      rowHeaders: 'Row no.',
-      searchRow: 'Search row',
-      pagination: 'Pagination',
-      remote: 'Remote',
-      groupRows: 'Group',
-      groupNone: 'No group',
-      groupOrder: 'Order No.',
-      groupVendor: 'Vendor + Order No.',
-      groupVendorOrder: 'Vendor > Order No.',
-      groupHeader: '{header}: {key} ({count} items)',
-      groupVendorOrderHeader: '{header}: {vendor} + {order} ({count} items)',
-      multiSelect: 'Multi select',
-      editMode: 'Edit',
-      exportCsv: 'Export CSV',
-      exportExcel: 'Export Excel',
-      popupGridTitle: 'Popup Grid example: customer contract orders',
-      rows: 'Rows',
-      rowsVisible: 'Rows visible',
-      columnsVisible: 'Columns visible',
-      renderedCells: 'Rendered cells',
-      resultCount: 'Records',
-      filter: 'Filter:',
-      filterPlaceholder: 'Comma-separated terms, e.g. aaa,bbb,ccc',
-      clearFilter: 'Clear filter',
-      columnHeaders: {
-        id: 'Vendor',
-        name: 'Short Name',
-        region: 'Area',
-        crncy: 'Currency',
-        category: 'Item',
-        refCode: 'Order No.',
-        cusno: 'Customer',
-        stus: 'Status',
-        color: 'Color',
-        rem: 'Summary',
-        amount: 'Payable',
-        score: 'Score (async)',
-        textDate: 'Text date',
-        date: 'Date',
-        defaultColumn: 'Column {index}'
-      }
-    },
-    'zh-TW': {
-      search: '搜尋',
-      searchPlaceholder: '輸入關鍵字',
-      language: '語言',
-      theme: '主題',
-      frozen: '凍結欄',
-      frozenRight: '右凍結欄',
-      rowHeaders: '列號',
-      searchRow: '搜尋列',
-      pagination: '分頁',
-      remote: '遠端',
-      groupRows: '群組',
-      groupNone: '沒有群組',
-      groupOrder: '訂單編號',
-      groupVendor: '主要廠商 + 訂單編號',
-      groupVendorOrder: '主要廠商 > 訂單編號',
-      groupHeader: '{header}: {key} ({count} 項目)',
-      groupVendorOrderHeader: '{header}: {vendor} + {order} ({count} 項目)',
-      multiSelect: '多選',
-      editMode: '編輯',
-      exportCsv: '匯出 CSV',
-      exportExcel: '匯出 Excel',
-      popupGridTitle: 'Popup Grid 範例：客戶合約訂單',
-      rows: '列數',
-      rowsVisible: '可視列',
-      columnsVisible: '可視欄',
-      renderedCells: '已渲染儲存格',
-      resultCount: '筆數',
-      filter: '篩選:',
-      filterPlaceholder: '逗號分隔條件，例如 aaa,bbb,ccc',
-      clearFilter: '清除篩選',
-      columnHeaders: {
-        id: '主要廠商',
-        name: '簡稱',
-        region: '地區',
-        crncy: '幣別',
-        category: '項目',
-        refCode: '訂單編號',
-        cusno: '客戶',
-        stus: '狀態',
-        color: '顏色',
-        rem: '摘要',
-        amount: '應付金額',
-        score: '分數(非同步)',
-        textDate: '文字日期',
-        date: '日期',
-        defaultColumn: '欄位 {index}'
-      }
-    },
-    'zh-CN': {
-      search: '搜索',
-      searchPlaceholder: '输入关键字',
-      language: '语言',
-      theme: '主题',
-      frozen: '冻结列',
-      frozenRight: '右冻结列',
-      rowHeaders: '行号',
-      searchRow: '搜索行',
-      pagination: '分页',
-      remote: '远程',
-      groupRows: '分组',
-      groupNone: '不分组',
-      groupOrder: '订单编号',
-      groupVendor: '主要厂商 + 订单编号',
-      groupVendorOrder: '主要厂商 > 订单编号',
-      groupHeader: '{header}: {key} ({count} 项)',
-      groupVendorOrderHeader: '{header}: {vendor} + {order} ({count} 项)',
-      multiSelect: '多选',
-      editMode: '编辑',
-      exportCsv: '导出 CSV',
-      exportExcel: '导出 Excel',
-      popupGridTitle: 'Popup Grid 示例：客户合同订单',
-      rows: '行数',
-      rowsVisible: '可见行',
-      columnsVisible: '可见列',
-      renderedCells: '已渲染单元格',
-      resultCount: '记录数',
-      filter: '筛选:',
-      filterPlaceholder: '逗号分隔条件，例如 aaa,bbb,ccc',
-      clearFilter: '清除筛选',
-      columnHeaders: {
-        id: '主要厂商',
-        name: '简称',
-        region: '地区',
-        crncy: '币别',
-        category: '项目',
-        refCode: '订单编号',
-        cusno: '客户',
-        stus: '状态',
-        color: '颜色',
-        rem: '摘要',
-        amount: '应付金额',
-        score: '分数(异步)',
-        textDate: '文本日期',
-        date: '日期',
-        defaultColumn: '列 {index}'
-      }
-    }
-  };
+  var DEMO_LOCALES = window.FabGridDemoLocales;
   var DEMO_THEMES = [
-    { value: 'default', label: 'Default' },
-    { value: 'bootstrap', label: 'Bootstrap' },
-    { value: 'cupertino', label: 'Cupertino' },
-    { value: 'material', label: 'Material' },
-    { value: 'material-blue', label: 'Material Blue' },
-    { value: 'material-teal', label: 'Material Teal' },
-    { value: 'metro', label: 'Metro' },
-    { value: 'metro-blue', label: 'Metro Blue' },
-    { value: 'metro-gray', label: 'Metro Gray' },
-    { value: 'metro-green', label: 'Metro Green' },
-    { value: 'metro-orange', label: 'Metro Orange' },
-    { value: 'metro-red', label: 'Metro Red' },
-    { value: 'sunny', label: 'Sunny' },
-    { value: 'pepper-grinder', label: 'Pepper Grinder' },
-    { value: 'dark-hive', label: 'Dark Hive' },
-    { value: 'black', label: 'Black' }
+    { value: "default", label: "Default" },
+    { value: "bootstrap", label: "Bootstrap" },
+    { value: "cupertino", label: "Cupertino" },
+    { value: "material", label: "Material" },
+    { value: "material-blue", label: "Material Blue" },
+    { value: "material-teal", label: "Material Teal" },
+    { value: "metro", label: "Metro" },
+    { value: "metro-blue", label: "Metro Blue" },
+    { value: "metro-gray", label: "Metro Gray" },
+    { value: "metro-green", label: "Metro Green" },
+    { value: "metro-orange", label: "Metro Orange" },
+    { value: "metro-red", label: "Metro Red" },
+    { value: "sunny", label: "Sunny" },
+    { value: "pepper-grinder", label: "Pepper Grinder" },
+    { value: "dark-hive", label: "Dark Hive" },
+    { value: "black", label: "Black" },
   ];
-  var DEMO_WORKFLOW_VALUES = ['draft', 'pending', 'approved', 'closed'];
+  var DEMO_WORKFLOW_VALUES = window.FabGridDemoData.workflowValues;
   var DEMO_STATUS_STYLES = {
-    draft: { className: 'status-draft', color: '#6b7280' },
-    pending: { className: 'status-pending', color: '#b45309' },
-    approved: { className: 'status-approved', color: '#047857' },
-    closed: { className: 'status-closed', color: '#1d4ed8' }
+    draft: { className: "status-draft", color: "#6b7280" },
+    pending: { className: "status-pending", color: "#b45309" },
+    approved: { className: "status-approved", color: "#047857" },
+    closed: { className: "status-closed", color: "#1d4ed8" },
   };
   var DEMO_ROW_GROUPS = {
     order: [
       {
-        binding: 'dlvno',
-        demoHeaderKey: 'refCode',
-        header: formatDemoRowGroupHeader
-      }
+        binding: "dlvno",
+        header: formatDemoRowGroupHeader,
+      },
     ],
     vendor: [
       {
-        binding: ['facno', 'refCode'],
-        header: formatDemoVendorOrderRowGroupHeader
-      }
+        binding: ["facno", "dlvno"],
+        header: formatDemoVendorOrderRowGroupHeader,
+      },
     ],
-    'vendor-order': [
+    "vendor-order": [
       {
-        binding: 'facno',
-        header: formatDemoRowGroupHeader
+        binding: "facno",
+        header: formatDemoRowGroupHeader,
       },
       {
-        binding: 'refCode',
-        header: formatDemoRowGroupHeader
-      }
-    ]
+        binding: "dlvno",
+        header: formatDemoRowGroupHeader,
+      },
+    ],
   };
   var rows = window.FabGridDemoData.rows;
   var columns = createColumns(DEMO_COLUMN_COUNT);
+  var gridShell = document.querySelector(".grid-shell");
+  var fullscreenButton = document.getElementById("fullscreenButton");
   var stats = {
-    datasetSummary: document.getElementById('datasetSummary'),
-    rowCount: document.getElementById('rowCount'),
-    rowRange: document.getElementById('rowRange'),
-    columnRange: document.getElementById('columnRange'),
-    cellCount: document.getElementById('cellCount')
+    datasetSummary: document.getElementById("datasetSummary"),
+    rowCount: document.getElementById("rowCount"),
+    rowRange: document.getElementById("rowRange"),
+    columnRange: document.getElementById("columnRange"),
+    cellCount: document.getElementById("cellCount"),
   };
   var controls = {
-    language: document.getElementById('languageInput'),
-    theme: document.getElementById('themeInput'),
-    frozen: document.getElementById('frozenInput'),
-    frozenRight: document.getElementById('frozenRightInput'),
-    rowHeaders: document.getElementById('rowHeadersInput'),
-    searchRow: document.getElementById('searchRowInput'),
-    pagination: document.getElementById('paginationInput'),
-    remote: document.getElementById('remoteInput'),
-    groupRows: document.getElementById('groupRowsInput'),
-    multiSelect: document.getElementById('multiSelectInput'),
-    editMode: document.getElementById('editModeInput'),
-    demoFilter: document.getElementById('demoFilterInput'),
-    demoFilterMode: document.getElementById('demoFilterMode'),
-    demoFilterClear: document.getElementById('demoFilterClear')
+    language: document.getElementById("languageInput"),
+    theme: document.getElementById("themeInput"),
+    frozen: document.getElementById("frozenInput"),
+    frozenRight: document.getElementById("frozenRightInput"),
+    rowHeaders: document.getElementById("rowHeadersInput"),
+    searchRow: document.getElementById("searchRowInput"),
+    pagination: document.getElementById("paginationInput"),
+    remote: document.getElementById("remoteInput"),
+    groupRows: document.getElementById("groupRowsInput"),
+    multiSelect: document.getElementById("multiSelectInput"),
+    editMode: document.getElementById("editModeInput"),
+    demoFilter: document.getElementById("demoFilterInput"),
+    demoFilterMode: document.getElementById("demoFilterMode"),
+    demoFilterClear: document.getElementById("demoFilterClear"),
   };
   var labels = {
-    language: document.getElementById('languageLabel'),
-    theme: document.getElementById('themeLabel'),
-    frozen: document.getElementById('frozenLabel'),
-    frozenRight: document.getElementById('frozenRightLabel'),
-    rowHeaders: document.getElementById('rowHeadersLabel'),
-    searchRow: document.getElementById('searchRowLabel'),
-    pagination: document.getElementById('paginationLabel'),
-    remote: document.getElementById('remoteLabel'),
-    groupRows: document.getElementById('groupRowsLabel'),
-    multiSelect: document.getElementById('multiSelectLabel'),
-    editMode: document.getElementById('editModeLabel'),
-    demoResultCount: document.getElementById('demoResultCount'),
-    demoFilter: document.getElementById('demoFilterLabel'),
-    exportCsv: document.getElementById('exportButton'),
-    exportExcel: document.getElementById('exportExcelButton')
+    language: document.getElementById("languageLabel"),
+    theme: document.getElementById("themeLabel"),
+    frozen: document.getElementById("frozenLabel"),
+    frozenRight: document.getElementById("frozenRightLabel"),
+    rowHeaders: document.getElementById("rowHeadersLabel"),
+    searchRow: document.getElementById("searchRowLabel"),
+    pagination: document.getElementById("paginationLabel"),
+    remote: document.getElementById("remoteLabel"),
+    groupRows: document.getElementById("groupRowsLabel"),
+    multiSelect: document.getElementById("multiSelectLabel"),
+    editMode: document.getElementById("editModeLabel"),
+    demoResultCount: document.getElementById("demoResultCount"),
+    demoFilter: document.getElementById("demoFilterLabel"),
+    exportCsv: document.getElementById("exportButton"),
+    exportExcel: document.getElementById("exportExcelButton"),
+    fullscreen: fullscreenButton,
   };
-  var toolbarControls = document.querySelectorAll('.toolbar input, .toolbar select, .toolbar button');
+  var toolbarControls = document.querySelectorAll(
+    ".toolbar input, .toolbar select, .toolbar button"
+  );
   var lookupPopup = null;
   var lookupGrid = null;
   var lookupEditorArgs = null;
   var lookupLastClick = null;
-  var demoFilterMode = 'or';
+  var demoFilterMode = "or";
   var demoSettings = null;
   var grid = null;
 
-  // Create the grid through the jQuery wrapper when that adapter is loaded.
+  // Create the grid through an optional framework adapter.
   function createGridControl(host, options) {
-    var $host;
-    if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.fabgrid === 'function') {
-      $host = window.jQuery(host);
-      $host.attr('data-demo-adapter', 'jquery');
-      $host.fabgrid(options);
-      return $host.fabgrid('instance');
-    }
+    if (typeof window.FabGridDemoCreateControl === "function")
+      return window.FabGridDemoCreateControl(host, options);
     return new fabui.FabGrid(host, options);
   }
 
@@ -293,7 +155,6 @@
   // ---------------------------------------------------------------------------
 
   function initializeDemo() {
-    loadDemoThemeStyles();
     populateThemeOptions();
 
     demoSettings = loadDemoSettings();
@@ -301,7 +162,7 @@
     applyDemoLocale(demoSettings.locale);
     applyColumnHeaderLocale(columns, demoSettings.locale);
 
-    grid = createGridControl('#grid', createGridOptions(demoSettings));
+    grid = createGridControl("#grid", createGridOptions(demoSettings));
     initializeDemoFilterTextBox();
     updateDemoFilterAvailability(demoSettings.remote);
     applyDemoTheme(demoSettings.theme);
@@ -340,7 +201,7 @@
         pageList: [10, 20, 30, 40, 50, 100, 500],
         showPageList: false,
         showPageInfo: true,
-        showRefresh: true
+        showRefresh: true,
       },
       showSearchRow: settings.showSearchRow,
       showFooter: true,
@@ -350,220 +211,233 @@
       columns: columns,
       rowGroups: getDemoRowGroups(settings.rowGroupMode),
       allowSorting: true,
-      allowDragging: 'Columns',
+      allowDragging: "Columns",
       allowEditing: settings.editMode,
       editOnSelect: settings.editMode,
       allowResizing: true,
       alternatingRows: true,
-      alternatingRowBackground: '#fafafa',
-      headerToggleKey: 'F4',
-      formatCell: formatDemoCell
+      headerToggleKey: "f4",
+      formatCell: formatDemoCell,
     };
   }
 
   function formatDemoCell(args) {
     var statusStyle;
 
-    if (args.column.binding !== 'stus') {
+    if (args.column.binding !== "stus") {
       return;
     }
 
-    statusStyle = DEMO_STATUS_STYLES[String(args.value || '').toLowerCase()];
+    statusStyle = DEMO_STATUS_STYLES[String(args.value || "").toLowerCase()];
     if (!statusStyle) {
       return;
     }
 
-    args.cell.className += ' ' + statusStyle.className;
+    args.cell.className += " " + statusStyle.className;
     args.cell.style.color = statusStyle.color;
   }
 
   // Simulate a server request while keeping the Demo self-contained.
   function loadRemoteRows(params) {
-    return new Promise(function(resolve) {
-      window.setTimeout(function() {
+    return new Promise(function (resolve) {
+      window.setTimeout(function () {
         var remoteRows = rows.slice();
-        var filterRules = params.filterRules ? JSON.parse(params.filterRules) : [];
-        var sortFields = params.sort ? params.sort.split(',') : [];
-        var sortOrders = params.order ? params.order.split(',') : [];
+        var filterRules = params.filterRules
+          ? JSON.parse(params.filterRules)
+          : [];
+        var sortFields = params.sort ? params.sort.split(",") : [];
+        var sortOrders = params.order ? params.order.split(",") : [];
         var start = (params.page - 1) * params.rows;
 
-        remoteRows = filterRemoteRows(remoteRows, params.q, filterRules);
-        sortRemoteRows(remoteRows, sortFields, sortOrders);
+        remoteRows = DEMO_QUERY.filterRemoteRows(
+          remoteRows,
+          params.q,
+          filterRules
+        );
+        DEMO_QUERY.sortRemoteRows(remoteRows, sortFields, sortOrders);
         resolve({
           total: String(remoteRows.length),
-          rows: remoteRows.slice(start, start + params.rows)
+          rows: remoteRows.slice(start, start + params.rows),
         });
       }, 500);
     });
   }
 
-  function filterRemoteRows(sourceRows, searchText, filterRules) {
-    var filteredRows = sourceRows;
-    if (searchText) {
-      filteredRows = filteredRows.filter(function(row) {
-        return Object.keys(row).some(function(field) {
-          return row[field] != null && String(row[field]).toLowerCase().indexOf(String(searchText).toLowerCase()) >= 0;
-        });
-      });
-    }
-    if (filterRules.length) {
-      filteredRows = filteredRows.filter(function(row) {
-        return filterRules.every(function(rule) {
-          return matchesRemoteFilterRule(row, rule);
-        });
-      });
-    }
-    return filteredRows;
-  }
-
-  function matchesRemoteFilterRule(row, rule) {
-    var rawActual = row[rule.field];
-    var actual = rawActual == null ? '' : String(rawActual).toLowerCase();
-    var expected = String(rule.value).toLowerCase();
-    var comparableActual = typeof rawActual === 'number' ? rawActual : actual;
-    var comparableExpected = typeof rawActual === 'number' ? Number(rule.value) : expected;
-
-    switch (rule.op) {
-      case 'contains':
-        return actual.indexOf(expected) >= 0;
-      case 'ends':
-        return actual.lastIndexOf(expected) === actual.length - expected.length;
-      case 'not-starts':
-        return actual.indexOf(expected) !== 0;
-      case 'not-contains':
-        return actual.indexOf(expected) < 0;
-      case 'not-ends':
-        return actual.lastIndexOf(expected) !== actual.length - expected.length;
-      case 'gte':
-        return comparableActual >= comparableExpected;
-      case 'gt':
-        return comparableActual > comparableExpected;
-      case 'lte':
-        return comparableActual <= comparableExpected;
-      case 'lt':
-        return comparableActual < comparableExpected;
-      case 'ne':
-        return comparableActual !== comparableExpected;
-      case 'eq':
-        return comparableActual === comparableExpected;
-      default:
-        return actual.indexOf(expected) === 0;
-    }
-  }
-
-  function sortRemoteRows(remoteRows, sortFields, sortOrders) {
-    if (!sortFields.length) {
-      return;
-    }
-    remoteRows.sort(function(left, right) {
-      var index;
-      var field;
-      var result;
-      for (index = 0; index < sortFields.length; index += 1) {
-        field = sortFields[index];
-        result = left[field] === right[field] ? 0 : (left[field] > right[field] ? 1 : -1);
-        if (result) {
-          return sortOrders[index] === 'desc' ? -result : result;
-        }
-      }
-      return 0;
-    });
-  }
-
   // Keep grid events separate from toolbar DOM events for easier maintenance.
   function bindGridEvents() {
-    grid.on('viewportChanged', updateViewportStats);
-    grid.on('searchCleared', function() {
-      setDemoFilterValue('');
+    grid.on("viewportChanged", updateViewportStats);
+    grid.on("searchCleared", function () {
+      setDemoFilterValue("");
       grid.setFilter(null);
       saveCurrentDemoSettings();
     });
-    grid.on('loadSuccess', updateDemoResultCount);
-    grid.on('excelExporting', function() {
+    grid.on("loadSuccess", updateDemoResultCount);
+    grid.on("excelExporting", function () {
       setToolbarBusy(true);
     });
-    grid.on('excelExported', function() {
+    grid.on("excelExported", function () {
       setToolbarBusy(false);
     });
-    grid.on('excelExportFailed', function() {
+    grid.on("excelExportFailed", function () {
       setToolbarBusy(false);
     });
   }
 
   function bindToolbarEvents() {
-    controls.demoFilter.addEventListener('input', function(event) {
+    controls.demoFilter.addEventListener("input", function (event) {
       applyDemoFilter(event.target.value);
       saveCurrentDemoSettings();
     });
-    controls.demoFilterClear.addEventListener('click', function() {
-      setDemoFilterValue('');
-      applyDemoFilter('');
+    controls.demoFilterClear.addEventListener("click", function () {
+      setDemoFilterValue("");
+      applyDemoFilter("");
       focusDemoFilter();
       saveCurrentDemoSettings();
     });
-    controls.demoFilterMode.addEventListener('click', toggleDemoFilterMode);
-    controls.language.addEventListener('change', handleLanguageChange);
-    controls.theme.addEventListener('change', function(event) {
+    controls.demoFilterMode.addEventListener("click", toggleDemoFilterMode);
+    controls.language.addEventListener("change", handleLanguageChange);
+    controls.theme.addEventListener("change", function (event) {
       applyDemoTheme(event.target.value);
       saveCurrentDemoSettings();
     });
-    controls.frozen.addEventListener('input', function(event) {
+    controls.frozen.addEventListener("input", function (event) {
       grid.setFrozenColumns(Number(event.target.value || 0));
       saveCurrentDemoSettings();
     });
-    controls.frozenRight.addEventListener('input', function(event) {
+    controls.frozenRight.addEventListener("input", function (event) {
       grid.setFrozenRightColumns(Number(event.target.value || 0));
       saveCurrentDemoSettings();
     });
-    controls.rowHeaders.addEventListener('change', function(event) {
-      grid.setShowRowHeaders(normalizeRowHeaderSetting(event.target.value, DEFAULT_DEMO_SETTINGS.showRowHeaders));
+    controls.rowHeaders.addEventListener("change", function (event) {
+      grid.setShowRowHeaders(
+        normalizeRowHeaderSetting(
+          event.target.value,
+          DEFAULT_DEMO_SETTINGS.showRowHeaders
+        )
+      );
       saveCurrentDemoSettings();
     });
-    controls.searchRow.addEventListener('change', function(event) {
+    controls.searchRow.addEventListener("change", function (event) {
       if (grid.setShowSearchRow) {
         grid.setShowSearchRow(event.target.checked);
       }
       saveCurrentDemoSettings();
     });
-    controls.pagination.addEventListener('change', handleDataModeChange);
-    controls.remote.addEventListener('change', handleDataModeChange);
+    controls.pagination.addEventListener("change", handleDataModeChange);
+    controls.remote.addEventListener("change", handleDataModeChange);
     bindOptionalToolbarEvents();
     bindExportEvents();
+    bindFullscreenEvents();
   }
 
   function bindOptionalToolbarEvents() {
     if (controls.groupRows) {
-      controls.groupRows.addEventListener('change', function(event) {
+      controls.groupRows.addEventListener("change", function (event) {
         grid.setRowGroups(getDemoRowGroups(event.target.value));
         saveCurrentDemoSettings();
         refreshViewportStats();
       });
     }
-    controls.multiSelect.addEventListener('change', function(event) {
+    controls.multiSelect.addEventListener("change", function (event) {
       grid.setMultiSelectRows(event.target.checked);
       saveCurrentDemoSettings();
     });
-    controls.editMode.addEventListener('change', function(event) {
+    controls.editMode.addEventListener("change", function (event) {
       grid.setEditMode(event.target.checked);
       saveCurrentDemoSettings();
     });
   }
 
   function bindExportEvents() {
-    labels.exportCsv.addEventListener('click', function() {
-      grid.exportCsv('fabgrid-demo.csv');
+    labels.exportCsv.addEventListener("click", function () {
+      grid.exportCsv("fabgrid-demo.csv");
     });
-    labels.exportExcel.addEventListener('click', function() {
-      grid.exportExcel('fabgrid-demo.xlsx').catch(function(error) {
-        window.setTimeout(function() {
+    labels.exportExcel.addEventListener("click", function () {
+      grid.exportExcel("fabgrid-demo.xlsx").catch(function (error) {
+        window.setTimeout(function () {
           throw error;
         }, 0);
       });
     });
   }
 
+  function bindFullscreenEvents() {
+    labels.fullscreen.addEventListener("click", toggleGridFullscreen);
+    document.addEventListener("fullscreenchange", handleGridFullscreenChange);
+    if (!("onfullscreenchange" in document)) {
+      document.addEventListener(
+        "webkitfullscreenchange",
+        handleGridFullscreenChange
+      );
+    }
+    updateFullscreenButton();
+  }
+
+  function toggleGridFullscreen() {
+    var action;
+    if (getFullscreenElement() === gridShell) {
+      action = document.exitFullscreen || document.webkitExitFullscreen;
+      runFullscreenAction(action, document);
+      return;
+    }
+    action = gridShell.requestFullscreen || gridShell.webkitRequestFullscreen;
+    runFullscreenAction(action, gridShell);
+  }
+
+  function runFullscreenAction(action, context) {
+    var result;
+    if (typeof action !== "function") {
+      updateFullscreenButton();
+      return;
+    }
+    try {
+      result = action.call(context);
+      if (result && typeof result.catch === "function") {
+        result.catch(updateFullscreenButton);
+      }
+    } catch (error) {
+      updateFullscreenButton();
+    }
+  }
+
+  function getFullscreenElement() {
+    return (
+      document.fullscreenElement || document.webkitFullscreenElement || null
+    );
+  }
+
+  function handleGridFullscreenChange() {
+    updateFullscreenButton();
+    window.requestAnimationFrame(function () {
+      if (grid) {
+        grid.refresh();
+        refreshViewportStats();
+      }
+    });
+  }
+
+  function updateFullscreenButton() {
+    var available = Boolean(
+      gridShell &&
+        (gridShell.requestFullscreen || gridShell.webkitRequestFullscreen) &&
+        (document.exitFullscreen || document.webkitExitFullscreen)
+    );
+    var active = getFullscreenElement() === gridShell;
+    var text = getDemoText(active ? "exitFullscreen" : "fullscreen");
+    if (!available) {
+      text = getDemoText("fullscreenUnavailable");
+    }
+    labels.fullscreen.disabled = !available;
+    labels.fullscreen.setAttribute("aria-label", text);
+    labels.fullscreen.setAttribute("title", text);
+    labels.fullscreen.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+
   function handleLanguageChange(event) {
-    var locale = normalizeLocaleSetting(event.target.value, DEFAULT_DEMO_SETTINGS.locale);
+    var locale = normalizeLocaleSetting(
+      event.target.value,
+      DEFAULT_DEMO_SETTINGS.locale
+    );
     grid.setLocale(locale);
     applyDemoLocale(locale);
     applyGridColumnHeaderLocale(grid, locale);
@@ -582,11 +456,9 @@
       grid: grid,
       rows: rows,
       columns: columns,
-      themes: DEMO_THEMES
+      themes: DEMO_THEMES,
     };
   }
-
-  initializeDemo();
 
   // ---------------------------------------------------------------------------
   // Column definitions
@@ -594,163 +466,200 @@
 
   function createColumns(count) {
     var columns = [
-      { binding: 'facno', demoHeaderKey: 'id', header: '主要廠商', width: 88, minWidth: 72, align: 'center', dataType: 'string', readOnly: true },
-      { binding: 'name', header: '簡稱', width: 108, minWidth: 88, dataType: 'string', readOnly: true },
       {
-        binding: 'dlvno',
-        demoHeaderKey: 'refCode',
-        header: '訂單編號',
+        binding: "facno",
+        header: "主要廠商",
+        width: 88,
+        minWidth: 72,
+        align: "center",
+        dataType: "string",
+        readOnly: true,
+      },
+      {
+        binding: "name",
+        header: "簡稱",
+        width: 108,
+        minWidth: 88,
+        dataType: "string",
+        readOnly: true,
+      },
+      {
+        binding: "dlvno",
+        header: "訂單編號",
         width: 130,
         minWidth: 100,
-        dataType: 'string',
+        dataType: "string",
         editor: {
-          type: 'textbox',
+          type: "textbox",
           icons: [
             {
-              iconCls: 'icon-refwin',
-              title: '選擇參照',
-              ariaLabel: '選擇參照',
-              onClick: function(args) {
-                args.editor.value = 'BO' + pad(args.row + 1) + '001';
-                args.editor.dispatchEvent(new Event('input', { bubbles: true }));
-              }
-            }
-          ]
-        }
+              iconCls: "icon-refwin",
+              title: "選擇參照",
+              ariaLabel: "選擇參照",
+              onClick: function (args) {
+                args.editor.value = "BO" + pad(args.row + 1) + "001";
+                args.editor.dispatchEvent(
+                  new Event("input", { bubbles: true })
+                );
+              },
+            },
+          ],
+        },
       },
       {
-        binding: 'date',
-        header: '單據日期',
-        width: 104,
-        minWidth: 92,
-        dataType: 'date',
-        editor: 'datebox',
-        mask: '9999-99-99'
-      },
-      {
-        binding: 'crncy',
-        header: '幣別',
-        width: 65,
-        minWidth: 56,
-        align: 'center',
-        dataType: 'string',
-        readOnly: true
-      },
-      {
-        binding: 'item',
-        demoHeaderKey: 'category',
-        header: '項目',
+        binding: "item",
+        header: "項目",
         width: 64,
         minWidth: 56,
-        align: 'center',
-        dataType: 'string',
-        readOnly: true
+        align: "center",
+        dataType: "string",
+        readOnly: true,
       },
       {
-        binding: 'cusno',
-        header: '客戶',
+        binding: "date",
+        header: "單據日期",
+        width: 104,
+        minWidth: 92,
+        dataType: "date",
+        editor: "datebox",
+        mask: "9999-99-99",
+      },
+      {
+        binding: "crncy",
+        header: "幣別",
+        width: 65,
+        minWidth: 56,
+        align: "center",
+        dataType: "string",
+        readOnly: true,
+      },
+      {
+        binding: "cusno",
+        header: "客戶",
         width: 132,
         minWidth: 110,
-        dataType: 'string',
+        dataType: "string",
         search: {
           icons: [
             {
-              iconCls: 'icon-refwin',
-              title: '開啟 Popup Grid',
-              ariaLabel: '開啟 Popup Grid',
-              onClick: showLookupPopup
-            }
-          ]
+              iconCls: "icon-refwin",
+              title: getDemoLocalePack(DEFAULT_DEMO_SETTINGS.locale).openLookup,
+              ariaLabel: getDemoLocalePack(DEFAULT_DEMO_SETTINGS.locale)
+                .openLookup,
+              onClick: showLookupPopup,
+            },
+          ],
         },
         editor: {
-          type: 'textbox',
+          type: "textbox",
           icons: [
             {
-              iconCls: 'icon-refwin',
-              title: '開啟 Popup Grid',
-              ariaLabel: '開啟 Popup Grid',
-              onClick: showLookupPopup
-            }
-          ]
-        }
+              iconCls: "icon-refwin",
+              title: getDemoLocalePack(DEFAULT_DEMO_SETTINGS.locale).openLookup,
+              ariaLabel: getDemoLocalePack(DEFAULT_DEMO_SETTINGS.locale)
+                .openLookup,
+              onClick: showLookupPopup,
+            },
+          ],
+        },
       },
       {
-        binding: 'stus',
-        header: '狀態',
+        binding: "stus",
+        header: "狀態",
         width: 120,
         minWidth: 100,
-        dataType: 'string',
+        dataType: "string",
         editor: {
-          type: 'combobox',
-          valueField: 'value',
-          textField: 'text',
+          type: "combobox",
+          valueField: "value",
+          textField: "text",
           limitToList: true,
           showValueInList: true,
-          data: getWorkflowComboboxData('zh-TW')
-        }
+          data: getWorkflowComboboxData("zh-TW"),
+        },
       },
       {
-        binding: 'color',
-        header: '顏色',
+        binding: "color",
+        header: "顏色",
         width: 112,
         minWidth: 92,
-        dataType: 'string',
+        dataType: "string",
         editor: {
-          type: 'color',
-          showAlpha: true
-        }
+          type: "color",
+          showAlpha: true,
+        },
       },
       {
-        binding: 'amount',
-        header: '應付金額',
+        binding: "dlvdt",
+        header: "文字日期",
+        width: 120,
+        minWidth: 100,
+        dataType: "string",
+        editor: "datebox",
+        readOnly: false,
+        mask: "9999/99/99",
+        autoUnmask: true,
+      },
+      {
+        binding: "yymm",
+        header: "年月",
+        width: 110,
+        minWidth: 90,
+        dataType: "string",
+        editor: "datebox",
+        mask: "9999/99",
+        autoUnmask: true,
+      },
+      {
+        binding: "amount",
+        header: "應付金額",
         width: 140,
         minWidth: 90,
-        align: 'right',
-        color: 'blue',
-        dataType: 'number',
-        aggregate: 'sum',
+        align: "right",
+        color: "blue",
+        dataType: "number",
+        aggregate: "sum",
         thousandsSeparator: true,
         precision: 2,
         editor: {
-          type: 'numberbox'
+          type: "numberbox",
         },
-        validate: function(args) {
+        validate: function (args) {
           var value = args.value;
-          if (value != null && (!isFinite(value) || value < 0 || value > 1000000)) {
+          if (
+            value != null &&
+            (!isFinite(value) || value < 0 || value > 1000000)
+          ) {
             return {
-              type: 'range',
-              message: '金額必須介於 0 到 1,000,000',
-              value: args.value
+              type: "range",
+              message: getDemoText("amountRangeValidation"),
+              value: args.value,
             };
           }
           return null;
-        }
+        },
       },
       {
-        binding: 'rem',
-        header: '摘要',
-        width: 240,
-        minWidth: 120,
-        dataType: 'string'
-      },
-      {
-        binding: 'score',
-        header: '分數(非同步)',
+        binding: "score",
+        header: "分數(非同步)",
         width: 120,
         minWidth: 100,
-        align: 'right',
-        dataType: 'number',
-        aggregate: 'avg',
-        editor: 'numberbox',
-        validate: function(args) {
-          return new Promise(function(resolve) {
+        align: "right",
+        dataType: "number",
+        aggregate: "avg",
+        editor: "numberbox",
+        validate: function (args) {
+          return new Promise(function (resolve) {
             var value = args.value;
-            setTimeout(function() {
-              if (value != null && (!isFinite(value) || value < 0 || value > 100)) {
+            setTimeout(function () {
+              if (
+                value != null &&
+                (!isFinite(value) || value < 0 || value > 100)
+              ) {
                 resolve({
-                  type: 'range',
-                  message: '分數必須介於 0 到 100',
-                  value: args.value
+                  type: "range",
+                  message: getDemoText("scoreRangeValidation"),
+                  value: args.value,
                 });
                 return;
               }
@@ -758,73 +667,40 @@
             }, 120);
           });
         },
-        footerFormatter: function(value) {
-          if (value == null || value === '') {
-            return '';
+        footerFormatter: function (value) {
+          if (value == null || value === "") {
+            return "";
           }
-          return Number(value).toLocaleString('zh-TW', { maximumFractionDigits: 1 });
-        }
+          return Number(value).toLocaleString("zh-TW", {
+            maximumFractionDigits: 1,
+          });
+        },
       },
       {
-        binding: 'dlvdt',
-        demoHeaderKey: 'textDate',
-        header: '文字日期',
-        width: 120,
-        minWidth: 100,
-        dataType: 'string',
-        editor: 'datebox',
-        readOnly: false,
-        mask: '9999/99/99',
-        autoUnmask: true
+        binding: "rem",
+        header: "摘要",
+        width: 240,
+        minWidth: 120,
+        dataType: "string",
       },
-      {
-        binding: 'yymm',
-        demoHeaderKey: 'yearMonth',
-        header: '年月',
-        width: 110,
-        minWidth: 90,
-        dataType: 'string',
-        editor: 'datebox',
-        mask: '9999/99',
-        autoUnmask: true
-      }
     ];
-    var displayOrder = {
-      id: 0,
-      name: 1,
-      refCode: 2,
-      category: 3,
-      date: 4,
-      crncy: 5,
-      cusno: 6,
-      stus: 7,
-      color: 8,
-      textDate: 9,
-      yearMonth: 10,
-      amount: 11,
-      score: 12,
-      rem: 13
-    };
     var i;
-    columns.sort(function(a, b) {
-      return displayOrder[a.demoHeaderKey || a.binding] - displayOrder[b.demoHeaderKey || b.binding];
-    });
     for (i = columns.length + 1; i <= count; i += 1) {
       columns.push({
-        binding: 'col' + pad(i),
-        header: '欄位 ' + i,
+        binding: "col" + pad(i),
+        header: "欄位 " + i,
         width: i % 3 === 0 ? 150 : 120,
         minWidth: 80,
-        dataType: i % 4 === 0 ? 'number' : 'string',
-        align: i % 4 === 0 ? 'right' : '',
-        aggregate: i % 4 === 0 ? 'sum' : null
+        dataType: i % 4 === 0 ? "number" : "string",
+        align: i % 4 === 0 ? "right" : "",
+        aggregate: i % 4 === 0 ? "sum" : null,
       });
     }
     return columns;
   }
 
   function pad(value) {
-    return value < 10 ? '0' + value : String(value);
+    return value < 10 ? "0" + value : String(value);
   }
 
   // ---------------------------------------------------------------------------
@@ -834,7 +710,7 @@
   function showLookupPopup(args) {
     lookupEditorArgs = args;
     ensureLookupPopup();
-    lookupPopup.overlay.style.display = 'flex';
+    lookupPopup.overlay.style.display = "flex";
     if (!lookupGrid) {
       lookupGrid = createGridControl(lookupPopup.gridHost, {
         rowHeight: 32,
@@ -846,36 +722,36 @@
         allowSorting: true,
         allowEditing: false,
         editOnSelect: false,
-        itemsSource: createLookupRows(),
-        columns: [
-          { binding: 'code', header: '代號', width: 96, minWidth: 70, dataType: 'string' },
-          { binding: 'orderNo', header: '單號', width: 128, minWidth: 100, dataType: 'string' },
-          { binding: 'customer', header: '客戶', width: 90, minWidth: 80, dataType: 'string' },
-          { binding: 'name', header: '名稱', width: 100, minWidth: 80, dataType: 'string' },
-          { binding: 'qty', header: '合約數量', width: 96, minWidth: 80, align: 'right', dataType: 'number' },
-          { binding: 'available', header: '可用餘量', width: 96, minWidth: 80, align: 'right', dataType: 'number' },
-          { binding: 'price', header: '單價', width: 84, minWidth: 70, align: 'right', dataType: 'number' },
-          { binding: 'status', header: '狀態', width: 96, minWidth: 80, dataType: 'string' }
-        ],
+        itemsSource: window.FabGridDemoData.lookupRows,
+        columns: createLookupColumns(controls.language.value),
         alternatingRows: true,
-        alternatingRowBackground: '#fafafa',
-        formatCell: function(cellArgs) {
-          if (cellArgs.column.binding === 'status' && cellArgs.value !== '買單') {
-            cellArgs.cell.style.color = '#1d4ed8';
-            cellArgs.cell.style.fontWeight = '600';
+        formatCell: function (cellArgs) {
+          if (
+            cellArgs.column.binding === "status" &&
+            cellArgs.value !== "買單"
+          ) {
+            cellArgs.cell.style.color = "#1d4ed8";
+            cellArgs.cell.style.fontWeight = "600";
           }
-        }
+        },
       });
       lookupGrid.select(0, 0);
-      lookupPopup.gridHost.addEventListener('click', handleLookupGridClick, true);
-      lookupPopup.gridHost.addEventListener('dblclick', handleLookupGridDblClick, true);
+      lookupPopup.gridHost.addEventListener(
+        "click",
+        handleLookupGridClick,
+        true
+      );
+      lookupPopup.gridHost.addEventListener(
+        "dblclick",
+        handleLookupGridDblClick,
+        true
+      );
     } else {
       lookupGrid.invalidate();
       lookupGrid.select(Math.max(0, lookupGrid.selection.row), 0);
     }
-    lookupPopup.title.textContent = getDemoText('popupGridTitle');
-    lookupPopup.count.textContent = '顯示1到' + lookupGrid.view.length + ',共' + lookupGrid.view.length + '記錄';
-    window.setTimeout(function() {
+    applyLookupPopupLocale(controls.language.value);
+    window.setTimeout(function () {
       lookupGrid.invalidate();
       lookupGrid.root.focus();
     }, 0);
@@ -886,10 +762,11 @@
     var windowEl;
     var header;
     var title;
-    var controls;
+    var headerControls;
     var closeButton;
     var gridHost;
     var pager;
+    var page;
     var count;
     var footer;
     var clearButton;
@@ -898,61 +775,58 @@
     if (lookupPopup) {
       return;
     }
-    overlay = document.createElement('div');
-    overlay.className = 'lookup-popup-overlay';
-    overlay.setAttribute('role', 'presentation');
+    overlay = document.createElement("div");
+    overlay.className = "lookup-popup-overlay";
+    overlay.setAttribute("role", "presentation");
 
-    windowEl = document.createElement('section');
-    windowEl.className = 'lookup-popup-window';
-    windowEl.setAttribute('role', 'dialog');
-    windowEl.setAttribute('aria-modal', 'true');
+    windowEl = document.createElement("section");
+    windowEl.className = "lookup-popup-window";
+    windowEl.setAttribute("role", "dialog");
+    windowEl.setAttribute("aria-modal", "true");
 
-    header = document.createElement('div');
-    header.className = 'lookup-popup-header';
+    header = document.createElement("div");
+    header.className = "lookup-popup-header";
 
-    title = document.createElement('h2');
-    title.className = 'lookup-popup-title';
+    title = document.createElement("h2");
+    title.className = "lookup-popup-title";
 
-    controls = document.createElement('div');
-    controls.className = 'lookup-popup-controls';
+    headerControls = document.createElement("div");
+    headerControls.className = "lookup-popup-controls";
 
-    closeButton = document.createElement('button');
-    closeButton.type = 'button';
-    closeButton.className = 'lookup-popup-icon-button icon-close';
-    closeButton.title = '關閉';
-    closeButton.setAttribute('aria-label', '關閉');
-    controls.appendChild(closeButton);
+    closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "lookup-popup-icon-button icon-close";
+    headerControls.appendChild(closeButton);
     header.appendChild(title);
-    header.appendChild(controls);
+    header.appendChild(headerControls);
 
-    gridHost = document.createElement('div');
-    gridHost.className = 'lookup-popup-grid';
+    gridHost = document.createElement("div");
+    gridHost.className = "lookup-popup-grid";
 
-    pager = document.createElement('div');
-    pager.className = 'lookup-popup-pager';
-    pager.innerHTML = '<span>|‹</span><span>‹</span><strong>第 1 共1頁</strong><span>›</span><span>›|</span><span>↻</span>';
+    pager = document.createElement("div");
+    pager.className = "lookup-popup-pager";
+    pager.innerHTML =
+      "<span>|‹</span><span>‹</span><strong></strong><span>›</span><span>›|</span><span>↻</span>";
+    page = pager.querySelector("strong");
 
-    count = document.createElement('span');
-    count.className = 'lookup-popup-count';
+    count = document.createElement("span");
+    count.className = "lookup-popup-count";
     pager.appendChild(count);
 
-    footer = document.createElement('div');
-    footer.className = 'lookup-popup-footer';
+    footer = document.createElement("div");
+    footer.className = "lookup-popup-footer";
 
-    clearButton = document.createElement('button');
-    clearButton.type = 'button';
-    clearButton.className = 'lookup-popup-button icon-clear';
-    clearButton.textContent = '清篩選';
+    clearButton = document.createElement("button");
+    clearButton.type = "button";
+    clearButton.className = "lookup-popup-button icon-clear";
 
-    cancelButton = document.createElement('button');
-    cancelButton.type = 'button';
-    cancelButton.className = 'lookup-popup-button icon-remove';
-    cancelButton.textContent = '取消';
+    cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.className = "lookup-popup-button icon-remove";
 
-    okButton = document.createElement('button');
-    okButton.type = 'button';
-    okButton.className = 'lookup-popup-button icon-check';
-    okButton.textContent = '確定';
+    okButton = document.createElement("button");
+    okButton.type = "button";
+    okButton.className = "lookup-popup-button icon-check";
 
     footer.appendChild(clearButton);
     footer.appendChild(cancelButton);
@@ -968,43 +842,133 @@
       overlay: overlay,
       title: title,
       gridHost: gridHost,
-      count: count
+      page: page,
+      count: count,
+      closeButton: closeButton,
+      clearButton: clearButton,
+      cancelButton: cancelButton,
+      okButton: okButton,
+      locale: null,
     };
+    applyLookupPopupLocale(controls.language.value);
 
-    closeButton.addEventListener('click', closeLookupPopup);
-    cancelButton.addEventListener('click', closeLookupPopup);
-    okButton.addEventListener('click', function() {
+    closeButton.addEventListener("click", closeLookupPopup);
+    cancelButton.addEventListener("click", closeLookupPopup);
+    okButton.addEventListener("click", function () {
       applyLookupPopupValue();
     });
-    clearButton.addEventListener('click', function() {
+    clearButton.addEventListener("click", function () {
       if (lookupGrid) {
         lookupGrid.clearFilter();
-        lookupGrid.setSearch('');
+        lookupGrid.setSearch("");
       }
     });
-    overlay.addEventListener('mousedown', function(event) {
+    overlay.addEventListener("mousedown", function (event) {
       if (event.target === overlay) {
         closeLookupPopup();
       }
     });
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape' && lookupPopup && lookupPopup.overlay.style.display === 'flex') {
+    document.addEventListener("keydown", function (event) {
+      if (
+        event.key === "Escape" &&
+        lookupPopup &&
+        lookupPopup.overlay.style.display === "flex"
+      ) {
         closeLookupPopup();
       }
     });
   }
 
-  function createLookupRows() {
+  function createLookupColumns(locale) {
+    var headers = getDemoLocalePack(locale).lookupColumnHeaders;
     return [
-      { code: '2W001', orderNo: 'SE260701003', customer: 'EG00', name: '高陞旺', qty: 4000, available: 4000, price: 454.2, status: '買單' },
-      { code: 'WU001', orderNo: 'SE260701002', customer: 'CU00', name: '和碩', qty: 8000, available: 3097.8, price: 454.2, status: '買單' },
-      { code: 'CU004', orderNo: 'SE260701001', customer: '2R00', name: '大晉', qty: 3000, available: 2092.6, price: 429.9, status: '買單' },
-      { code: 'BV001', orderNo: 'SE260526001', customer: 'CU00', name: '和碩', qty: 3658.9, available: 0, price: 450.4, status: '使用' },
-      { code: 'RM001', orderNo: 'SE260501001', customer: '2R00', name: '大晉', qty: 3000, available: -1250, price: 408.8, status: '使用,結案' },
-      { code: 'RW001', orderNo: 'SE151117001', customer: 'C500', name: '宏展', qty: 20000, available: 20000, price: 177, status: '買單' },
-      { code: 'JL001', orderNo: 'SE150714001', customer: 'C500', name: '宏展', qty: 72446.4, available: 72446.4, price: 183, status: '買單' },
-      { code: 'JP001', orderNo: 'SE150216001', customer: 'C500', name: '宏展', qty: 3000, available: 3000, price: 200, status: '使用,結案' }
+      {
+        binding: "code",
+        header: headers.code,
+        width: 96,
+        minWidth: 70,
+        dataType: "string",
+      },
+      {
+        binding: "orderNo",
+        header: headers.orderNo,
+        width: 128,
+        minWidth: 100,
+        dataType: "string",
+      },
+      {
+        binding: "customer",
+        header: headers.customer,
+        width: 90,
+        minWidth: 80,
+        dataType: "string",
+      },
+      {
+        binding: "name",
+        header: headers.name,
+        width: 100,
+        minWidth: 80,
+        dataType: "string",
+      },
+      {
+        binding: "qty",
+        header: headers.qty,
+        width: 96,
+        minWidth: 80,
+        align: "right",
+        dataType: "number",
+      },
+      {
+        binding: "available",
+        header: headers.available,
+        width: 96,
+        minWidth: 80,
+        align: "right",
+        dataType: "number",
+      },
+      {
+        binding: "price",
+        header: headers.price,
+        width: 84,
+        minWidth: 70,
+        align: "right",
+        dataType: "number",
+      },
+      {
+        binding: "status",
+        header: headers.status,
+        width: 96,
+        minWidth: 80,
+        dataType: "string",
+      },
     ];
+  }
+
+  function applyLookupPopupLocale(locale) {
+    var count;
+    var localeChanged;
+    var pack;
+    if (!lookupPopup) {
+      return;
+    }
+    locale = normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale);
+    localeChanged = lookupPopup.locale !== locale;
+    count = lookupGrid ? lookupGrid.view.length : 0;
+    pack = getDemoLocalePack(locale);
+    lookupPopup.title.textContent = pack.popupGridTitle;
+    lookupPopup.page.textContent = pack.lookupPage;
+    lookupPopup.count.textContent = formatDemoText(pack.lookupRange, {
+      count: count,
+    });
+    lookupPopup.closeButton.title = pack.close;
+    lookupPopup.closeButton.setAttribute("aria-label", pack.close);
+    lookupPopup.clearButton.textContent = pack.clearFilter;
+    lookupPopup.cancelButton.textContent = pack.cancel;
+    lookupPopup.okButton.textContent = pack.confirm;
+    if (lookupGrid && localeChanged) {
+      lookupGrid.setColumns(createLookupColumns(locale));
+    }
+    lookupPopup.locale = locale;
   }
 
   function applyLookupPopupValue(rowIndex) {
@@ -1013,10 +977,15 @@
       closeLookupPopup();
       return;
     }
-    rowIndex = rowIndex == null ? Math.max(0, lookupGrid.selection ? lookupGrid.selection.row : 0) : rowIndex;
+    rowIndex =
+      rowIndex == null
+        ? Math.max(0, lookupGrid.selection ? lookupGrid.selection.row : 0)
+        : rowIndex;
     value = lookupGrid.getCellData(rowIndex, 0);
-    lookupEditorArgs.editor.value = value == null ? '' : String(value);
-    lookupEditorArgs.editor.dispatchEvent(new Event('input', { bubbles: true }));
+    lookupEditorArgs.editor.value = value == null ? "" : String(value);
+    lookupEditorArgs.editor.dispatchEvent(
+      new Event("input", { bubbles: true })
+    );
     lookupEditorArgs.editor.focus();
     closeLookupPopup();
   }
@@ -1040,8 +1009,11 @@
       return;
     }
     now = Date.now();
-    isDoubleClick = event.detail >= 2 ||
-      (lookupLastClick && lookupLastClick.row === rowIndex && now - lookupLastClick.time < 450);
+    isDoubleClick =
+      event.detail >= 2 ||
+      (lookupLastClick &&
+        lookupLastClick.row === rowIndex &&
+        now - lookupLastClick.time < 450);
     lookupGrid.select(rowIndex, 0);
     if (isDoubleClick) {
       event.preventDefault();
@@ -1052,20 +1024,29 @@
     }
     lookupLastClick = {
       row: rowIndex,
-      time: now
+      time: now,
     };
   }
 
   function getLookupEventRowIndex(event) {
-    var cell = event.target && event.target.closest ? event.target.closest('.fg-cell') : null;
-    var rowHeader = event.target && event.target.closest ? event.target.closest('.fg-row-header-cell') : null;
-    var selectionCell = event.target && event.target.closest ? event.target.closest('.fg-selection-cell') : null;
+    var cell =
+      event.target && event.target.closest
+        ? event.target.closest(".fg-cell")
+        : null;
+    var rowHeader =
+      event.target && event.target.closest
+        ? event.target.closest(".fg-row-header-cell")
+        : null;
+    var selectionCell =
+      event.target && event.target.closest
+        ? event.target.closest(".fg-selection-cell")
+        : null;
     var rowTarget = cell || rowHeader || selectionCell;
     var rowIndex;
     if (!rowTarget || !lookupGrid || !lookupGrid.root.contains(rowTarget)) {
       return null;
     }
-    rowIndex = Number(rowTarget.getAttribute('data-row'));
+    rowIndex = Number(rowTarget.getAttribute("data-row"));
     if (!isFinite(rowIndex)) {
       return null;
     }
@@ -1074,7 +1055,7 @@
 
   function closeLookupPopup() {
     if (lookupPopup) {
-      lookupPopup.overlay.style.display = 'none';
+      lookupPopup.overlay.style.display = "none";
     }
     lookupEditorArgs = null;
     lookupLastClick = null;
@@ -1089,13 +1070,18 @@
     for (i = 0; i < toolbarControls.length; i += 1) {
       toolbarControls[i].disabled = value === true;
     }
+    if (value !== true) {
+      updateFullscreenButton();
+    }
   }
 
   function loadDemoSettings() {
     var settings = null;
     var raw;
     try {
-      raw = window.localStorage ? window.localStorage.getItem(DEMO_SETTINGS_KEY) : '';
+      raw = window.localStorage
+        ? window.localStorage.getItem(DEMO_SETTINGS_KEY)
+        : "";
       settings = raw ? JSON.parse(raw) : null;
     } catch (error) {
       settings = null;
@@ -1114,16 +1100,21 @@
       showSearchRow: controls.searchRow.checked,
       pagination: controls.pagination.checked,
       remote: controls.remote.checked,
-      rowGroupMode: controls.groupRows ? controls.groupRows.value : DEFAULT_DEMO_SETTINGS.rowGroupMode,
+      rowGroupMode: controls.groupRows
+        ? controls.groupRows.value
+        : DEFAULT_DEMO_SETTINGS.rowGroupMode,
       multiSelectRows: controls.multiSelect.checked,
-      editMode: controls.editMode.checked
+      editMode: controls.editMode.checked,
     });
   }
 
   function saveDemoSettings(settings) {
     try {
       if (window.localStorage) {
-        window.localStorage.setItem(DEMO_SETTINGS_KEY, JSON.stringify(normalizeDemoSettings(settings)));
+        window.localStorage.setItem(
+          DEMO_SETTINGS_KEY,
+          JSON.stringify(normalizeDemoSettings(settings))
+        );
       }
     } catch (error) {
       return;
@@ -1136,7 +1127,12 @@
     controls.demoFilter.value = settings.searchText;
     controls.frozen.value = settings.frozenColumns;
     controls.frozenRight.value = settings.frozenRightColumns;
-    controls.rowHeaders.value = settings.showRowHeaders === true ? 'true' : settings.showRowHeaders === 'cell' ? 'cell' : 'false';
+    controls.rowHeaders.value =
+      settings.showRowHeaders === true
+        ? "true"
+        : settings.showRowHeaders === "cell"
+        ? "cell"
+        : "false";
     controls.searchRow.checked = settings.showSearchRow;
     controls.pagination.checked = settings.pagination;
     controls.remote.checked = settings.remote;
@@ -1150,18 +1146,56 @@
   function normalizeDemoSettings(settings) {
     settings = settings || {};
     return {
-      locale: normalizeLocaleSetting(settings.locale, DEFAULT_DEMO_SETTINGS.locale),
+      locale: normalizeLocaleSetting(
+        settings.locale,
+        DEFAULT_DEMO_SETTINGS.locale
+      ),
       theme: normalizeThemeSetting(settings.theme, DEFAULT_DEMO_SETTINGS.theme),
-      searchText: settings.searchText == null ? DEFAULT_DEMO_SETTINGS.searchText : String(settings.searchText),
-      frozenColumns: normalizeNumberSetting(settings.frozenColumns, DEFAULT_DEMO_SETTINGS.frozenColumns, 0, 6),
-      frozenRightColumns: normalizeNumberSetting(settings.frozenRightColumns, DEFAULT_DEMO_SETTINGS.frozenRightColumns, 0, 6),
-      showRowHeaders: normalizeRowHeaderSetting(settings.showRowHeaders, DEFAULT_DEMO_SETTINGS.showRowHeaders),
-      showSearchRow: normalizeBooleanSetting(settings.showSearchRow, DEFAULT_DEMO_SETTINGS.showSearchRow),
-      pagination: normalizeBooleanSetting(settings.pagination, DEFAULT_DEMO_SETTINGS.pagination),
-      remote: normalizeBooleanSetting(settings.remote, DEFAULT_DEMO_SETTINGS.remote),
-      rowGroupMode: normalizeRowGroupModeSetting(settings.rowGroupMode, settings.showRowGroups, DEFAULT_DEMO_SETTINGS.rowGroupMode),
-      multiSelectRows: normalizeBooleanSetting(settings.multiSelectRows, DEFAULT_DEMO_SETTINGS.multiSelectRows),
-      editMode: normalizeBooleanSetting(settings.editMode, DEFAULT_DEMO_SETTINGS.editMode)
+      searchText:
+        settings.searchText == null
+          ? DEFAULT_DEMO_SETTINGS.searchText
+          : String(settings.searchText),
+      frozenColumns: normalizeNumberSetting(
+        settings.frozenColumns,
+        DEFAULT_DEMO_SETTINGS.frozenColumns,
+        0,
+        6
+      ),
+      frozenRightColumns: normalizeNumberSetting(
+        settings.frozenRightColumns,
+        DEFAULT_DEMO_SETTINGS.frozenRightColumns,
+        0,
+        6
+      ),
+      showRowHeaders: normalizeRowHeaderSetting(
+        settings.showRowHeaders,
+        DEFAULT_DEMO_SETTINGS.showRowHeaders
+      ),
+      showSearchRow: normalizeBooleanSetting(
+        settings.showSearchRow,
+        DEFAULT_DEMO_SETTINGS.showSearchRow
+      ),
+      pagination: normalizeBooleanSetting(
+        settings.pagination,
+        DEFAULT_DEMO_SETTINGS.pagination
+      ),
+      remote: normalizeBooleanSetting(
+        settings.remote,
+        DEFAULT_DEMO_SETTINGS.remote
+      ),
+      rowGroupMode: normalizeRowGroupModeSetting(
+        settings.rowGroupMode,
+        settings.showRowGroups,
+        DEFAULT_DEMO_SETTINGS.rowGroupMode
+      ),
+      multiSelectRows: normalizeBooleanSetting(
+        settings.multiSelectRows,
+        DEFAULT_DEMO_SETTINGS.multiSelectRows
+      ),
+      editMode: normalizeBooleanSetting(
+        settings.editMode,
+        DEFAULT_DEMO_SETTINGS.editMode
+      ),
     };
   }
 
@@ -1182,44 +1216,49 @@
   }
 
   function normalizeRowGroupModeSetting(value, legacyValue, defaultValue) {
-    var text = value == null ? '' : String(value).toLowerCase();
-    if (text === 'none' || text === 'order' || text === 'vendor' || text === 'vendor-order') {
+    var text = value == null ? "" : String(value).toLowerCase();
+    if (
+      text === "none" ||
+      text === "order" ||
+      text === "vendor" ||
+      text === "vendor-order"
+    ) {
       return text;
     }
     if (legacyValue === false) {
-      return 'none';
+      return "none";
     }
     if (legacyValue === true) {
-      return 'order';
+      return "order";
     }
     return defaultValue;
   }
 
   function normalizeRowHeaderSetting(value, defaultValue) {
     var text;
-    if (value === true || value === false || value === 'cell') {
+    if (value === true || value === false || value === "cell") {
       return value;
     }
-    text = value == null ? '' : String(value).toLowerCase();
-    if (text === 'true' || text === 'number' || text === 'row-number') {
+    text = value == null ? "" : String(value).toLowerCase();
+    if (text === "true" || text === "number" || text === "row-number") {
       return true;
     }
-    if (text === 'cell' || text === 'blank') {
-      return 'cell';
+    if (text === "cell" || text === "blank") {
+      return "cell";
     }
-    if (text === 'false' || text === 'none' || text === 'off') {
+    if (text === "false" || text === "none" || text === "off") {
       return false;
     }
     return defaultValue;
   }
 
   function normalizeLocaleSetting(value, defaultValue) {
-    var text = value == null ? '' : String(value);
+    var text = value == null ? "" : String(value);
     return DEMO_LOCALES[text] ? text : defaultValue;
   }
 
   function normalizeThemeSetting(value, defaultValue) {
-    var text = value == null ? '' : String(value);
+    var text = value == null ? "" : String(value);
     var i;
     for (i = 0; i < DEMO_THEMES.length; i += 1) {
       if (DEMO_THEMES[i].value === text) {
@@ -1237,18 +1276,14 @@
     var fragment = document.createDocumentFragment();
     var option;
     var i;
-    controls.theme.textContent = '';
+    controls.theme.textContent = "";
     for (i = 0; i < DEMO_THEMES.length; i += 1) {
-      option = document.createElement('option');
+      option = document.createElement("option");
       option.value = DEMO_THEMES[i].value;
       option.textContent = DEMO_THEMES[i].label;
       fragment.appendChild(option);
     }
     controls.theme.appendChild(fragment);
-  }
-
-  function loadDemoThemeStyles() {
-    // All themes are bundled by the public FabUI stylesheet.
   }
 
   function applyDemoTheme(theme) {
@@ -1259,15 +1294,16 @@
       return;
     }
     for (i = 0; i < DEMO_THEMES.length; i += 1) {
-      grid.root.classList.remove('fg-theme-' + DEMO_THEMES[i].value);
+      grid.root.classList.remove("fg-theme-" + DEMO_THEMES[i].value);
     }
-    grid.root.classList.add('fg-theme-' + theme);
+    grid.root.classList.add("fg-theme-" + theme);
     syncDemoFilterHeaderTextStyle();
   }
 
   function syncDemoFilterHeaderTextStyle() {
-    var filterBar = document.querySelector('.demo-filter-bar');
-    var headerCell = grid && grid.root ? grid.root.querySelector('.fg-header-cell') : null;
+    var filterBar = document.querySelector(".demo-filter-bar");
+    var headerCell =
+      grid && grid.root ? grid.root.querySelector(".fg-header-cell") : null;
     var style;
     if (!filterBar || !headerCell) {
       return;
@@ -1290,10 +1326,7 @@
   }
 
   function getWorkflowComboboxData(locale) {
-    var labels = locale === 'en' ?
-      ['Draft', 'Pending', 'Approved', 'Closed'] : locale === 'zh-CN' ?
-        ['草稿', '待审核', '已批准', '已结案'] :
-        ['草稿', '待審核', '已核准', '已結案'];
+    var labels = getDemoLocalePack(locale).workflowLabels;
     var items = [];
     var i;
     for (i = 0; i < DEMO_WORKFLOW_VALUES.length; i += 1) {
@@ -1303,54 +1336,64 @@
   }
 
   function formatDemoText(text, data) {
-    return String(text == null ? '' : text).replace(/\{([^}]+)\}/g, function(match, key) {
-      return data && Object.prototype.hasOwnProperty.call(data, key) ? data[key] : match;
-    });
+    return String(text == null ? "" : text).replace(
+      /\{([^}]+)\}/g,
+      function (match, key) {
+        return data && Object.prototype.hasOwnProperty.call(data, key)
+          ? data[key]
+          : match;
+      }
+    );
   }
 
   function formatDemoRowGroupHeader(args) {
-    return formatDemoText(getDemoText('groupHeader'), {
+    return formatDemoText(getDemoText("groupHeader"), {
       header: getDemoRowGroupHeaderText(args),
       key: args.key,
-      count: args.count
+      count: args.count,
     });
   }
 
   function formatDemoVendorOrderRowGroupHeader(args) {
-    return formatDemoText(getDemoText('groupVendorOrderHeader'), {
+    return formatDemoText(getDemoText("groupVendorOrderHeader"), {
       header: getDemoRowGroupHeaderText(args),
       vendor: args.item.facno,
-      order: args.item.refCode,
-      count: args.count
+      order: args.item.dlvno,
+      count: args.count,
     });
   }
 
   function getDemoRowGroupHeaderText(args) {
-    var bindings = args.config && (args.config.bindings || args.config.binding || args.config.fields || args.config.field);
+    var bindings =
+      args.config &&
+      (args.config.bindings ||
+        args.config.binding ||
+        args.config.fields ||
+        args.config.field);
     var header;
     if (args.header) {
       return args.header;
     }
     if (bindings == null) {
       if (args.key === args.item.facno) {
-        bindings = 'facno';
-      } else if (args.key === args.item.refCode) {
-        bindings = 'refCode';
+        bindings = "facno";
+      } else if (args.key === args.item.dlvno) {
+        bindings = "dlvno";
       } else {
-        bindings = ['facno', 'refCode'];
+        bindings = ["facno", "dlvno"];
       }
     }
     if (!Array.isArray(bindings)) {
       bindings = [bindings];
     }
-    header = bindings.map(getDemoColumnHeader).join(' + ');
-    return header || getDemoText('groupRows');
+    header = bindings.map(getDemoColumnHeader).join(" + ");
+    return header || getDemoText("groupRows");
   }
 
   function getDemoColumnHeader(binding) {
     var i;
     for (i = 0; i < columns.length; i += 1) {
-      if (columns[i].binding === binding || columns[i].demoHeaderKey === binding) {
+      if (columns[i].binding === binding) {
         return columns[i].header;
       }
     }
@@ -1358,7 +1401,11 @@
   }
 
   function getDemoRowGroups(mode) {
-    mode = normalizeRowGroupModeSetting(mode, null, DEFAULT_DEMO_SETTINGS.rowGroupMode);
+    mode = normalizeRowGroupModeSetting(
+      mode,
+      null,
+      DEFAULT_DEMO_SETTINGS.rowGroupMode
+    );
     return DEMO_ROW_GROUPS[mode] ? DEMO_ROW_GROUPS[mode].slice() : [];
   }
 
@@ -1370,10 +1417,10 @@
 
   function updateGroupRowsOptions() {
     var labelsByValue = {
-      none: getDemoText('groupNone'),
-      order: getDemoText('groupOrder'),
-      vendor: getDemoText('groupVendor'),
-      'vendor-order': getDemoText('groupVendorOrder')
+      none: getDemoText("groupNone"),
+      order: getDemoText("groupOrder"),
+      vendor: getDemoText("groupVendor"),
+      "vendor-order": getDemoText("groupVendorOrder"),
     };
     var i;
     var option;
@@ -1388,33 +1435,56 @@
     }
   }
 
+  function updateRowHeaderOptions() {
+    var labelsByValue = {
+      false: getDemoText("off"),
+      true: getDemoText("rowNumber"),
+      cell: getDemoText("cellOnly"),
+    };
+    var i;
+    var option;
+    for (i = 0; i < controls.rowHeaders.options.length; i += 1) {
+      option = controls.rowHeaders.options[i];
+      if (Object.prototype.hasOwnProperty.call(labelsByValue, option.value)) {
+        option.textContent = labelsByValue[option.value];
+      }
+    }
+  }
+
   function applyDemoLocale(locale) {
     locale = normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale);
     controls.language.value = locale;
     applyWorkflowComboboxData(columns, locale);
+    applyLookupIconLocale(columns, locale);
     document.documentElement.lang = locale;
-    labels.language.textContent = getDemoText('language');
-    labels.theme.textContent = getDemoText('theme');
-    labels.frozen.textContent = getDemoText('frozen');
-    labels.frozenRight.textContent = getDemoText('frozenRight');
-    labels.rowHeaders.textContent = getDemoText('rowHeaders');
-    labels.searchRow.textContent = getDemoText('searchRow');
-    labels.pagination.textContent = getDemoText('pagination');
-    labels.remote.textContent = getDemoText('remote');
+    labels.language.textContent = getDemoText("language");
+    labels.theme.textContent = getDemoText("theme");
+    labels.frozen.textContent = getDemoText("frozen");
+    labels.frozenRight.textContent = getDemoText("frozenRight");
+    labels.rowHeaders.textContent = getDemoText("rowHeaders");
+    updateRowHeaderOptions();
+    labels.searchRow.textContent = getDemoText("searchRow");
+    labels.pagination.textContent = getDemoText("pagination");
+    labels.remote.textContent = getDemoText("remote");
     if (labels.groupRows) {
-      labels.groupRows.textContent = getDemoText('groupRows');
+      labels.groupRows.textContent = getDemoText("groupRows");
     }
     updateGroupRowsOptions();
-    labels.multiSelect.textContent = getDemoText('multiSelect');
-    labels.editMode.textContent = getDemoText('editMode');
-    labels.exportCsv.setAttribute('aria-label', getDemoText('exportCsv'));
-    labels.exportCsv.setAttribute('title', getDemoText('exportCsv'));
-    labels.exportExcel.setAttribute('aria-label', getDemoText('exportExcel'));
-    labels.exportExcel.setAttribute('title', getDemoText('exportExcel'));
-    labels.demoFilter.textContent = getDemoText('filter');
-    setDemoFilterPrompt(getDemoText('filterPlaceholder'));
-    controls.demoFilterClear.setAttribute('aria-label', getDemoText('clearFilter'));
-    controls.demoFilterClear.setAttribute('title', getDemoText('clearFilter'));
+    labels.multiSelect.textContent = getDemoText("multiSelect");
+    labels.editMode.textContent = getDemoText("editMode");
+    labels.exportCsv.setAttribute("aria-label", getDemoText("exportCsv"));
+    labels.exportCsv.setAttribute("title", getDemoText("exportCsv"));
+    labels.exportExcel.setAttribute("aria-label", getDemoText("exportExcel"));
+    labels.exportExcel.setAttribute("title", getDemoText("exportExcel"));
+    updateFullscreenButton();
+    labels.demoFilter.textContent = getDemoText("filter");
+    setDemoFilterPrompt(getDemoText("filterPlaceholder"));
+    controls.demoFilterClear.setAttribute(
+      "aria-label",
+      getDemoText("clearFilter")
+    );
+    controls.demoFilterClear.setAttribute("title", getDemoText("clearFilter"));
+    applyLookupPopupLocale(locale);
     updateDemoResultCount();
   }
 
@@ -1422,13 +1492,17 @@
     applyColumnHeaderLocale(columns, locale);
     applyColumnHeaderLocale(targetGrid.columns, locale);
     applyWorkflowComboboxData(targetGrid.columns, locale);
+    applyLookupIconLocale(columns, locale);
+    applyLookupIconLocale(targetGrid.columns, locale);
     if (targetGrid.root) {
       targetGrid.render();
     }
   }
 
   function applyWorkflowComboboxData(targetColumns, locale) {
-    var data = getWorkflowComboboxData(normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale));
+    var data = getWorkflowComboboxData(
+      normalizeLocaleSetting(locale, DEFAULT_DEMO_SETTINGS.locale)
+    );
     var column;
     var editor;
     var i;
@@ -1437,7 +1511,7 @@
     }
     for (i = 0; i < targetColumns.length; i += 1) {
       column = targetColumns[i];
-      if (!column || column.binding !== 'stus') {
+      if (!column || column.binding !== "stus") {
         continue;
       }
       editor = column.editor;
@@ -1445,6 +1519,38 @@
         editor.options.data = data;
       } else if (editor) {
         editor.data = data;
+      }
+    }
+  }
+
+  function applyLookupIconLocale(targetColumns, locale) {
+    var column;
+    var config;
+    var icon;
+    var i;
+    var j;
+    var k;
+    var text = getDemoLocalePack(locale).openLookup;
+    if (!targetColumns) {
+      return;
+    }
+    for (i = 0; i < targetColumns.length; i += 1) {
+      column = targetColumns[i];
+      if (!column || column.binding !== "cusno") {
+        continue;
+      }
+      for (j = 0; j < 2; j += 1) {
+        config = j === 0 ? column.search : column.editor;
+        if (!config || !Array.isArray(config.icons)) {
+          continue;
+        }
+        for (k = 0; k < config.icons.length; k += 1) {
+          icon = config.icons[k];
+          if (icon && icon.iconCls === "icon-refwin") {
+            icon.title = text;
+            icon.ariaLabel = text;
+          }
+        }
       }
     }
   }
@@ -1463,20 +1569,22 @@
 
   function getColumnHeaderText(column, locale) {
     var headers = getDemoLocalePack(locale).columnHeaders || {};
-    var binding = column && (column.demoHeaderKey || column.binding) ? String(column.demoHeaderKey || column.binding) : '';
+    var binding = column && column.binding ? String(column.binding) : "";
     var index;
     if (Object.prototype.hasOwnProperty.call(headers, binding)) {
       return headers[binding];
     }
     index = getColumnNumberFromBinding(binding);
     if (index != null) {
-      return formatDemoText(headers.defaultColumn || 'Column {index}', { index: index });
+      return formatDemoText(headers.defaultColumn || "Column {index}", {
+        index: index,
+      });
     }
     return column && column.header ? column.header : binding;
   }
 
   function getColumnNumberFromBinding(binding) {
-    var match = String(binding || '').match(/^col0*(\d+)$/);
+    var match = String(binding || "").match(/^col0*(\d+)$/);
     return match ? Number(match[1]) : null;
   }
 
@@ -1486,7 +1594,7 @@
 
   function updateDatasetSummary() {
     if (stats.datasetSummary) {
-      stats.datasetSummary.textContent = rows.length + ' x ' + columns.length;
+      stats.datasetSummary.textContent = rows.length + " x " + columns.length;
     }
   }
 
@@ -1497,15 +1605,29 @@
       rowEnd: grid.rowRange.end,
       columnStart: grid.columnRange.start,
       columnEnd: grid.columnRange.end,
-      renderedCells: grid.root.querySelectorAll('.fg-cell').length
+      renderedCells: grid.root.querySelectorAll(".fg-cell").length,
     });
   }
 
   function updateViewportStats(e) {
-    stats.rowCount.textContent = getDemoText('rows') + ': ' + e.totalRows + ' / ' + rows.length;
-    stats.rowRange.textContent = getDemoText('rowsVisible') + ': ' + e.rowStart + '-' + Math.max(e.rowStart, e.rowEnd - 1);
-    stats.columnRange.textContent = getDemoText('columnsVisible') + ': ' + e.columnStart + '-' + Math.max(e.columnStart, e.columnEnd - 1) + ' / ' + columns.length;
-    stats.cellCount.textContent = getDemoText('renderedCells') + ': ' + e.renderedCells;
+    stats.rowCount.textContent =
+      getDemoText("rows") + ": " + e.totalRows + " / " + rows.length;
+    stats.rowRange.textContent =
+      getDemoText("rowsVisible") +
+      ": " +
+      e.rowStart +
+      "-" +
+      Math.max(e.rowStart, e.rowEnd - 1);
+    stats.columnRange.textContent =
+      getDemoText("columnsVisible") +
+      ": " +
+      e.columnStart +
+      "-" +
+      Math.max(e.columnStart, e.columnEnd - 1) +
+      " / " +
+      columns.length;
+    stats.cellCount.textContent =
+      getDemoText("renderedCells") + ": " + e.renderedCells;
     updateDemoResultCount();
   }
 
@@ -1513,19 +1635,26 @@
     var total;
     if (!grid || !grid.options) {
       if (labels.demoResultCount) {
-        labels.demoResultCount.textContent = getDemoText('resultCount') + ': -';
+        labels.demoResultCount.textContent = getDemoText("resultCount") + ": -";
       }
       return;
     }
-    total = grid.options.pagination || grid.options.remote === true ? grid.paginationTotal : grid.dataView.length;
+    total =
+      grid.options.pagination || grid.options.remote === true
+        ? grid.paginationTotal
+        : grid.dataView.length;
     if (labels.demoResultCount) {
-      labels.demoResultCount.textContent = getDemoText('resultCount') + ': ' + formatDemoNumber(total);
+      labels.demoResultCount.textContent =
+        getDemoText("resultCount") + ": " + formatDemoNumber(total);
     }
   }
 
   function initializeDemoFilterTextBox() {
     if (!controls.demoFilter) return;
-    controls.demoFilter.setAttribute('placeholder', getDemoText('filterPlaceholder'));
+    controls.demoFilter.setAttribute(
+      "placeholder",
+      getDemoText("filterPlaceholder")
+    );
     updateDemoFilterModeIcon();
   }
 
@@ -1556,7 +1685,7 @@
     controls.demoFilterMode.disabled = disabled;
     controls.demoFilterClear.disabled = disabled;
     if (disabled) {
-      setDemoFilterValue('');
+      setDemoFilterValue("");
     }
   }
 
@@ -1565,52 +1694,64 @@
   }
 
   function getDemoFilterValue() {
-    return controls.demoFilter ? controls.demoFilter.value : '';
+    return controls.demoFilter ? controls.demoFilter.value : "";
   }
 
   function applyDemoFilter(value) {
-    var terms = String(value == null ? '' : value).split(',').map(function(term) {
-      return term.trim().toLowerCase();
-    }).filter(function(term) {
-      return term !== '';
-    });
+    var terms = String(value == null ? "" : value)
+      .split(",")
+      .map(function (term) {
+        return term.trim().toLowerCase();
+      })
+      .filter(function (term) {
+        return term !== "";
+      });
     if (!terms.length) {
       grid.setFilter(null);
       return;
     }
-    grid.setFilter(function(item) {
-      return terms[demoFilterMode === 'and' ? 'every' : 'some'](function(term) {
-        return columns.some(function(column) {
+    grid.setFilter(function (item) {
+      return terms[demoFilterMode === "and" ? "every" : "some"](function (
+        term
+      ) {
+        return columns.some(function (column) {
           var actual = getDemoFilterBindingValue(item, column.binding);
-          return String(actual == null ? '' : actual).toLowerCase().indexOf(term) >= 0;
+          return (
+            String(actual == null ? "" : actual)
+              .toLowerCase()
+              .indexOf(term) >= 0
+          );
         });
       });
     });
   }
 
   function toggleDemoFilterMode() {
-    demoFilterMode = demoFilterMode === 'and' ? 'or' : 'and';
+    demoFilterMode = demoFilterMode === "and" ? "or" : "and";
     updateDemoFilterModeIcon();
     applyDemoFilter(getDemoFilterValue());
     saveCurrentDemoSettings();
   }
 
   function updateDemoFilterModeIcon() {
-    var label = demoFilterMode === 'and' ? '&' : 'OR';
+    var label = demoFilterMode === "and" ? "&" : "OR";
     if (!controls.demoFilterMode) return;
     controls.demoFilterMode.textContent = label;
-    controls.demoFilterMode.classList.toggle('demo-filter-mode-and', demoFilterMode === 'and');
-    controls.demoFilterMode.setAttribute('aria-label', label);
-    controls.demoFilterMode.setAttribute('title', label);
+    controls.demoFilterMode.classList.toggle(
+      "demo-filter-mode-and",
+      demoFilterMode === "and"
+    );
+    controls.demoFilterMode.setAttribute("aria-label", label);
+    controls.demoFilterMode.setAttribute("title", label);
   }
 
   function getDemoFilterBindingValue(item, binding) {
-    var parts = String(binding || '').split('.');
+    var parts = String(binding || "").split(".");
     var value = item;
     var i;
     for (i = 0; i < parts.length; i += 1) {
       if (value == null) {
-        return '';
+        return "";
       }
       value = value[parts[i]];
     }
@@ -1622,14 +1763,19 @@
     if (!Number.isFinite(number)) {
       return String(value);
     }
-    return number.toLocaleString(controls.language.value === 'en' ? 'en-US' : controls.language.value);
+    return number.toLocaleString(
+      controls.language.value === "en" ? "en-US" : controls.language.value
+    );
   }
 
   function setDemoFilterPrompt(prompt) {
-    if (controls.demoFilter) controls.demoFilter.setAttribute('placeholder', prompt);
+    if (controls.demoFilter)
+      controls.demoFilter.setAttribute("placeholder", prompt);
   }
 
   function focusDemoFilter() {
     if (controls.demoFilter) controls.demoFilter.focus();
   }
-}());
+
+  initializeDemo();
+})();

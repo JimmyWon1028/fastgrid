@@ -19,6 +19,88 @@
     '工程款30%中款'
   ];
   var LOOKUP_CODES = ['2W001', 'WU001', 'CU004', 'BV001', 'RM001', 'RW001', 'JL001', 'JP001'];
+  var LOOKUP_ROWS = [
+    {
+      code: '2W001',
+      orderNo: 'SE260701003',
+      customer: 'EG00',
+      name: '高陞旺',
+      qty: 4000,
+      available: 4000,
+      price: 454.2,
+      status: '買單'
+    },
+    {
+      code: 'WU001',
+      orderNo: 'SE260701002',
+      customer: 'CU00',
+      name: '和碩',
+      qty: 8000,
+      available: 3097.8,
+      price: 454.2,
+      status: '買單'
+    },
+    {
+      code: 'CU004',
+      orderNo: 'SE260701001',
+      customer: '2R00',
+      name: '大晉',
+      qty: 3000,
+      available: 2092.6,
+      price: 429.9,
+      status: '買單'
+    },
+    {
+      code: 'BV001',
+      orderNo: 'SE260526001',
+      customer: 'CU00',
+      name: '和碩',
+      qty: 3658.9,
+      available: 0,
+      price: 450.4,
+      status: '使用'
+    },
+    {
+      code: 'RM001',
+      orderNo: 'SE260501001',
+      customer: '2R00',
+      name: '大晉',
+      qty: 3000,
+      available: -1250,
+      price: 408.8,
+      status: '使用,結案'
+    },
+    {
+      code: 'RW001',
+      orderNo: 'SE151117001',
+      customer: 'C500',
+      name: '宏展',
+      qty: 20000,
+      available: 20000,
+      price: 177,
+      status: '買單'
+    },
+    {
+      code: 'JL001',
+      orderNo: 'SE150714001',
+      customer: 'C500',
+      name: '宏展',
+      qty: 72446.4,
+      available: 72446.4,
+      price: 183,
+      status: '買單'
+    },
+    {
+      code: 'JP001',
+      orderNo: 'SE150216001',
+      customer: 'C500',
+      name: '宏展',
+      qty: 3000,
+      available: 3000,
+      price: 200,
+      status: '使用,結案'
+    }
+  ];
   var COLORS = ['#ff0000', '#ff9900', '#ffd966', '#70ad47', '#00b0f0', '#4472c4', '#7030a0', '#c00000cc'];
 
   function createRows(count, columnCount, options) {
@@ -103,6 +185,7 @@
     rowCount: ROW_COUNT,
     columnCount: COLUMN_COUNT,
     rows: createRows(ROW_COUNT, COLUMN_COUNT, { exactRowCount: true }),
+    lookupRows: LOOKUP_ROWS,
     workflowValues: WORKFLOW_VALUES.slice()
   };
 }(window));

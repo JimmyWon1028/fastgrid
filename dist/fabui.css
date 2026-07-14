@@ -47,7 +47,6 @@
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #000000;
   --fg-cell-hover-bg: #eef6ff;
   --fg-row-hover-bg: #edf6ff;
@@ -2074,7 +2073,6 @@
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #000;
   --fg-cell-hover-bg: #eaf2ff;
   --fg-row-hover-bg: #eaf2ff;
@@ -2194,7 +2192,6 @@
   --fg-header-bg: #444;
   --fg-header-text: #e8e8e8;
   --fg-cell-bg: #666;
-  --fg-cell-alt-bg: #555;
   --fg-cell-text: #fff;
   --fg-cell-hover-bg: #777777;
   --fg-row-hover-bg: #777;
@@ -2357,7 +2354,6 @@
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
-  --fg-cell-alt-bg: #f5f5f5;
   --fg-cell-text: #333;
   --fg-cell-hover-bg: #e6e6e6;
   --fg-row-hover-bg: #e6e6e6;
@@ -2477,7 +2473,6 @@
   --fg-header-bg: #F5F5F5;
   --fg-header-text: gray;
   --fg-cell-bg: #f2f5f7;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #000;
   --fg-cell-hover-bg: #e4f1fb;
   --fg-row-hover-bg: #e4f1fb;
@@ -2597,7 +2592,6 @@
   --fg-header-bg: #222;
   --fg-header-text: #eeeeee;
   --fg-cell-bg: #181818;
-  --fg-cell-alt-bg: #2c2c2c;
   --fg-cell-text: #fff;
   --fg-cell-hover-bg: #1b4e62;
   --fg-row-hover-bg: #1b4e62;
@@ -2752,7 +2746,6 @@
   --fg-header-bg: #FAFAFA;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
-  --fg-cell-alt-bg: #f9f9f9;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #eee;
   --fg-row-hover-bg: #eee;
@@ -2872,7 +2865,6 @@
   --fg-header-bg: #fff;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #eee;
   --fg-row-hover-bg: #eee;
@@ -2992,7 +2984,6 @@
   --fg-header-bg: #fff;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #eee;
   --fg-row-hover-bg: #eee;
@@ -3112,7 +3103,6 @@
   --fg-header-bg: #fff;
   --fg-header-text: gray;
   --fg-cell-bg: #fff;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #444;
   --fg-cell-hover-bg: #E6E6E6;
   --fg-row-hover-bg: #E6E6E6;
@@ -3232,7 +3222,6 @@
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
-  --fg-cell-alt-bg: #f5f5f5;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #9cc8f7;
   --fg-row-hover-bg: #9cc8f7;
@@ -3352,7 +3341,6 @@
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
-  --fg-cell-alt-bg: #f5f5f5;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #E6E6E6;
   --fg-row-hover-bg: #E6E6E6;
@@ -3472,7 +3460,6 @@
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
-  --fg-cell-alt-bg: #f5f5f5;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #E0F892;
   --fg-row-hover-bg: #E0F892;
@@ -3592,7 +3579,6 @@
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
-  --fg-cell-alt-bg: #f5f5f5;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #fff7d6;
   --fg-row-hover-bg: #fff7d6;
@@ -3712,7 +3698,6 @@
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
-  --fg-cell-alt-bg: #f5f5f5;
   --fg-cell-text: #404040;
   --fg-cell-hover-bg: #fff0e7;
   --fg-row-hover-bg: #fff0e7;
@@ -3832,7 +3817,6 @@
   --fg-header-bg: #EFEFEF;
   --fg-header-text: gray;
   --fg-cell-bg: #eceadf;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #1f1f1f;
   --fg-cell-hover-bg: #654B24;
   --fg-row-hover-bg: #654b24;
@@ -3952,7 +3936,6 @@
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #feeebd;
-  --fg-cell-alt-bg: #fafafa;
   --fg-cell-text: #000;
   --fg-cell-hover-bg: #ffdd57;
   --fg-row-hover-bg: #ffdd57;
