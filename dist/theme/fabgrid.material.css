@@ -4,6 +4,7 @@
 .fg-root.fg-theme-material {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
+  --fg-frozen-divider: #b8b8b8;
   --fg-header-bg: #FAFAFA;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;

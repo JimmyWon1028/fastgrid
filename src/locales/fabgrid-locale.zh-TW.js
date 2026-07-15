@@ -37,6 +37,7 @@
       ariaLabel: 'Grid 功能表',
       showSearchRow: '顯示搜尋列',
       hideSearchRow: '隱藏搜尋列',
+      clearFilter: '清除篩選',
       rowHeaders: '列號',
       rowHeadersOff: '列號：關閉',
       rowHeadersNumbers: '列號：顯示列號',

@@ -205,7 +205,7 @@
         showRefresh: true,
       },
       showSearchRow: settings.showSearchRow,
-      showFooter: true,
+      // showFooter: true,
       footerHeight: 32,
       multiSelectRows: settings.multiSelectRows,
       itemsSource: rows,

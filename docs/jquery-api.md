@@ -56,13 +56,14 @@ var locale = $("#grid").fabgrid("option", "locale");
 $("#grid").fabgrid("option", "locale", "zh-TW");
 $("#grid").fabgrid("option", {
   frozenColumns: 2,
+  rowHeaderWidth: 80,
   allowEditing: false,
 });
 ```
 
 `itemsSource`、`columns`、`locale`、凍結欄與其他具有正式 setter 的設定會轉交 core setter；其他設定更新 `grid.options` 後呼叫 `invalidate()`。
 
-目前會優先呼叫正式 setter 的動態設定包括 `itemsSource`、`columns`、`locale`、左右凍結欄、列號、footer、搜尋列、列群組、編輯模式、多選、頁碼、每頁筆數與 header 顯示模式。
+目前會優先呼叫正式 setter 的動態設定包括 `itemsSource`、`columns`、`locale`、左右凍結欄、列號模式、列號欄寬、footer、搜尋列、列群組、編輯模式、多選、頁碼、每頁筆數與 header 顯示模式。
 
 再次傳入 options 不會建立第二個 instance，而是更新既有 instance。
 
@@ -88,7 +89,7 @@ $("#grid").fabgrid({
 
 handler 呼叫 `event.preventDefault()`、回傳 `false`，或將 `args.cancel` 設為 `true`，都會把取消狀態傳回 core event。
 
-Wrapper 同時支援 FabGrid 的 Wijmo-compatible event object 與 native emitter event，包括 `viewportchanged.fabgrid`、`searchcleared.fabgrid`、`columnvisibilitychanged.fabgrid`、`rowselectionchanged.fabgrid`、`excelexporting.fabgrid`、`excelexported.fabgrid` 與 `excelexportfailed.fabgrid`。
+Wrapper 同時支援 FabGrid 的 Wijmo-compatible event object 與 native emitter event，包括 `filterchanged.fabgrid`、`viewportchanged.fabgrid`、`searchcleared.fabgrid`、`columnvisibilitychanged.fabgrid`、`rowselectionchanged.fabgrid`、`excelexporting.fabgrid`、`excelexported.fabgrid` 與 `excelexportfailed.fabgrid`。
 
 對既有 instance 再次傳入 event callback 會取代原 callback；傳入 `null` 可移除 options callback，不影響使用者透過 `.on()` 綁定的 handler：
 

@@ -5,6 +5,7 @@
 .fui-tabs.fg-theme-black {
   --fg-border: #222;
   --fg-border-strong: #222;
+  --fg-frozen-divider: #888;
   --fg-header-bg: #444;
   --fg-header-text: #e8e8e8;
   --fg-cell-bg: #666;
@@ -30,7 +31,6 @@
   background: #444;
 }
 
-.fg-root.fg-theme-black .fg-row-header-pane,
 .fg-root.fg-theme-black .fg-row-header-layer {
   background: #666666;
 }

@@ -4,6 +4,7 @@
 .fg-root.fg-theme-dark-hive {
   --fg-border: #aaa;
   --fg-border-strong: #444;
+  --fg-frozen-divider: #aaa;
   --fg-header-bg: #222;
   --fg-header-text: #eeeeee;
   --fg-cell-bg: #181818;
@@ -60,7 +61,6 @@
   background: #666666;
 }
 
-.fg-root.fg-theme-dark-hive .fg-row-header-pane,
 .fg-root.fg-theme-dark-hive .fg-row-header-layer {
   background: #181818;
 }

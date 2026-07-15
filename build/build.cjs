@@ -79,7 +79,7 @@ function bundleCss(entryFile, seen) {
   if (seen[absolute]) return '';
   seen[absolute] = true;
   source = fs.readFileSync(absolute, 'utf8');
-  source = source.replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)\1\)?\s*;/g, function(match, quote, request) {
+  source = source.replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)(?:[?#][^'"]*)?\1\)?\s*;/g, function(match, quote, request) {
     if (isStandaloneComponentStyle(request)) return '';
     return bundleCss(path.resolve(path.dirname(absolute), request), seen);
   });
@@ -113,7 +113,7 @@ function copyThemeOutput() {
     const output = path.join(outputThemeDir, entry.name);
     if (entry.name === '.DS_Store') return;
     if (entry.isFile() && /^fabgrid\..+\.css$/i.test(entry.name)) {
-      const css = stripStandaloneThemeSelectors(fs.readFileSync(source, 'utf8').replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)\1\)?\s*;/g, function(match, quote, request) {
+      const css = stripStandaloneThemeSelectors(fs.readFileSync(source, 'utf8').replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)(?:[?#][^'"]*)?\1\)?\s*;/g, function(match, quote, request) {
         return isStandaloneComponentStyle(request) ? '' : match;
       }));
       fs.writeFileSync(output, css, 'utf8');

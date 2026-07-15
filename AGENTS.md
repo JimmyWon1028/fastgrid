@@ -27,6 +27,7 @@
 - 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
 - Excel 預設匯出完整欄位集合，隱藏欄位必須保留資料並在工作表標記為 hidden；只有明確傳入 `visibleOnly === true` 時才只匯出可見欄位。
 - Excel 匯出使用目前 grid `view`。群組啟用時必須保留 group row、群組 aggregate 顯示格式與收合狀態。
+- Excel 匯出的標題列必須跟隨目前 `headerDisplayMode`；畫面顯示 binding 時匯出 binding，顯示 header 時匯出 header。
 
 ## 產品方向
 
@@ -76,13 +77,15 @@ fabgrid-jquery
 
 以下是目前 source 與 smoke test 已涵蓋的現行功能契約，優先於後方保留的歷史 V1 規劃：
 
-- 雙向 virtualization、左右凍結欄、固定列高與欄寬。
+- 雙向 virtualization、左右凍結欄、固定列高與欄寬；body 凍結分隔線只能由實際渲染的資料列繪製，不得延伸到無資料空白區。
 - 本機與 `remote: true` 資料模式，包含分頁、排序、全域搜尋與欄位篩選。
+- `filterChanged` 會在 predicate、全域搜尋、欄位搜尋與清除 filter 完成套用後觸發；遠端模式的資料完成事件仍使用 `loadSuccess`。
+- `updatedView` 支援 constructor option callback，簽名為 `(grid, eventArgs)`；既有 Wijmo-compatible event object 與 native emitter API 必須保持相容。
 - 1 至 3 階列群組、aggregate、群組收合狀態與 Excel 群組匯出。
 - `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。
 - `allowDragging: 'Rows'` 的本機資料列拖曳、跨 Grid move、TreeGrid `before`／`inside`／`after` 節點重排與上下階；循環階層必須被拒絕。
-- 左上角列頭 cell 右鍵功能表，提供搜尋列切換、「列號」下層顯示模式、Excel／CSV 匯出與 Grid fullscreen。
-- 單一 cell、列選取、多選列、clipboard copy 與鍵盤導覽。
+- 左上角列頭 cell 右鍵功能表，提供搜尋列切換、清除所有篩選、「列號」下層顯示模式、Excel／CSV 匯出與 Grid fullscreen。
+- 單一 cell、列選取、多選列、clipboard copy 與鍵盤導覽；active cell 邊框預設為 2px，`setRowHeaderWidth(width)` 可在 runtime 調整列號欄寬並自動 refresh。
 - 欄位拖曳、欄寬調整、雙擊 header 分隔線 AutoFit、欄位顯示切換、footer aggregate。
 - CSV 與 Excel 匯出，以及 Excel hidden columns、格式、凍結窗格與 autoFilter。
 - `textbox`、`numberbox`、`datebox`、`combobox`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。

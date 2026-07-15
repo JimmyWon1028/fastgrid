@@ -4,6 +4,7 @@
 .fg-root.fg-theme-cupertino {
   --fg-border: #AED0EA;
   --fg-border-strong: #AED0EA;
+  --fg-frozen-divider: #8fb8d8;
   --fg-header-bg: #F5F5F5;
   --fg-header-text: gray;
   --fg-cell-bg: #f2f5f7;

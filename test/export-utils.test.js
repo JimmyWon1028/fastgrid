@@ -36,6 +36,17 @@ test('XLSX package contains all required workbook files', function() {
   assert.match(files[7].content, /<worksheet/);
 });
 
+test('XLSX header row follows the current header display mode', function() {
+  var columns = [{ binding: 'orderNumber', header: '訂單編號', width: 120 }];
+  var headerFiles = createXlsxFiles(columns, [], { headerDisplayMode: 'header' });
+  var bindingFiles = createXlsxFiles(columns, [], { headerDisplayMode: 'binding' });
+
+  assert.match(headerFiles[7].content, />訂單編號</);
+  assert.doesNotMatch(headerFiles[7].content, />orderNumber</);
+  assert.match(bindingFiles[7].content, />orderNumber</);
+  assert.doesNotMatch(bindingFiles[7].content, />訂單編號</);
+});
+
 test('Excel cell XML preserves numeric, boolean and text types', function() {
   assert.equal(createExcelCell(2, 1, 12.5, 'number', 3), '<c r="A2" s="3"><v>12.5</v></c>');
   assert.equal(createExcelCell(3, 2, 'Y', 'boolean', 0), '<c r="B3" t="b"><v>1</v></c>');

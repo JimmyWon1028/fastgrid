@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid jQuery Dev Demo</title>
-    <link rel="stylesheet" href="../src/fabui.css?v=20260715-row-number-icon-v1" />
+    <link rel="stylesheet" href="../src/fabui.css?v=20260715-row-header-data-rows-v1" />
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
@@ -71,20 +71,20 @@
     <script src="./js/grid-locales.js?v=20260715-remove-currency-v1"></script>
     <script src="./js/grid-query.js?v=20260715-grid-names-v1"></script>
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260715-row-number-icon-v1";
-      import { createFabGridJQuery } from "../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260714-jquery-wrapper-v3";
+      import fabui from "../src/fabui.js?v=20260715-updated-view-option-v1";
+      import { createFabGridJQuery } from "../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260715-row-header-width-v1";
 
       window.fabui = fabui;
       createFabGridJQuery(window.jQuery, fabui);
       await import("./js/grid-jquery.js?v=20260715-grid-names-v1");
       await import(
-        "../src/locales/fabgrid-locale.zh-TW.js?v=20260715-row-pointer-drag-v1"
+        "../src/locales/fabgrid-locale.zh-TW.js?v=20260715-clear-filter-menu-v1"
       );
       await import(
-        "../src/locales/fabgrid-locale.zh-CN.js?v=20260715-row-pointer-drag-v1"
+        "../src/locales/fabgrid-locale.zh-CN.js?v=20260715-clear-filter-menu-v1"
       );
       await import(
-        "../src/locales/fabgrid-locale.en.js?v=20260715-row-pointer-drag-v1"
+        "../src/locales/fabgrid-locale.en.js?v=20260715-clear-filter-menu-v1"
       );
       await import("./js/grid.js?v=20260715-remove-currency-v1");
     </script>

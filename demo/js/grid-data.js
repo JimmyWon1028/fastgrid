@@ -3,7 +3,7 @@
   'use strict';
 
   var WORKFLOW_VALUES = ['draft', 'pending', 'approved', 'closed'];
-  var ROW_COUNT = 20000;
+  var ROW_COUNT = 2000;
   var COLUMN_COUNT = 21;
   var VENDORS = [
     { code: '408042', name: '全得' },

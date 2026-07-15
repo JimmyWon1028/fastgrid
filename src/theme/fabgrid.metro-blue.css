@@ -5,6 +5,7 @@
 .fui-tabs.fg-theme-metro-blue {
   --fg-border: #ddd;
   --fg-border-strong: #ddd;
+  --fg-frozen-divider: #c0c0c0;
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;

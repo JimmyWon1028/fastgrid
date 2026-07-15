@@ -37,6 +37,7 @@
       ariaLabel: 'Grid 菜单',
       showSearchRow: '显示搜索行',
       hideSearchRow: '隐藏搜索行',
+      clearFilter: '清除筛选',
       rowHeaders: '行号',
       rowHeadersOff: '行号：关闭',
       rowHeadersNumbers: '行号：显示行号',

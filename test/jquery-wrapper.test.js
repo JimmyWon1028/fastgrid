@@ -183,6 +183,10 @@ FakeGrid.prototype.setRowGroups = function (value) {
   this.options.rowGroups = value;
   this.setterCalls.push(["setRowGroups", value]);
 };
+FakeGrid.prototype.setRowHeaderWidth = function (value) {
+  this.options.rowHeaderWidth = value;
+  this.setterCalls.push(["setRowHeaderWidth", value]);
+};
 FakeGrid.prototype.setShowSearchRow = function (value) {
   this.options.showSearchRow = value;
   this.setterCalls.push(["setShowSearchRow", value]);
@@ -250,6 +254,7 @@ test("jQuery wrapper uses official core setters for dynamic options", function (
     multiSelectRows: true,
     pageNumber: 3,
     pageSize: 50,
+    rowHeaderWidth: 80,
     rowGroups: rowGroups,
     showSearchRow: true,
   });
@@ -259,6 +264,7 @@ test("jQuery wrapper uses official core setters for dynamic options", function (
     ["setMultiSelectRows", true],
     ["setPage", 3],
     ["setPageSize", 50],
+    ["setRowHeaderWidth", 80],
     ["setRowGroups", rowGroups],
     ["setShowSearchRow", true],
   ]);
@@ -306,6 +312,28 @@ test("jQuery wrapper forwards native emitter events without Wijmo event objects"
     false
   );
   assert.equal(args.cancel, true);
+  assert.equal(callbackCalls, 1);
+});
+
+test("jQuery wrapper forwards filter changed events", function () {
+  var $ = createJQueryStub();
+  var element = {};
+  var callbackCalls = 0;
+  createFabGridJQuery($, { FabGrid: FakeGrid });
+  $(element).on("filterchanged.fabgrid", function (event, args) {
+    assert.equal(args.cleared, true);
+  });
+  $(element).fabgrid({
+    filterChanged: function (event, args) {
+      callbackCalls += 1;
+      assert.equal(args.source, "clearFilter");
+    },
+  });
+
+  $(element)
+    .fabgrid("instance")
+    .emit("filterChanged", { source: "clearFilter", cleared: true });
+
   assert.equal(callbackCalls, 1);
 });
 

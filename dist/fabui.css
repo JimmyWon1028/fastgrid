@@ -44,6 +44,7 @@
 .fg-root {
   --fg-border: #c9c9c9;
   --fg-border-strong: #b8c4d4;
+  --fg-frozen-divider: #ccc;
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
@@ -55,14 +56,13 @@
   --fg-row-header-text: gray;
   --fg-selected-bg: #dceeff;
   --fg-selected-border: #2b7fd3;
-  --fg-active-cell-border: 1px;
+  --fg-active-cell-border: 2px;
   --fg-editor-border: #2563eb;
   --fg-scrollbar-size: 12px;
   --fg-scrollbar-gutter-size: 22px;
   --fg-scrollbar-track: #f2f2f2;
   --fg-scrollbar-thumb: #bfbfbf;
   --fg-scrollbar-thumb-hover: #a9a9a9;
-  --fg-shadow: rgba(15, 23, 42, 0.12);
   position: relative;
   width: 100%;
   height: 100%;
@@ -208,13 +208,11 @@
 .fg-header-frozen {
   z-index: 8;
   background: var(--fg-header-bg);
-  box-shadow: 2px 0 4px var(--fg-shadow);
 }
 
 .fg-header-frozen-right {
   z-index: 8;
   background: var(--fg-header-bg);
-  box-shadow: -2px 0 4px var(--fg-shadow);
 }
 
 .fg-header-scroll {
@@ -620,14 +618,12 @@
   z-index: 8;
   background-color: #efefef;
   background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
-  box-shadow: 2px 0 4px var(--fg-shadow);
 }
 
 .fg-footer-frozen-right {
   z-index: 8;
   background-color: #efefef;
   background-image: linear-gradient(rgba(255, 255, 255, 20%), rgb(0 0 0 / 6%));
-  box-shadow: -2px 0 4px var(--fg-shadow);
 }
 
 .fg-footer-scroll {
@@ -924,8 +920,8 @@
   left: 0;
   z-index: 7;
   overflow: hidden;
-  border-right: 1px dotted var(--fg-border);
-  background: var(--fg-row-header-bg);
+  border-right: 0;
+  background: transparent;
 }
 
 .fg-selection-pane {
@@ -946,7 +942,6 @@
   z-index: 4;
   overflow: hidden;
   background: #ffffff;
-  box-shadow: 2px 0 4px var(--fg-shadow);
   pointer-events: none;
 }
 
@@ -957,8 +952,25 @@
   z-index: 4;
   overflow: hidden;
   background: #ffffff;
-  box-shadow: -2px 0 4px var(--fg-shadow);
   pointer-events: none;
+}
+
+.fg-cell.fg-frozen-divider-left,
+.fg-header-cell.fg-frozen-divider-left,
+.fg-footer-cell.fg-frozen-divider-left {
+  border-right: 1px solid var(--fg-frozen-divider);
+}
+
+.fg-cell.fg-frozen-divider-right,
+.fg-header-cell.fg-frozen-divider-right,
+.fg-footer-cell.fg-frozen-divider-right {
+  border-left: 1px solid var(--fg-frozen-divider);
+}
+
+.fg-cell.fg-frozen-divider-right-neighbor,
+.fg-header-cell.fg-frozen-divider-right-neighbor,
+.fg-footer-cell.fg-frozen-divider-right-neighbor {
+  border-right-color: transparent;
 }
 
 .fg-cell {
@@ -2269,6 +2281,7 @@
 .fg-root.fg-theme-default {
   --fg-border: #ccc;
   --fg-border-strong: #ddd;
+  --fg-frozen-divider: #ccc;
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
@@ -2388,6 +2401,7 @@
 .fg-root.fg-theme-black {
   --fg-border: #222;
   --fg-border-strong: #222;
+  --fg-frozen-divider: #888;
   --fg-header-bg: #444;
   --fg-header-text: #e8e8e8;
   --fg-cell-bg: #666;
@@ -2413,7 +2427,6 @@
   background: #444;
 }
 
-.fg-root.fg-theme-black .fg-row-header-pane,
 .fg-root.fg-theme-black .fg-row-header-layer {
   background: #666666;
 }
@@ -2550,6 +2563,7 @@
 .fg-root.fg-theme-bootstrap {
   --fg-border: #ccc;
   --fg-border-strong: #ddd;
+  --fg-frozen-divider: #ccc;
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
@@ -2669,6 +2683,7 @@
 .fg-root.fg-theme-cupertino {
   --fg-border: #AED0EA;
   --fg-border-strong: #AED0EA;
+  --fg-frozen-divider: #8fb8d8;
   --fg-header-bg: #F5F5F5;
   --fg-header-text: gray;
   --fg-cell-bg: #f2f5f7;
@@ -2788,6 +2803,7 @@
 .fg-root.fg-theme-dark-hive {
   --fg-border: #aaa;
   --fg-border-strong: #444;
+  --fg-frozen-divider: #aaa;
   --fg-header-bg: #222;
   --fg-header-text: #eeeeee;
   --fg-cell-bg: #181818;
@@ -2844,7 +2860,6 @@
   background: #666666;
 }
 
-.fg-root.fg-theme-dark-hive .fg-row-header-pane,
 .fg-root.fg-theme-dark-hive .fg-row-header-layer {
   background: #181818;
 }
@@ -2942,6 +2957,7 @@
 .fg-root.fg-theme-material {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
+  --fg-frozen-divider: #b8b8b8;
   --fg-header-bg: #FAFAFA;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
@@ -3061,6 +3077,7 @@
 .fg-root.fg-theme-material-blue {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
+  --fg-frozen-divider: #b8b8b8;
   --fg-header-bg: #fff;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
@@ -3180,6 +3197,7 @@
 .fg-root.fg-theme-material-teal {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
+  --fg-frozen-divider: #b8b8b8;
   --fg-header-bg: #fff;
   --fg-header-text: gray;
   --fg-cell-bg: #ffffff;
@@ -3299,6 +3317,7 @@
 .fg-root.fg-theme-metro {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
+  --fg-frozen-divider: #b8b8b8;
   --fg-header-bg: #fff;
   --fg-header-text: gray;
   --fg-cell-bg: #fff;
@@ -3418,6 +3437,7 @@
 .fg-root.fg-theme-metro-blue {
   --fg-border: #ddd;
   --fg-border-strong: #ddd;
+  --fg-frozen-divider: #c0c0c0;
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
@@ -3537,6 +3557,7 @@
 .fg-root.fg-theme-metro-gray {
   --fg-border: #dedede;
   --fg-border-strong: #dedede;
+  --fg-frozen-divider: #c0c0c0;
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
@@ -3656,6 +3677,7 @@
 .fg-root.fg-theme-metro-green {
   --fg-border: #bbb;
   --fg-border-strong: #bbb;
+  --fg-frozen-divider: #aaa;
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
@@ -3775,6 +3797,7 @@
 .fg-root.fg-theme-metro-orange {
   --fg-border: #bbb;
   --fg-border-strong: #bbb;
+  --fg-frozen-divider: #aaa;
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
@@ -3894,6 +3917,7 @@
 .fg-root.fg-theme-metro-red {
   --fg-border: #bbb;
   --fg-border-strong: #bbb;
+  --fg-frozen-divider: #aaa;
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;
@@ -4013,6 +4037,7 @@
 .fg-root.fg-theme-pepper-grinder {
   --fg-border: #ccc;
   --fg-border-strong: #cbc7bd;
+  --fg-frozen-divider: #b7b2a8;
   --fg-header-bg: #EFEFEF;
   --fg-header-text: gray;
   --fg-cell-bg: #eceadf;
@@ -4132,6 +4157,7 @@
 .fg-root.fg-theme-sunny {
   --fg-border: #fece2f;
   --fg-border-strong: #fece2f;
+  --fg-frozen-divider: #d3a500;
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #feeebd;

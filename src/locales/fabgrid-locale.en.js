@@ -37,6 +37,7 @@
       ariaLabel: 'Grid menu',
       showSearchRow: 'Show search row',
       hideSearchRow: 'Hide search row',
+      clearFilter: 'Clear filters',
       rowHeaders: 'Row headers',
       rowHeadersOff: 'Row headers: Off',
       rowHeadersNumbers: 'Row headers: Numbers',

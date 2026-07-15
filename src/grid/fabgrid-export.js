@@ -150,6 +150,7 @@ export function installFabGridExport(FabGrid, context) {
     var columns = visibleOnly === true ? this.visibleColumns : this.columns;
     var files = createXlsxFiles(columns, this.view || this.dataView, {
       frozenColumns: visibleOnly === true ? this.frozenColumns : this.getExcelFrozenColumnCount(),
+      headerDisplayMode: this.getHeaderDisplayMode(),
       grid: this,
       formatCell: this.options.formatCell,
       excelCellStyle: this.options.excelCellStyle,
@@ -486,7 +487,13 @@ export function createWorksheetXml(columns, rows, options, registry) {
   xml.push('<sheetData>');
   xml.push('<row r="1" ht="22" customHeight="1">');
   for (c = 0; c < columns.length; c += 1) {
-    xml.push(createExcelCell(1, c + 1, columns[c].header || columns[c].binding, 'string', 1));
+    xml.push(createExcelCell(
+      1,
+      c + 1,
+      options.headerDisplayMode === 'binding' ? columns[c].binding : (columns[c].header || columns[c].binding),
+      'string',
+      1
+    ));
   }
   xml.push('</row>');
   for (r = 0; r < rows.length; r += 1) {

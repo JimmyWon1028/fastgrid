@@ -4,6 +4,7 @@
 .fg-root.fg-theme-metro-orange {
   --fg-border: #bbb;
   --fg-border-strong: #bbb;
+  --fg-frozen-divider: #aaa;
   --fg-header-bg: #EBECED;
   --fg-header-text: gray;
   --fg-cell-bg: #fafafa;

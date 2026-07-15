@@ -83,3 +83,61 @@ test('data installer owns grouped view and aggregate coordination', function() {
   assert.equal(view[3].label, 'Region: JP');
   assert.equal(grid.getRowGroupAggregateValue(view[3], columns[1]), 5);
 });
+
+test('clear filter resets every local filter condition', function() {
+  var grid = createInstalledGrid([], [], []);
+  var calls = [];
+  grid.filterPredicate = function() { return true; };
+  grid.searchText = 'vendor';
+  grid.columnSearchValues = { status: 'approved' };
+  grid.columnSearchOperators = { status: 'equal' };
+  grid.cancelHeaderSearchTimer = function() { calls.push('cancel'); };
+  grid.hideFilterMenu = function() { calls.push('hide'); };
+  grid.updateColumnSearchState = function() { calls.push('update'); };
+  grid.applyFilterChange = function(resetHorizontalScroll) {
+    calls.push(['apply', resetHorizontalScroll]);
+  };
+
+  grid.clearFilter();
+
+  assert.equal(grid.filterPredicate, null);
+  assert.equal(grid.searchText, '');
+  assert.deepEqual(grid.columnSearchValues, {});
+  assert.deepEqual(grid.columnSearchOperators, {});
+  assert.deepEqual(calls, ['cancel', 'hide', 'update', ['apply', false]]);
+});
+
+test('filter changed fires after applying and clearing a filter', function() {
+  var grid = createInstalledGrid([{ id: 1 }, { id: 2 }], [], []);
+  var events = [];
+
+  grid.applyView = function() {
+    this.view = this.filterPredicate ? this.source.filter(this.filterPredicate) : this.source.slice();
+  };
+  grid.resetScroll = function() {};
+  grid.resetVerticalScroll = function() {};
+  grid.refresh = function() {};
+  grid.cancelHeaderSearchTimer = function() {};
+  grid.hideFilterMenu = function() {};
+  grid.updateColumnSearchState = function() {};
+  grid.emit = function(name, args) {
+    events.push({ name: name, args: args });
+    return true;
+  };
+
+  grid.setFilter(function(item) { return item.id === 2; });
+  grid.clearFilter();
+
+  assert.equal(events.length, 2);
+  assert.equal(events[0].name, 'filterChanged');
+  assert.equal(events[0].args.source, 'setFilter');
+  assert.equal(events[0].args.active, true);
+  assert.equal(events[0].args.cleared, false);
+  assert.equal(events[0].args.viewRowCount, 1);
+  assert.deepEqual(events[0].args.view, [{ id: 2 }]);
+  assert.equal(events[1].name, 'filterChanged');
+  assert.equal(events[1].args.source, 'clearFilter');
+  assert.equal(events[1].args.active, false);
+  assert.equal(events[1].args.cleared, true);
+  assert.equal(events[1].args.viewRowCount, 2);
+});

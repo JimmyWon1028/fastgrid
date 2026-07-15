@@ -5,6 +5,7 @@
 .fui-tabs.fg-theme-pepper-grinder {
   --fg-border: #ccc;
   --fg-border-strong: #cbc7bd;
+  --fg-frozen-divider: #b7b2a8;
   --fg-header-bg: #EFEFEF;
   --fg-header-text: gray;
   --fg-cell-bg: #eceadf;

@@ -5,6 +5,7 @@
 .fui-tabs.fg-theme-sunny {
   --fg-border: #fece2f;
   --fg-border-strong: #fece2f;
+  --fg-frozen-divider: #d3a500;
   --fg-header-bg: #efefef;
   --fg-header-text: gray;
   --fg-cell-bg: #feeebd;

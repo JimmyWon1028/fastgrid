@@ -61,13 +61,14 @@ const grid = new fabui.FabGrid('#grid', {
 | `footerHeight` | `number` | `32` | Footer 高度。 |
 | `multiSelectRows` | `boolean` | `false` | 加入多選列 checkbox 欄。 |
 | `selectionMode` | `string` | `'Cell'` | 目前使用單一 active cell 模式。 |
-| `activeCellBorder` | `number` | `1` | Active cell 與 cell editor 邊框寬度，單位為 px；設為 `0` 可隱藏邊框。 |
+| `activeCellBorder` | `number` | `2` | Active cell 與 cell editor 邊框寬度，單位為 px；設為 `0` 可隱藏邊框。 |
 | `allowSorting` | `boolean` | `true` | 是否允許點擊標題排序。 |
 | `allowEditing` | `boolean` | `true` | 是否允許編輯。 |
 | `editOnSelect` | `boolean` | `false` | 點選 cell 時直接開始編輯。 |
 | `allowResizing` | `boolean` | `true` | 是否允許拖曳調整欄寬；雙擊 header 分隔線會自動調整為合適欄寬。 |
 | `allowDragging` | `'None' \| 'Columns' \| 'Rows' \| 'All'` | `'None'` | `'Columns'` 重排欄位；`'Rows'` 啟用同一 Grid 或跨 Grid 資料列拖曳；`'All'` 同時啟用兩者。Row drag 僅支援本機資料。 |
 | `showSearchRow` | `boolean` | `false` | 顯示每欄搜尋列；`datebox`、`combobox`、`color` 會沿用對應下拉 panel。搜尋輸入只套用 filter，不執行 cell validation。 |
+| `updatedView` | `function(grid, eventArgs)` | `null` | View 完成更新時呼叫；等同註冊 `grid.updatedView.addHandler()`。 |
 | `searchDelay` | `number` | `200` | 搜尋列輸入 debounce 時間（毫秒）。 |
 | `headerDisplayMode` | `'header' \| 'binding'` | `'header'` | 標題顯示欄位標題或 binding。 |
 | `headerToggleKey` | `string \| false` | `false` | 切換標題顯示模式的快捷鍵，例如 `'F4'`。 |
@@ -234,6 +235,7 @@ const columns = [
 | --- | --- |
 | `setFrozenColumns(count)` | 設定左側凍結欄數。 |
 | `setFrozenRightColumns(count)` | 設定右側凍結欄數。 |
+| `setRowHeaderWidth(width)` | Runtime 設定列號欄寬度並自動重新計算 layout 與 refresh；負數會限制為 `0`。 |
 | `setShowRowHeaders(value)` | 切換列號欄。 |
 | `setShowFooter(value)` | 切換 footer aggregate 列。 |
 | `setShowSearchRow(value)` | 切換搜尋列。 |
@@ -252,7 +254,7 @@ const columns = [
 | 方法 | 說明 |
 | --- | --- |
 | `setFilter(predicate)` | 本機模式設定資料列 predicate；遠端模式不可使用。 |
-| `clearFilter()` | 清除 predicate、全域搜尋與欄位搜尋。 |
+| `clearFilter()` | 清除 predicate、全域搜尋與欄位搜尋，並觸發 `filterChanged`。 |
 | `setSearch(text)` | 設定全域搜尋字串。 |
 | `setColumnSearch(column, value)` | 設定單欄搜尋值。 |
 | `setColumnSearchOperator(column, operator)` | 設定欄位運算子，例如 `starts`、`contains`、`gte`、`eq`。 |
@@ -281,12 +283,12 @@ const columns = [
 | --- | --- |
 | `getCsv(visibleOnly?)` | 取得 CSV 字串；預設輸出可見欄，傳入 `false` 時輸出所有欄位。 |
 | `exportCsv(filename?, visibleOnly?)` | 下載 CSV。 |
-| `getExcelBlob(visibleOnly?)` | 取得 XLSX `Blob`；預設輸出所有欄位，傳入 `true` 時僅輸出可見欄。 |
-| `exportExcel(filename?, visibleOnly?)` | 下載 XLSX，回傳 `Promise<boolean>`；預設為 `fabgrid.xlsx`。 |
+| `getExcelBlob(visibleOnly?)` | 取得 XLSX `Blob`；預設輸出所有欄位，傳入 `true` 時僅輸出可見欄。Excel 標題列會跟隨目前 `headerDisplayMode`。 |
+| `exportExcel(filename?, visibleOnly?)` | 下載 XLSX，回傳 `Promise<boolean>`；預設為 `fabgrid.xlsx`，標題列會跟隨畫面當下顯示的 header 或 binding。 |
 
 ### 左上角功能表
 
-在左上角列頭 cell 按滑鼠右鍵會開啟核心功能表，提供顯示／隱藏搜尋列、列號、匯出 Excel、匯出 CSV 與 Grid fullscreen。「列號」的下層功能表提供關閉、顯示列號及只顯示 cell，並以勾選標示目前模式；功能表文字跟隨目前 locale，搜尋列與 fullscreen 項目會依當下狀態切換文字。
+在左上角列頭 cell 按滑鼠右鍵會開啟核心功能表，提供顯示／隱藏搜尋列、清除所有篩選、列號、匯出 Excel、匯出 CSV 與 Grid fullscreen。「清除篩選」會清除 predicate、全域搜尋與所有欄位搜尋；「列號」的下層功能表提供關閉、顯示列號及只顯示 cell，並以勾選標示目前模式。功能表文字跟隨目前 locale，搜尋列與 fullscreen 項目會依當下狀態切換文字。
 
 ## 5. 事件
 
@@ -320,8 +322,31 @@ grid.on('cellEditEnding', function(e) {
 | `groupCollapsedChanging` / `groupCollapsedChanged` | 群組或 TreeGrid 節點收合前／後；TreeGrid event args 會包含 `tree: true`、`row`、`item`、`level`、`collapsed`。 |
 | `viewportChanged` | 可視 row、column 範圍或 render cell 數變動。 |
 | `columnVisibilityChanged` | 欄位顯示狀態變更。 |
+| `filterChanged` | Filter 條件套用完成後觸發；`setFilter()`、全域搜尋、欄位搜尋與所有清除 filter 操作都會觸發。 |
 | `searchCleared` | 呼叫 `clearSearchConditions()`。 |
 | `excelExporting` / `excelExported` / `excelExportFailed` | Excel 匯出流程。 |
+
+`updatedView` 也可以直接在 constructor options 定義，初次 render 與後續 view 更新都會呼叫：
+
+```js
+const grid = new fabui.FabGrid('#grid', {
+  itemsSource: rows,
+  columns: columns,
+  updatedView: (g, e) => {
+    console.log(e.totalRows);
+  }
+});
+```
+
+`filterChanged` 會在目前 filter 套用並 refresh 後觸發：
+
+```js
+grid.on('filterChanged', function(e) {
+  console.log(e.source, e.active, e.cleared, e.viewRowCount);
+});
+```
+
+事件參數包含 `source`、`active`、`cleared`、`remote`、`filterPredicate`、`searchText`、`columnSearchValues`、`columnSearchOperators`、`view` 與 `viewRowCount`。遠端模式會在重新載入資料前觸發；資料回傳完成仍使用 `loadSuccess`。
 
 Wijmo-like aliases 也可使用，例如：
 

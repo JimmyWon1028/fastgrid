@@ -9,6 +9,7 @@ var GRID_EVENTS = [
   'loadError',
   'itemsSourceChanged',
   'loadedRows',
+  'filterChanged',
   'draggedRow',
   'draggingRow',
   'rowHeaderModeChanged',

@@ -72,6 +72,7 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `load-error` | `loadError` |
 | `items-source-changed` | `itemsSourceChanged` |
 | `loaded-rows` | `loadedRows` |
+| `filter-changed` | `filterChanged` |
 
 ## Component ref
 

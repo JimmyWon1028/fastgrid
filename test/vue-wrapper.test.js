@@ -5,6 +5,30 @@ import { createFabGridVue, createGridOptions, normalizeColumnProps, toKebabCase 
 test('Vue wrapper converts core event names to kebab case', function() {
   assert.equal(toKebabCase('selectionChanged'), 'selection-changed');
   assert.equal(toKebabCase('cellEditEnded'), 'cell-edit-ended');
+  assert.equal(toKebabCase('filterChanged'), 'filter-changed');
+});
+
+test('Vue wrapper forwards filter changed events', function() {
+  var handler;
+  var emitted = [];
+  var Vue = { component: function() {} };
+  var plugin = createFabGridVue(Vue, { FabGrid: function() {} });
+  var vm = {
+    control: {
+      filterChanged: {
+        addHandler: function(value) { handler = value; }
+      }
+    },
+    _eventBindings: [],
+    $emit: function(name, args) { emitted.push({ name: name, args: args }); }
+  };
+
+  plugin.FabGrid.methods.bindGridEvents.call(vm);
+  handler(null, { source: 'clearFilter', cleared: true });
+
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].name, 'filter-changed');
+  assert.equal(emitted[0].args.cleared, true);
 });
 
 test('Vue wrapper normalizes declarative column props', function() {

@@ -702,7 +702,7 @@ export function installFabGridData(FabGrid, context) {
       throw new Error('setFilter(predicate) is only available when remote is false. Use remote search rules or a custom loader instead.');
     }
     this.filterPredicate = typeof predicate === 'function' ? predicate : null;
-    this.applyFilterChange(true);
+    this.applyFilterChange(true, 'setFilter');
   };
 
   FabGrid.prototype.clearFilter = function() {
@@ -713,12 +713,12 @@ export function installFabGridData(FabGrid, context) {
     this.cancelHeaderSearchTimer();
     this.hideFilterMenu();
     this.updateColumnSearchState();
-    this.applyFilterChange(false);
+    this.applyFilterChange(false, 'clearFilter');
   };
 
   FabGrid.prototype.setSearch = function(text) {
     this.searchText = String(text || '').toLowerCase();
-    this.applyFilterChange(true);
+    this.applyFilterChange(true, 'setSearch');
   };
 
   FabGrid.prototype.setColumnSearch = function(column, value) {
@@ -736,7 +736,7 @@ export function installFabGridData(FabGrid, context) {
       delete this.columnSearchValues[key];
     }
     this.updateColumnSearchState();
-    this.applyFilterChange(false);
+    this.applyFilterChange(false, 'setColumnSearch');
   };
 
   FabGrid.prototype.setColumnSearchOperator = function(column, operator) {
@@ -753,11 +753,11 @@ export function installFabGridData(FabGrid, context) {
       delete this.columnSearchOperators[key];
     }
     this.hideFilterMenu();
-    this.applyFilterChange(false);
+    this.applyFilterChange(false, 'setColumnSearchOperator');
   };
 
   FabGrid.prototype.applyHeaderSearch = function(colIndex, selectionStart, selectionEnd) {
-    this.applyFilterChange(false);
+    this.applyFilterChange(false, 'headerSearch');
     this.focusHeaderSearchInput(colIndex, selectionStart, selectionEnd);
   };
 
@@ -766,7 +766,7 @@ export function installFabGridData(FabGrid, context) {
     this.columnSearchOperators = {};
     this.cancelHeaderSearchTimer();
     this.updateColumnSearchState();
-    this.applyFilterChange(true);
+    this.applyFilterChange(true, 'clearColumnSearch');
   };
 
   FabGrid.prototype.clearSearchConditions = function(source) {
@@ -776,11 +776,15 @@ export function installFabGridData(FabGrid, context) {
     this.cancelHeaderSearchTimer();
     this.hideFilterMenu();
     this.updateColumnSearchState();
-    this.applyFilterChange(false);
+    this.applyFilterChange(false, source || 'clearSearchConditions');
     this.emit('searchCleared', { source: source || 'api' });
   };
 
-  FabGrid.prototype.applyFilterChange = function(resetHorizontalScroll) {
+  FabGrid.prototype.applyFilterChange = function(resetHorizontalScroll, source) {
+    var columnSearchValues;
+    var columnSearchOperators;
+    var columnSearchActive;
+    var active;
     if (this.options.remote === true) {
       this.options.pageNumber = 1;
       if (this.options.pager) {
@@ -794,6 +798,26 @@ export function installFabGridData(FabGrid, context) {
       this.resetVerticalScroll();
     }
     this.refresh();
+    columnSearchValues = mergeOptions({}, this.columnSearchValues || {});
+    columnSearchOperators = mergeOptions({}, this.columnSearchOperators || {});
+    columnSearchActive = this.options.showSearchRow === true && Object.keys(columnSearchValues).some(function(key) {
+      return String(columnSearchValues[key] == null ? '' : columnSearchValues[key]).trim() !== '';
+    });
+    active = typeof this.filterPredicate === 'function' || Boolean(this.searchText) || columnSearchActive;
+    if (source) {
+      this.emit('filterChanged', {
+        source: source,
+        active: active,
+        cleared: !active,
+        remote: this.options.remote === true,
+        filterPredicate: this.filterPredicate,
+        searchText: this.searchText || '',
+        columnSearchValues: columnSearchValues,
+        columnSearchOperators: columnSearchOperators,
+        view: this.view,
+        viewRowCount: this.view.length
+      });
+    }
     if (this.options.remote === true) {
       this.load();
     }
