@@ -97,6 +97,11 @@
 .fui-calendar-nextmonth { right: 30px; }
 .fui-calendar-nextyear { right: 10px; }
 
+.fui-calendar-month-mode .fui-calendar-prevmonth,
+.fui-calendar-month-mode .fui-calendar-nextmonth {
+  display: none;
+}
+
 .fui-calendar-prevyear::before,
 .fui-calendar-prevyear::after,
 .fui-calendar-prevmonth::before {

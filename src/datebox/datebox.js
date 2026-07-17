@@ -147,6 +147,10 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     return 'en';
   }
 
+  function isYearMonthMask(mask) {
+    return /^9999[\/-]99$/.test(String(mask || ''));
+  }
+
   function CalendarController(owner) {
     this.owner = owner;
     this.element = owner._calendar;
@@ -259,6 +263,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   DateBox.prototype._normalizeCalendarOptions = function() {
     var self = this;
     var definition = this._editorDefinition;
+    this._options.calendarMode = isYearMonthMask(this._options.mask) ?
+      'months' :
+      (this._options.calendarMode === 'months' ? 'months' : 'days');
     this._options.firstDay = Math.max(0, Math.min(6, parseInt(this._options.firstDay, 10) || 0));
     this._options.weeks = Array.isArray(this._options.weeks) && this._options.weeks.length === 7 ? this._options.weeks.slice() : localePacks.en.weeks.slice();
     this._options.months = Array.isArray(this._options.months) && this._options.months.length === 12 ? this._options.months.slice() : localePacks.en.months.slice();
@@ -291,7 +298,8 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     panel.hidden = true;
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'false');
-    calendar.className = 'fui-calendar';
+    calendar.className = 'fui-calendar' +
+      (this._options.calendarMode === 'months' ? ' fui-calendar-month-mode' : '');
     header.className = 'fui-calendar-header';
     title.className = 'fui-calendar-title';
     title.type = 'button';
