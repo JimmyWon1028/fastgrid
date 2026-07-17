@@ -11,7 +11,7 @@ import {
 } from './fabgrid-data.js';
 import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 import { installFabGridDrag } from './fabgrid-drag.js';
-import { installFabGridTree } from './fabgrid-tree.js';
+import { installFabGridTree } from './fabgrid-tree.js?v=20260717-tree-context-menu-v1';
 import {
   applyMask,
   countMaskCharactersBeforeCaret,
@@ -26,8 +26,8 @@ import {
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
 import { installFabGridView } from './fabgrid-view.js?v=20260717-scroll-linked-distance-v2';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260717-popup-outside-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260716-selection-pointer-v3';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260717-tree-context-menu-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260717-tree-context-menu-v1';
 import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260717-popup-outside-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
@@ -208,6 +208,7 @@ export function createFabGridFactory(editorDefinitions) {
     this.filterMenuAnchor = null;
     this.excelFilterDraft = null;
     this.columnChooserAnchor = null;
+    this.topLeftMenuMode = null;
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
@@ -582,7 +583,7 @@ export function createFabGridFactory(editorDefinitions) {
       this.positionColumnChooser(this.columnChooserAnchor);
     }
     if (this.isTopLeftMenuOpen()) {
-      this.renderTopLeftMenu();
+      this.renderActiveTopLeftMenu();
     }
     this.render();
     }
@@ -3676,8 +3677,10 @@ export function createFabGridFactory(editorDefinitions) {
     rowMatchesSearch: rowMatchesSearch
   });
   installFabGridTree(FabGrid, {
+    closest: closest,
     getByBinding: getByBinding,
-    setByBinding: setByBinding
+    setByBinding: setByBinding,
+    toNumber: toNumber
   });
   installFabGridDrag(FabGrid, {
     bind: bind,

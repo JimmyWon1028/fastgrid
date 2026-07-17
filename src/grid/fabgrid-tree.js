@@ -231,8 +231,10 @@ function stableSort(items, compare) {
 }
 
 export function installFabGridTree(FabGrid, context) {
+  var closest = context.closest;
   var getByBinding = context.getByBinding;
   var setByBinding = context.setByBinding;
+  var toNumber = context.toNumber;
 
   FabGrid.prototype.isTreeGrid = function() {
     return typeof this.options.childItemsPath === 'function' ||
@@ -485,6 +487,92 @@ export function installFabGridTree(FabGrid, context) {
 
   FabGrid.prototype.isTreeColumn = function(column) {
     return this.isTreeGrid() && this.visibleColumns[this.getTreeColumnIndex()] === column;
+  };
+
+  FabGrid.prototype.hasExpandedTreeNode = function() {
+    var info;
+    var i;
+    for (i = 0; i < this.view.length; i += 1) {
+      info = this.getTreeRowInfo(i);
+      if (info && info.hasChildren && !info.collapsed) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  FabGrid.prototype.getTreeContextMenuItem = function() {
+    var collapse = this.hasExpandedTreeNode();
+    return {
+      action: collapse ? 'tree-collapse-all' : 'tree-expand-all',
+      icon: collapse ? '▸' : '▾',
+      label: this.getText(collapse ? 'tree.collapseAll' : 'tree.expandAll')
+    };
+  };
+
+  FabGrid.prototype.handleTreeContextMenu = function(event) {
+    var cell = closest(event.target, 'fg-tree-cell');
+    var rowIndex;
+    var colIndex;
+    if (!cell) {
+      return false;
+    }
+    rowIndex = toNumber(cell.getAttribute('data-row'), -1);
+    colIndex = toNumber(cell.getAttribute('data-col'), -1);
+    if (rowIndex < 0 || colIndex !== this.getTreeColumnIndex() || !this.getTreeRowInfo(rowIndex)) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.showTopLeftMenu(event.clientX, event.clientY, 'tree');
+    return true;
+  };
+
+  FabGrid.prototype.renderTreeContextMenu = function() {
+    var definition;
+    var item;
+    var icon;
+    var label;
+    if (!this.topLeftMenu) {
+      return;
+    }
+    definition = this.getTreeContextMenuItem();
+    item = document.createElement('button');
+    icon = document.createElement('span');
+    label = document.createElement('span');
+    item.type = 'button';
+    item.className = 'fg-top-left-menu-item';
+    item.setAttribute('role', 'menuitem');
+    item.setAttribute('data-action', definition.action);
+    icon.className = 'fg-top-left-menu-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = definition.icon;
+    label.className = 'fg-top-left-menu-label';
+    label.textContent = definition.label;
+    item.appendChild(icon);
+    item.appendChild(label);
+    this.topLeftMenu.setAttribute('aria-label', this.getText('tree.contextMenuAriaLabel'));
+    this.topLeftMenu.innerHTML = '';
+    this.topLeftMenu.appendChild(item);
+  };
+
+  FabGrid.prototype.handleTreeContextMenuAction = function(action) {
+    var collapsed;
+    if (action !== 'tree-collapse-all' && action !== 'tree-expand-all') {
+      return false;
+    }
+    collapsed = action === 'tree-collapse-all';
+    if (collapsed) {
+      this.collapseGroupsToLevel(0);
+    } else {
+      this.expandAllTreeNodes();
+    }
+    this.emit('treeContextMenuAction', {
+      tree: true,
+      action: action,
+      collapsed: collapsed
+    });
+    return true;
   };
 
   FabGrid.prototype.toggleTreeNode = function(rowIndex, collapsed) {

@@ -13,6 +13,11 @@
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
     loadMsg: '正在处理，请稍候...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid 展开与折叠',
+      expandAll: '全部展开',
+      collapseAll: '全部折叠'
+    },
     pivot: {
       grandTotal: '总计',
       total: '小计',

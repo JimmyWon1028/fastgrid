@@ -2081,8 +2081,10 @@ function stableSort(items, compare) {
 }
 
 function installFabGridTree(FabGrid, context) {
+  var closest = context.closest;
   var getByBinding = context.getByBinding;
   var setByBinding = context.setByBinding;
+  var toNumber = context.toNumber;
 
   FabGrid.prototype.isTreeGrid = function() {
     return typeof this.options.childItemsPath === 'function' ||
@@ -2335,6 +2337,92 @@ function installFabGridTree(FabGrid, context) {
 
   FabGrid.prototype.isTreeColumn = function(column) {
     return this.isTreeGrid() && this.visibleColumns[this.getTreeColumnIndex()] === column;
+  };
+
+  FabGrid.prototype.hasExpandedTreeNode = function() {
+    var info;
+    var i;
+    for (i = 0; i < this.view.length; i += 1) {
+      info = this.getTreeRowInfo(i);
+      if (info && info.hasChildren && !info.collapsed) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  FabGrid.prototype.getTreeContextMenuItem = function() {
+    var collapse = this.hasExpandedTreeNode();
+    return {
+      action: collapse ? 'tree-collapse-all' : 'tree-expand-all',
+      icon: collapse ? '▸' : '▾',
+      label: this.getText(collapse ? 'tree.collapseAll' : 'tree.expandAll')
+    };
+  };
+
+  FabGrid.prototype.handleTreeContextMenu = function(event) {
+    var cell = closest(event.target, 'fg-tree-cell');
+    var rowIndex;
+    var colIndex;
+    if (!cell) {
+      return false;
+    }
+    rowIndex = toNumber(cell.getAttribute('data-row'), -1);
+    colIndex = toNumber(cell.getAttribute('data-col'), -1);
+    if (rowIndex < 0 || colIndex !== this.getTreeColumnIndex() || !this.getTreeRowInfo(rowIndex)) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.showTopLeftMenu(event.clientX, event.clientY, 'tree');
+    return true;
+  };
+
+  FabGrid.prototype.renderTreeContextMenu = function() {
+    var definition;
+    var item;
+    var icon;
+    var label;
+    if (!this.topLeftMenu) {
+      return;
+    }
+    definition = this.getTreeContextMenuItem();
+    item = document.createElement('button');
+    icon = document.createElement('span');
+    label = document.createElement('span');
+    item.type = 'button';
+    item.className = 'fg-top-left-menu-item';
+    item.setAttribute('role', 'menuitem');
+    item.setAttribute('data-action', definition.action);
+    icon.className = 'fg-top-left-menu-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = definition.icon;
+    label.className = 'fg-top-left-menu-label';
+    label.textContent = definition.label;
+    item.appendChild(icon);
+    item.appendChild(label);
+    this.topLeftMenu.setAttribute('aria-label', this.getText('tree.contextMenuAriaLabel'));
+    this.topLeftMenu.innerHTML = '';
+    this.topLeftMenu.appendChild(item);
+  };
+
+  FabGrid.prototype.handleTreeContextMenuAction = function(action) {
+    var collapsed;
+    if (action !== 'tree-collapse-all' && action !== 'tree-expand-all') {
+      return false;
+    }
+    collapsed = action === 'tree-collapse-all';
+    if (collapsed) {
+      this.collapseGroupsToLevel(0);
+    } else {
+      this.expandAllTreeNodes();
+    }
+    this.emit('treeContextMenuAction', {
+      tree: true,
+      action: action,
+      collapsed: collapsed
+    });
+    return true;
   };
 
   FabGrid.prototype.toggleTreeNode = function(rowIndex, collapsed) {
@@ -6357,15 +6445,18 @@ function installFabGridFilterUi(FabGrid, context) {
   FabGrid.prototype.handleContextMenu = function(event) {
     var headerTitle = closest(event.target, 'fg-header-title');
     if (!headerTitle) {
+      if (typeof this.handleTreeContextMenu === 'function' && this.handleTreeContextMenu(event)) {
+        return;
+      }
       this.hideTopLeftMenu();
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    this.showTopLeftMenu(event.clientX, event.clientY);
+    this.showTopLeftMenu(event.clientX, event.clientY, 'grid');
   };
 
-  FabGrid.prototype.showTopLeftMenu = function(clientX, clientY) {
+  FabGrid.prototype.showTopLeftMenu = function(clientX, clientY, mode) {
     var rootRect;
     var menuWidth;
     var menuHeight;
@@ -6376,7 +6467,8 @@ function installFabGridFilterUi(FabGrid, context) {
     }
     this.hideFilterMenu();
     this.hideColumnChooser();
-    this.renderTopLeftMenu();
+    this.topLeftMenuMode = mode || 'grid';
+    this.renderActiveTopLeftMenu();
     this.topLeftMenu.style.visibility = 'hidden';
     this.topLeftMenu.style.display = 'block';
     rootRect = this.root.getBoundingClientRect();
@@ -6389,6 +6481,15 @@ function installFabGridFilterUi(FabGrid, context) {
     this.topLeftMenu.style.left = left + 'px';
     this.topLeftMenu.style.top = top + 'px';
     this.topLeftMenu.style.visibility = '';
+  };
+
+  FabGrid.prototype.renderActiveTopLeftMenu = function() {
+    if (this.topLeftMenuMode === 'tree' && typeof this.renderTreeContextMenu === 'function') {
+      this.renderTreeContextMenu();
+      return;
+    }
+    this.topLeftMenuMode = 'grid';
+    this.renderTopLeftMenu();
   };
 
   FabGrid.prototype.renderTopLeftMenu = function() {
@@ -6453,6 +6554,7 @@ function installFabGridFilterUi(FabGrid, context) {
     if (!this.topLeftMenu) {
       return;
     }
+    this.topLeftMenu.setAttribute('aria-label', this.getText('topLeftMenu.ariaLabel'));
     this.topLeftMenu.innerHTML = '';
     for (i = 0; i < items.length; i += 1) {
       item = document.createElement('button');
@@ -6521,6 +6623,7 @@ function installFabGridFilterUi(FabGrid, context) {
     if (this.topLeftMenu) {
       this.topLeftMenu.style.display = 'none';
     }
+    this.topLeftMenuMode = null;
   };
 
   FabGrid.prototype.isTopLeftMenuOpen = function() {
@@ -6549,6 +6652,10 @@ function installFabGridFilterUi(FabGrid, context) {
       return;
     }
     this.hideTopLeftMenu();
+    if (typeof this.handleTreeContextMenuAction === 'function' &&
+      this.handleTreeContextMenuAction(action)) {
+      return;
+    }
     if (action === 'toggle-search-row') {
       this.setShowSearchRow(this.options.showSearchRow !== true);
       return;
@@ -8865,6 +8972,13 @@ function installFabGridSelection(FabGrid, context) {
       event.preventDefault();
       event.stopPropagation();
       this.hideFilterMenu();
+      return;
+    }
+
+    if (event.key === 'Escape' && this.isTopLeftMenuOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hideTopLeftMenu();
       return;
     }
 
@@ -12589,6 +12703,7 @@ function createFabGridFactory(editorDefinitions) {
     this.filterMenuAnchor = null;
     this.excelFilterDraft = null;
     this.columnChooserAnchor = null;
+    this.topLeftMenuMode = null;
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
@@ -12963,7 +13078,7 @@ function createFabGridFactory(editorDefinitions) {
       this.positionColumnChooser(this.columnChooserAnchor);
     }
     if (this.isTopLeftMenuOpen()) {
-      this.renderTopLeftMenu();
+      this.renderActiveTopLeftMenu();
     }
     this.render();
     }
@@ -16057,8 +16172,10 @@ function createFabGridFactory(editorDefinitions) {
     rowMatchesSearch: rowMatchesSearch
   });
   installFabGridTree(FabGrid, {
+    closest: closest,
     getByBinding: getByBinding,
-    setByBinding: setByBinding
+    setByBinding: setByBinding,
+    toNumber: toNumber
   });
   installFabGridDrag(FabGrid, {
     bind: bind,
@@ -20998,6 +21115,11 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid expand and collapse',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all'
+    },
     pivot: {
       grandTotal: 'Grand Total',
       total: 'Total',
@@ -21179,6 +21301,11 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
     loadMsg: '正在處理，請稍候...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid 展開與疊合',
+      expandAll: '全部展開',
+      collapseAll: '全部疊合'
+    },
     pivot: {
       grandTotal: '總計',
       total: '小計',
@@ -21360,6 +21487,11 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
     loadMsg: '正在处理，请稍候...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid 展开与折叠',
+      expandAll: '全部展开',
+      collapseAll: '全部折叠'
+    },
     pivot: {
       grandTotal: '总计',
       total: '小计',

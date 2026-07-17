@@ -13,6 +13,11 @@
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
     loadMsg: '正在處理，請稍候...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid 展開與疊合',
+      expandAll: '全部展開',
+      collapseAll: '全部疊合'
+    },
     pivot: {
       grandTotal: '總計',
       total: '小計',

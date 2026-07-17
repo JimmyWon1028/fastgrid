@@ -903,6 +903,101 @@ test('grid popup opens from the column header row only', function() {
   assert.equal(stopped, 1);
 });
 
+test('TreeGrid popup opens from every tree column data cell', function() {
+  var FabGrid = createFabGridFactory({});
+  var shown = [];
+  var prevented = 0;
+  var stopped = 0;
+  var cell = {
+    nodeType: 1,
+    className: 'fg-cell fg-tree-cell',
+    parentNode: null,
+    getAttribute: function(name) {
+      if (name === 'data-row' || name === 'data-col') {
+        return '0';
+      }
+      return null;
+    }
+  };
+  var content = {
+    nodeType: 1,
+    className: 'fg-tree-cell-content',
+    parentNode: cell
+  };
+  var grid = {
+    options: { childItemsPath: 'children', treeColumn: 0 },
+    visibleColumns: [{ binding: 'name' }],
+    _treeRowInfos: [{ item: { name: 'Leaf' }, hasChildren: false, collapsed: false }],
+    getTreeColumnIndex: FabGrid.prototype.getTreeColumnIndex,
+    getTreeRowInfo: FabGrid.prototype.getTreeRowInfo,
+    handleTreeContextMenu: FabGrid.prototype.handleTreeContextMenu,
+    hideTopLeftMenu: function() {},
+    showTopLeftMenu: function(x, y, mode) {
+      shown.push([x, y, mode]);
+    }
+  };
+
+  FabGrid.prototype.handleContextMenu.call(grid, {
+    target: content,
+    clientX: 80,
+    clientY: 120,
+    preventDefault: function() { prevented += 1; },
+    stopPropagation: function() { stopped += 1; }
+  });
+
+  assert.deepEqual(shown, [[80, 120, 'tree']]);
+  assert.equal(prevented, 1);
+  assert.equal(stopped, 1);
+});
+
+test('TreeGrid context menu exposes one bulk toggle action', function() {
+  var FabGrid = createFabGridFactory({});
+  var info = { item: { name: 'Parent' }, hasChildren: true, collapsed: false };
+  var collapsed = 0;
+  var expanded = 0;
+  var emitted = [];
+  var grid = {
+    view: [info.item],
+    _treeRowInfos: [info],
+    getTreeRowInfo: FabGrid.prototype.getTreeRowInfo,
+    hasExpandedTreeNode: FabGrid.prototype.hasExpandedTreeNode,
+    getText: function(path) {
+      return path === 'tree.collapseAll' ? '全部疊合' : '全部展開';
+    },
+    collapseGroupsToLevel: function(level) {
+      collapsed += level === 0 ? 1 : 100;
+    },
+    expandAllTreeNodes: function() {
+      expanded += 1;
+    },
+    emit: function(name, args) {
+      emitted.push([name, args.collapsed]);
+    }
+  };
+
+  assert.deepEqual(FabGrid.prototype.getTreeContextMenuItem.call(grid), {
+    action: 'tree-collapse-all',
+    icon: '▸',
+    label: '全部疊合'
+  });
+  assert.equal(FabGrid.prototype.handleTreeContextMenuAction.call(grid, 'tree-collapse-all'), true);
+
+  info.collapsed = true;
+  assert.deepEqual(FabGrid.prototype.getTreeContextMenuItem.call(grid), {
+    action: 'tree-expand-all',
+    icon: '▾',
+    label: '全部展開'
+  });
+  assert.equal(FabGrid.prototype.handleTreeContextMenuAction.call(grid, 'tree-expand-all'), true);
+  assert.equal(FabGrid.prototype.handleTreeContextMenuAction.call(grid, 'unknown'), false);
+  assert.equal(collapsed, 1);
+  assert.equal(expanded, 1);
+  assert.deepEqual(emitted, [
+    ['treeContextMenuAction', true],
+    ['treeContextMenuAction', false]
+  ]);
+});
+
 test('filter icon click opens its menu without sorting the column', function() {
   var FabGrid = createFabGridFactory({});
   var menuCalls = 0;
@@ -988,6 +1083,32 @@ test('escape closes the Excel-like filter popup without applying its draft', fun
   assert.equal(grid.excelFilterDraft, draft);
 });
 
+test('escape closes the shared Grid context menu', function() {
+  var FabGrid = createFabGridFactory({});
+  var hidden = 0;
+  var prevented = 0;
+  var stopped = 0;
+  var grid = {
+    selection: { row: 0, col: 0 },
+    busy: false,
+    editing: null,
+    isFilterMenuOpen: function() { return false; },
+    isTopLeftMenuOpen: function() { return true; },
+    hideTopLeftMenu: function() { hidden += 1; }
+  };
+
+  FabGrid.prototype.handleKeyDown.call(grid, {
+    key: 'Escape',
+    target: { nodeType: 1, tagName: 'DIV', className: 'fg-cell', parentNode: null },
+    preventDefault: function() { prevented += 1; },
+    stopPropagation: function() { stopped += 1; }
+  });
+
+  assert.equal(hidden, 1);
+  assert.equal(prevented, 1);
+  assert.equal(stopped, 1);
+});
+
 test('escape closes the column chooser popup', function() {
   var FabGrid = createFabGridFactory({});
   var hidden = 0;
@@ -998,6 +1119,7 @@ test('escape closes the column chooser popup', function() {
     busy: false,
     editing: null,
     isFilterMenuOpen: function() { return false; },
+    isTopLeftMenuOpen: function() { return false; },
     isColumnChooserOpen: function() { return true; },
     hideColumnChooser: function() { hidden += 1; }
   };

@@ -26,15 +26,18 @@ export function installFabGridFilterUi(FabGrid, context) {
   FabGrid.prototype.handleContextMenu = function(event) {
     var headerTitle = closest(event.target, 'fg-header-title');
     if (!headerTitle) {
+      if (typeof this.handleTreeContextMenu === 'function' && this.handleTreeContextMenu(event)) {
+        return;
+      }
       this.hideTopLeftMenu();
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    this.showTopLeftMenu(event.clientX, event.clientY);
+    this.showTopLeftMenu(event.clientX, event.clientY, 'grid');
   };
 
-  FabGrid.prototype.showTopLeftMenu = function(clientX, clientY) {
+  FabGrid.prototype.showTopLeftMenu = function(clientX, clientY, mode) {
     var rootRect;
     var menuWidth;
     var menuHeight;
@@ -45,7 +48,8 @@ export function installFabGridFilterUi(FabGrid, context) {
     }
     this.hideFilterMenu();
     this.hideColumnChooser();
-    this.renderTopLeftMenu();
+    this.topLeftMenuMode = mode || 'grid';
+    this.renderActiveTopLeftMenu();
     this.topLeftMenu.style.visibility = 'hidden';
     this.topLeftMenu.style.display = 'block';
     rootRect = this.root.getBoundingClientRect();
@@ -58,6 +62,15 @@ export function installFabGridFilterUi(FabGrid, context) {
     this.topLeftMenu.style.left = left + 'px';
     this.topLeftMenu.style.top = top + 'px';
     this.topLeftMenu.style.visibility = '';
+  };
+
+  FabGrid.prototype.renderActiveTopLeftMenu = function() {
+    if (this.topLeftMenuMode === 'tree' && typeof this.renderTreeContextMenu === 'function') {
+      this.renderTreeContextMenu();
+      return;
+    }
+    this.topLeftMenuMode = 'grid';
+    this.renderTopLeftMenu();
   };
 
   FabGrid.prototype.renderTopLeftMenu = function() {
@@ -122,6 +135,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (!this.topLeftMenu) {
       return;
     }
+    this.topLeftMenu.setAttribute('aria-label', this.getText('topLeftMenu.ariaLabel'));
     this.topLeftMenu.innerHTML = '';
     for (i = 0; i < items.length; i += 1) {
       item = document.createElement('button');
@@ -190,6 +204,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (this.topLeftMenu) {
       this.topLeftMenu.style.display = 'none';
     }
+    this.topLeftMenuMode = null;
   };
 
   FabGrid.prototype.isTopLeftMenuOpen = function() {
@@ -218,6 +233,10 @@ export function installFabGridFilterUi(FabGrid, context) {
       return;
     }
     this.hideTopLeftMenu();
+    if (typeof this.handleTreeContextMenuAction === 'function' &&
+      this.handleTreeContextMenuAction(action)) {
+      return;
+    }
     if (action === 'toggle-search-row') {
       this.setShowSearchRow(this.options.showSearchRow !== true);
       return;

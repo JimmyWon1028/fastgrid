@@ -13,6 +13,11 @@
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',
+    tree: {
+      contextMenuAriaLabel: 'TreeGrid expand and collapse',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all'
+    },
     pivot: {
       grandTotal: 'Grand Total',
       total: 'Total',

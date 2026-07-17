@@ -34,7 +34,6 @@
     showSearchRow: true,
     locale: 'zh-TW'
   });
-
   function getBindingValue(item, binding) {
     var parts = String(binding || '').split('.');
     var value = item;
@@ -97,6 +96,10 @@
 
   grid.on('viewportChanged', function() {
     updateStats();
+  });
+
+  grid.on('treeContextMenuAction', function(event) {
+    updateStats(event.collapsed ? '已疊合所有節點' : '已展開所有節點');
   });
 
   grid.on('searchCleared', function() {

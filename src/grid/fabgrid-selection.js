@@ -1114,6 +1114,13 @@ export function installFabGridSelection(FabGrid, context) {
       return;
     }
 
+    if (event.key === 'Escape' && this.isTopLeftMenuOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hideTopLeftMenu();
+      return;
+    }
+
     if (event.key === 'Escape' && this.isColumnChooserOpen()) {
       event.preventDefault();
       event.stopPropagation();

@@ -46,18 +46,27 @@
 - [x] `src/grid/fabgrid-tree.js`
   - `childItemsPath` 階層資料讀取、可視樹列扁平化與循環資料保護。
   - 節點收合狀態、同層排序、篩選祖先路徑、階層鍵盤導覽與 TreeGrid API。
-- [x] `src/grid/fabgrid-editor.js` 基礎 helper
+- [x] `src/grid/fabgrid-editor.js`
   - mask、caret、copy 與 validation result helper。
+- [x] `src/grid/fabgrid-editor-runtime.js`
+  - editor lifecycle、textbox／numberbox、datebox／年月模式、combobox 與 color。
+  - 同步／非同步 validation、invalid item 狀態與 popup rendering／定位。
+- [x] `src/grid/fabgrid-filter-ui.js`
+  - Search Row、Excel-like filter、欄位選擇器與 Grid popup UI。
+- [x] `src/grid/fabgrid-selection.js`
+  - selection、鍵盤導覽、clipboard、欄位拖曳與欄寬調整。
+- [x] `src/grid/fabgrid-drag.js`
+  - 本機資料列拖曳、跨 Grid drop 與 TreeGrid drop 協調。
+- [x] `src/grid/fabgrid-view.js`
+  - layout、scrollbar、雙向 virtualization 與 rendering。
+- [x] `src/grid/fabgrid-types.js`
+  - Row、GroupRow、CellRange 與 panel 相容類型。
 - [x] Grid 專用版面樣式移至 `src/grid/fabgrid.css`。
 - [x] 共用 icon 樣式更名為 `src/fabui.icon.css`，保留在 `src/`。
 
-尚未完成：
+`src/grid/fabgrid.js` 保留 factory、公共 API、事件、DOM lifecycle 與各領域 installer 協調。後續只有在出現新的完整責任領域、能維持清楚邊界且不增加循環依賴時才繼續拆分，不以檔案大小本身作為拆分依據。
 
-- [ ] 完成 `src/grid/fabgrid-editor.js`
-  - 移入 editor lifecycle、textbox／numberbox、datebox／年月模式、combobox 與 color。
-  - 移入同步／非同步 validation、invalid item 狀態與 popup rendering／定位。
-- [ ] 完成 editor 領域後重新評估 `src/grid/fabgrid.js`；renderer、selection、dragging、resizing 與 virtualization 暫不拆分，除非能維持清楚邊界且不增加循環依賴。
-- [ ] 每批拆分後執行 `npm test`、JavaScript 語法檢查與 `/tmp` 隔離副本 smoke；未明確要求 build 時不得改寫工作區 `dist`。
+每批 source 修改後先執行 `npm test` 與 JavaScript 語法檢查；需要完整 bundle 驗證時使用 `/tmp` 隔離副本 smoke。未明確要求 build 時不得改寫工作區 `dist`。
 
 ## FabUI Chart
 

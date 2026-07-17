@@ -5,7 +5,7 @@ import {
   registerControl,
   unregisterControl
 } from './core/control.js?v=20260716-control-events-v3';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260717-popup-outside-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260717-tree-context-menu-v2';
 import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
 import {
   PivotAggregate,

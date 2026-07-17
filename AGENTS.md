@@ -84,7 +84,7 @@ fabgrid-jquery
 - `filterChanged` 會在 predicate、全域搜尋、Search Row、Excel-like 欄位篩選、模式切換與清除 filter 完成套用後觸發；遠端模式的資料完成事件仍使用 `loadSuccess`。
 - `updatedView` 支援 constructor option callback，簽名為 `(grid, eventArgs)`；既有 Wijmo-compatible event object 與 native emitter API 必須保持相容。
 - 1 至 3 階列群組、aggregate、群組收合狀態與 Excel 群組匯出。
-- `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。
+- `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。樹欄所有資料 cell 右鍵都必須顯示單一「全部展開／全部疊合」狀態項目；仍有可視展開節點時顯示全部疊合，全部疊合後交換為全部展開，並由 TreeGrid class 共用既有 Grid popup 容器與關閉規則，不得只實作在 Demo。
 - `allowDragging: 'Rows'` 的本機資料列拖曳、跨 Grid move、TreeGrid `before`／`inside`／`after` 節點重排與上下階；循環階層必須被拒絕。
 - 左上角列頭 cell 右鍵功能表，提供搜尋列切換、清除所有篩選、「列號」下層顯示模式、Excel／CSV 匯出與 Grid fullscreen。
 - `selectionMode` 支援 `Cell` 與連續矩形 `CellRange`；後者支援滑鼠拖曳、`Shift + Click`、`Shift + 方向鍵`與 TSV clipboard copy。CellRange 雙擊必須由同一資料格的連續 pointer 操作成立，`pointercancel` 不得觸發雙擊，完成 pointer 選取後不得再由 click 重複套用 selection 或 render。`highlightActiveRow` 預設為 `true`，只控制 active row 背景，不得隱含改變多選列；active cell 邊框預設為 2px，`setRowHeaderWidth(width)` 可在 runtime 調整列號欄寬並自動 refresh。
@@ -104,7 +104,7 @@ fabgrid-jquery
 - `allowFiltering` 是 Search Row 與 Excel-like 欄位篩選的共用開關；設為 `false` 時必須隱藏兩套欄位篩選 UI、清除兩套欄位條件，但保留右下角 Quick Search。
 - Excel-like 篩選 popup 開啟時按 `Escape` 必須只關閉 popup，不可套用或清除尚未提交的篩選草稿。
 - 左上角欄位選擇器 popup 必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或觸發按鈕不得誤關閉。
-- Grid popup 由欄位 Header Row 的右鍵操作開啟，不再由左上角列頭 cell 開啟；Search Row 與資料列不觸發此 popup。
+- 一般 Grid popup 由欄位 Header Row 的右鍵操作開啟，不再由左上角列頭 cell 開啟；Search Row 與一般資料列不觸發此 popup。TreeGrid 樹欄資料 cell 例外，使用同一 popup 容器顯示 TreeGrid 全部展開／全部疊合項目。
 - `en`、`zh-TW`、`zh-CN` locale 與多組 theme。
 - Pivot 類別與列舉只由 `fabui.pivot` namespace 公開，包含 `PivotEngine`、`PivotField`、`PivotPanel`、`PivotGrid`、`PivotChart`、`PivotWorkspace`、`PivotAggregate` 與 `PivotShowTotals`；不得在 `fabui` 頂層重複公開。PivotEngine 支援本機 Array、多階 row／column fields、value／filter fields、Sum／Count／Average／Min／Max、小計／總計、日期 groupBy、viewDefinition 與 detail keys。Average 只計入有效數值；Date filter 經 JSON 序列化後仍依日期值比對；`setFields()` 必須依穩定 field key 將四個 View 區域重綁到新的 PivotField instance。
 - PivotPanel 沿用 FabGrid theme variables，提供 Fields／Filters／Rows／Columns／Values 區域、欄位勾選與拖放、排序、filter field 配置、Rows／Columns 欄位右鍵預設／升冪／降冪排序 popup、數值欄位右鍵 aggregate 設定及 JSON 字串 viewDefinition；所有 popup 必須沿用既有左側 icon 欄、分隔線、緊湊列高、hover／active 與 `Escape`／點擊外部關閉規則。Filters chip 只顯示欄位名稱與操作，不得放置內容選擇器，實際選值只顯示於 PivotGrid 左上角。Values chip 必須優先清楚顯示欄位名稱，不得放置會壓縮名稱的 inline aggregate select。Filters、Rows、Columns、Values 都不顯示上下移動按鈕，統一以拖曳排序並以插入橫線提示實際落點。Panel 與 Grid 必須共用同一個 PivotEngine，不得在 Demo 複製彙總邏輯。

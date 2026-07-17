@@ -96,7 +96,7 @@ jQuery Demo 分成以下兩層：
 - `fabui.pivot.PivotChart` 直接綁定 PivotEngine 或 PivotPanel，共用 filter、dimension 排序、Rows、Columns 與 Values 設定；預設排除重複的小計／總計，並以 `maxPoints`／`maxSeries` 限制 SVG 圖表規模。內部組合既有 `fabui.Chart`，支援 Column、Bar、Line、Pie、圖例與 Pie series 選擇；Pie 預設顯示百分比，點擊扇形會沿用 Chart 的旋轉與位移動畫。傳入共用同一個 PivotEngine 的 PivotGrid 作為 `selectionSource` 後，圖表會隨 Grid 疊合／展開立即重繪：展開時顯示明細彙總，疊合時以群組小計取代隱藏明細；圖形 point 與 Grid 彙總 cell 會依 Pivot row key 和 data-column binding 雙向同步選取。
 - `fabui.pivot.PivotWorkspace` 直接組合既有 PivotPanel、PivotGrid、PivotChart，公開共用 `engine` 與三個子元件 instance；寬容器使用三欄，窄容器自動切換三列，兩條 Splitter 支援滑鼠、觸控與鍵盤調整大小。`chartSize` 接受固定 px、百分比及 `fr`，預設 `'40%'`；Grid 標題列內建定義區／圖表區顯示切換與 Pane 全螢幕，Chart 標題列內建多語系圖形切換與 Pane 全螢幕。隱藏 Panel 或 Chart 時相鄰 Splitter 一併隱藏，Grid 自動擴展。
 - 固定列高與欄寬的雙向 virtualization，適合大量資料。
-- `childItemsPath` TreeGrid 模式、節點收合／展開、階層鍵盤導覽、同層排序、保留祖先路徑的篩選，以及收合／篩選後維持原始列號。
+- `childItemsPath` TreeGrid 模式、節點收合／展開、階層鍵盤導覽、同層排序、保留祖先路徑的篩選，以及收合／篩選後維持原始列號。樹欄所有資料 cell 都可按滑鼠右鍵開啟單一狀態項目，依目前狀態切換整棵樹的全部展開／全部疊合。
 - `allowDragging: 'Rows'` 支援一般 Grid 列重排、跨 Grid 移動、跨 Grid 移入 TreeGrid，以及 TreeGrid `before`／`inside`／`after` 節點上下階；開發範例為 `demo/dev-grid-grid.html` 與 `demo/dev-grid-treegrid.html`，其他範例為 `demo/grid-grid.html`、`demo/grid-grid-vue2.html`、`demo/grid-treegrid.html` 與 `demo/grid-treegrid-vue2.html`。
 - 欄位 Header Row 右鍵功能表，可切換搜尋列、清除所有篩選、從「列號」下層選擇關閉／顯示列號／只顯示 cell、匯出 Excel／CSV 與進入或離開 Grid fullscreen。
 - Grid 右鍵選單、Filter、欄位選擇器與 datebox／combobox／color editor popup，以及 PivotPanel 排序／彙總 popup，都支援按 `Escape` 或點擊 popup 外部關閉；點擊 popup 內部或 trigger 不會誤關閉，關閉也不會提交尚未確認的內容。
