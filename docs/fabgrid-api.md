@@ -199,7 +199,7 @@ const columns = [
 | `precision` | `number` | number 顯示與提交時的小數位。 |
 | `mask` | `string` | 文字／日期遮罩；支援 `9`、`A`、`*`。 |
 | `maskValueIncludesLiterals` | `boolean` | 資料值是否保留 `/` 等遮罩字元。 |
-| `autoUnmask` | `boolean` | 自動移除遮罩字面值。 |
+| `autoUnmask` | `boolean` | DateBox editor 預設為 `true`；複製與資料輸出時移除遮罩字面值。明確設為 `false` 時保留遮罩。 |
 | `validate` | `(args) => ValidationResult \| Promise<ValidationResult>` | 同步或非同步驗證。 |
 
 `validate` 回傳 `null`、`false` 或空字串表示通過；回傳字串或 `{ message }` 表示失敗。驗證失敗項目存放於 `grid.invalidItems`。

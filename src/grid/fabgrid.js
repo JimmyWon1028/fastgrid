@@ -844,7 +844,7 @@ export function createFabGridFactory(editorDefinitions) {
         editor: null,
         thousandsSeparator: null,
         mask: '',
-        autoUnmask: false,
+        autoUnmask: null,
         maskValueIncludesLiterals: null,
         readOnly: false
       }, columns[i]);
@@ -1929,9 +1929,13 @@ export function createFabGridFactory(editorDefinitions) {
   function getMaskOptions(column, mask) {
     var config = getColumnEditorConfig(column);
     var options = config && config.options ? config.options : {};
+    var autoUnmask = column && column.autoUnmask != null ? column.autoUnmask : options.autoUnmask;
+    if (autoUnmask == null && config.type === 'datebox') {
+      autoUnmask = true;
+    }
     return {
       mask: mask || getExplicitEditorMask(column),
-      autoUnmask: column && column.autoUnmask != null ? column.autoUnmask : options.autoUnmask,
+      autoUnmask: autoUnmask,
       maskValueIncludesLiterals: column && column.maskValueIncludesLiterals != null ?
         column.maskValueIncludesLiterals :
         options.maskValueIncludesLiterals,

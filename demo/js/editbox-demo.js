@@ -41,13 +41,15 @@
       editor: 'datebox',
       width: 280,
       locale: 'zh-TW',
-      mask: '9999/99/99'
+      mask: '9999/99/99',
+      autoUnmask: true
     });
     boxes.month = new EditBox('#edit-month', {
       editor: 'datebox',
       width: 280,
       locale: 'zh-TW',
-      mask: '9999/99'
+      mask: '9999/99',
+      autoUnmask: true
     });
     boxes.status = new EditBox('#edit-status', {
       editor: 'combobox',

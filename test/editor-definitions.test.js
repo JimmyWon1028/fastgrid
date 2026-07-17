@@ -31,3 +31,17 @@ test('color editor preserves invalid text for grid validation', function() {
   assert.equal(color.isValid('not-a-color'), false);
   assert.equal(color.isValid(''), true);
 });
+
+test('datebox copy removes mask literals by default', function() {
+  var datebox = createEditorDefinitions().datebox;
+
+  assert.equal(datebox.getCopyText('2026/07/17', { mask: '9999/99/99' }), '20260717');
+  assert.equal(datebox.getCopyText('2026/07', { mask: '9999/99' }), '202607');
+  assert.equal(
+    datebox.getCopyText('2026/07/17', {
+      mask: '9999/99/99',
+      autoUnmask: false
+    }),
+    '2026/07/17'
+  );
+});

@@ -58,6 +58,8 @@ EditBox 與 FabGrid 接受相同 editor 別名：
 
 Color popup 的預設樣式與 FabGrid editor 一致，包含 60 色 palette、飽和度／明度、色相與透明度控制。`palette` 可自訂色票，`colors` 保留為相容別名；`showAlpha: false` 可隱藏透明度控制並固定輸出六碼 hex。
 
+DateBox 的 `autoUnmask` 預設為 `true`。複製日期或年月時會移除遮罩字面值，例如 `2026/07/17` 複製為 `20260717`、`2026/07` 複製為 `202607`；明確設定 `autoUnmask: false` 可保留遮罩。
+
 ## 共用 methods
 
 - `getEditorType()`：取得目前 editor 類型。

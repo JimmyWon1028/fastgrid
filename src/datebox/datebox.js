@@ -51,7 +51,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     formatter: null,
     parser: null,
     mask: '9999/99/99',
-    autoUnmask: null,
+    autoUnmask: true,
     maskValueIncludesLiterals: null,
     onSelect: null,
     onChange: null,
@@ -670,7 +670,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     var clipboardData;
     var text;
     var definition = this._editorDefinition;
-    if (!this._explicitMask || !definition || typeof definition.getCopyText !== 'function' || start == null || end == null || start === end) return;
+    if (!definition || typeof definition.getCopyText !== 'function' || start == null || end == null || start === end) return;
     text = definition.getCopyText(this._editor.value.slice(Math.min(start, end), Math.max(start, end)), this._options);
     clipboardData = event.clipboardData || window.clipboardData;
     if (!clipboardData || !clipboardData.setData) return;

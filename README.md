@@ -117,7 +117,7 @@ jQuery Demo 分成以下兩層：
 - `g.rows` 與 `selectedRows` 回傳 `fabui.FabGrid.Row`／`fabui.FabGrid.GroupRow` instance；`GroupRow` 繼承 `Row`，可用來判斷一般資料列與群組列。
 - `fabui.Control.getControl(elementOrSelector)` 可用 host element 或 `'#' + grdId` 取得既有 FabGrid instance；找不到或 Grid 已 `dispose()` 時回傳 `null`。
 - `grid.addEventListener(target, type, fn, capture?, passive?)` 提供 Wijmo-compatible managed DOM event，`dispose()` 時自動解除；欄位拖曳、欄寬調整、CellRange、捲軸與資料列拖曳使用的 document pointer listener 只在互動期間綁定。`grid.hitTest(e)` 以 `fabui.CellType`、panel、row／col 與 `isSearchRow` 辨識資料 cell、Header、Search Row、列頭及 Footer。
-- `textbox`、`numberbox`、`datebox`、`combobox`、`color` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup，`color` 可輸入 hex 或標準 CSS 顏色名稱，名稱提交後保留原文字，並提供 60 色 palette、飽和度／明度、色相與透明度控制。獨立 EditBox 與 FabGrid 使用相同 editor 類型、別名、共用 definitions 與 icon descriptor 契約。
+- `textbox`、`numberbox`、`datebox`、`combobox`、`color` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup，且 `autoUnmask` 預設為 `true`，複製時移除遮罩；`color` 可輸入 hex 或標準 CSS 顏色名稱，名稱提交後保留原文字，並提供 60 色 palette、飽和度／明度、色相與透明度控制。獨立 EditBox 與 FabGrid 使用相同 editor 類型、別名、共用 definitions 與 icon descriptor 契約。
 - 欄位搜尋列會為 `datebox`、`combobox`、`color` 顯示對應下拉 panel；搜尋輸入僅建立 filter，不執行 cell validation。
 - JSON 匯入／匯出與 CSV、XLSX 匯出；JSON 預設完整 round-trip `itemsSource`，Excel 支援凍結窗格、篩選、群組、footer、格式與隱藏欄，匯出標題跟隨當下 header／binding 顯示模式。
 - `en`、`zh-TW`、`zh-CN` locale 檔案與多組內建主題。

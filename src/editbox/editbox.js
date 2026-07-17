@@ -1,9 +1,9 @@
-import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v11';
-import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v11';
-import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v11';
-import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v11';
-import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v11';
-import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v11';
+import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v12';
+import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v12';
+import { createTextBoxFactory } from '../textbox/textbox.js?v=20260717-editbox-v12';
+import { createNumberBoxFactory } from '../numberbox/numberbox.js?v=20260717-editbox-v12';
+import { createDateBoxFactory } from '../datebox/datebox.js?v=20260717-editbox-v12';
+import { createComboBoxFactory } from '../combobox/combobox.js?v=20260717-editbox-v12';
 
 var EDITOR_TYPES = ['textbox', 'numberbox', 'datebox', 'combobox', 'color'];
 

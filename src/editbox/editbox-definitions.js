@@ -163,10 +163,31 @@ export function createEditorDefinitions() {
   }
 
   function getDateCopyText(value, options) {
-    if (options && (options.autoUnmask === true || options.maskValueIncludesLiterals === false || options.maskIncludesLiterals === false || options.maskLiteralsInValue === false)) {
+    if (shouldAutoUnmaskDate(options)) {
       return extractDateDigits(value);
     }
     return formatDate(value, options);
+  }
+
+  function shouldAutoUnmaskDate(options) {
+    options = options || {};
+    if (options.autoUnmask === true) return true;
+    if (options.autoUnmask === false) return false;
+    if (
+      options.maskValueIncludesLiterals === false ||
+      options.maskIncludesLiterals === false ||
+      options.maskLiteralsInValue === false
+    ) {
+      return true;
+    }
+    if (
+      options.maskValueIncludesLiterals === true ||
+      options.maskIncludesLiterals === true ||
+      options.maskLiteralsInValue === true
+    ) {
+      return false;
+    }
+    return true;
   }
 
   function countDateDigitsBeforeCaret(value, caret) {
@@ -245,7 +266,7 @@ export function createEditorDefinitions() {
   }
 
   function getYymmCopyText(value, options) {
-    if (options && (options.autoUnmask === true || options.maskValueIncludesLiterals === false || options.maskIncludesLiterals === false || options.maskLiteralsInValue === false)) {
+    if (shouldAutoUnmaskDate(options)) {
       return extractYymmDigits(value);
     }
     return formatYymm(value, options);
