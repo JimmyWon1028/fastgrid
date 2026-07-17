@@ -398,6 +398,49 @@ test("jQuery wrapper rejects calls before initialization and private methods", f
   }, /Unknown or private/);
 });
 
+test("jQuery wrapper registers thin Pivot component plugins", function () {
+  var $ = createJQueryStub();
+  var element = {};
+
+  function FakeGrid() {}
+  function FakePivotEngine() {}
+  function FakePivotControl(host, options) {
+    this.host = host;
+    this.options = options || {};
+    this.disposeCalls = 0;
+  }
+  FakePivotControl.prototype.refresh = function () {
+    return 'refreshed';
+  };
+  FakePivotControl.prototype.dispose = function () {
+    this.disposeCalls += 1;
+  };
+
+  var plugin = createFabGridJQuery($, {
+    FabGrid: FakeGrid,
+    pivot: {
+      PivotEngine: FakePivotEngine,
+      PivotPanel: FakePivotControl,
+      PivotGrid: FakePivotControl,
+      PivotChart: FakePivotControl,
+      PivotWorkspace: FakePivotControl,
+      PivotSlicer: FakePivotControl
+    }
+  });
+
+  assert.equal(typeof $.fn.fabpivotpanel, "function");
+  assert.equal(typeof $.fn.fabpivotgrid, "function");
+  assert.equal(typeof $.fn.fabpivotchart, "function");
+  assert.equal(typeof $.fn.fabpivotworkspace, "function");
+  assert.equal(typeof $.fn.fabpivotslicer, "function");
+  $(element).fabpivotworkspace({ layout: "Auto" });
+  assert.equal($(element).fabpivotworkspace("instance").options.layout, "Auto");
+  assert.equal($(element).fabpivotworkspace("refresh"), "refreshed");
+  assert.equal(plugin.pivot.workspace.getInstance(element).host, element);
+  $(element).fabpivotworkspace("destroy");
+  assert.equal(plugin.pivot.workspace.getInstance(element), undefined);
+});
+
 test("jQuery demo adapter routes initialization, methods and events through the wrapper", function () {
   var $ = createJQueryStub();
   var element = {};

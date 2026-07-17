@@ -83,6 +83,134 @@ export function createGridOptions(vm) {
 export function createFabGridVue(Vue, fabui) {
   if (!Vue) throw new Error('fabgrid-vue requires Vue 2.');
   if (!fabui || typeof fabui.FabGrid !== 'function') throw new Error('fabgrid-vue requires fabui.FabGrid.');
+  function createPivotComponent(name, constructorName) {
+    return {
+      name: name,
+      props: {
+        engine: { type: Object, default: null },
+        itemsSource: { type: Array, default: function() { return []; } },
+        options: { type: Object, default: function() { return {}; } },
+        locale: { type: String, default: undefined },
+        field: { type: [String, Object], default: null }
+      },
+      beforeCreate: function() {
+        this.control = null;
+        this._ownedEngine = null;
+      },
+      mounted: function() {
+        this.createControl();
+      },
+      beforeDestroy: function() {
+        this.destroyControl();
+      },
+      watch: {
+        engine: function(value) {
+          this.setEngine(value);
+        },
+        itemsSource: function(value) {
+          if (this._ownedEngine) {
+            this._ownedEngine.setItemsSource(value || []);
+          } else if (this.control && constructorName === 'PivotWorkspace') {
+            this.control.setItemsSource(value || []);
+          }
+        },
+        locale: function(value) {
+          if (this.control && value !== undefined && typeof this.control.setLocale === 'function') {
+            this.control.setLocale(value);
+          }
+        },
+        field: function(value) {
+          if (this.control && constructorName === 'PivotSlicer') {
+            this.control.setField(value);
+          }
+        },
+        options: {
+          handler: function() {
+            this.recreateControl();
+          },
+          deep: false
+        }
+      },
+      methods: {
+        createControl: function() {
+          var ControlConstructor = fabui.pivot[constructorName];
+          var options = Object.assign({}, this.options || {});
+          var engine = this.engine;
+          if (this.control || !this.$refs.host) return;
+          if (this.locale !== undefined) options.locale = this.locale;
+          if (constructorName === 'PivotWorkspace') {
+            if (engine) options.engine = engine;
+            else options.itemsSource = this.itemsSource || [];
+          } else {
+            if (!engine) {
+              this._ownedEngine = new fabui.pivot.PivotEngine({
+                itemsSource: this.itemsSource || []
+              });
+              engine = this._ownedEngine;
+            }
+            options.itemsSource = engine;
+          }
+          if (constructorName === 'PivotSlicer' && this.field != null) {
+            options.field = this.field;
+          }
+          this.control = new ControlConstructor(this.$refs.host, options);
+          this.$emit('initialized', this.control);
+        },
+        destroyControl: function() {
+          if (this.control && typeof this.control.dispose === 'function') {
+            this.control.dispose();
+          }
+          if (this._ownedEngine && typeof this._ownedEngine.dispose === 'function') {
+            this._ownedEngine.dispose();
+          }
+          this.control = null;
+          this._ownedEngine = null;
+        },
+        recreateControl: function() {
+          if (!this.$refs.host) return;
+          this.destroyControl();
+          this.createControl();
+        },
+        setEngine: function(engine) {
+          if (!this.control || !engine) return;
+          if (this._ownedEngine) {
+            this._ownedEngine.dispose();
+            this._ownedEngine = null;
+          }
+          if (constructorName === 'PivotGrid') this.control.setPivotEngine(engine);
+          else if (constructorName === 'PivotWorkspace') this.control.setEngine(engine);
+          else this.control.setItemsSource(engine);
+        },
+        refresh: function() {
+          if (this.control && typeof this.control.refresh === 'function') {
+            return this.control.refresh();
+          }
+        },
+        refreshAsync: function(options) {
+          var engine = this.control && (this.control.engine || this.control.itemsSource);
+          if (this.control && typeof this.control.refreshAsync === 'function') {
+            return this.control.refreshAsync(options);
+          }
+          return engine && typeof engine.refreshAsync === 'function' ?
+            engine.refreshAsync(options) : Promise.resolve(null);
+        },
+        cancelRefresh: function() {
+          var engine = this.control && (this.control.engine || this.control.itemsSource);
+          if (this.control && typeof this.control.cancelRefresh === 'function') {
+            return this.control.cancelRefresh();
+          }
+          return !!(engine && typeof engine.cancelRefresh === 'function' && engine.cancelRefresh());
+        }
+      },
+      render: function(h) {
+        return h('div', {
+          ref: 'host',
+          staticClass: 'fui-vue-' + toKebabCase(name),
+          staticStyle: { width: '100%', height: '100%' }
+        });
+      }
+    };
+  }
 
   var FabGridColumn = {
     name: 'FabGridColumn',
@@ -303,12 +431,28 @@ export function createFabGridVue(Vue, fabui) {
     }
   };
 
+  var FabPivotPanel = createPivotComponent('FabPivotPanel', 'PivotPanel');
+  var FabPivotGrid = createPivotComponent('FabPivotGrid', 'PivotGrid');
+  var FabPivotChart = createPivotComponent('FabPivotChart', 'PivotChart');
+  var FabPivotWorkspace = createPivotComponent('FabPivotWorkspace', 'PivotWorkspace');
+  var FabPivotSlicer = createPivotComponent('FabPivotSlicer', 'PivotSlicer');
+
   return {
     FabGrid: FabGrid,
     FabGridColumn: FabGridColumn,
+    FabPivotPanel: FabPivotPanel,
+    FabPivotGrid: FabPivotGrid,
+    FabPivotChart: FabPivotChart,
+    FabPivotWorkspace: FabPivotWorkspace,
+    FabPivotSlicer: FabPivotSlicer,
     install: function(targetVue) {
       targetVue.component('FabGrid', FabGrid);
       targetVue.component('FabGridColumn', FabGridColumn);
+      targetVue.component('FabPivotPanel', FabPivotPanel);
+      targetVue.component('FabPivotGrid', FabPivotGrid);
+      targetVue.component('FabPivotChart', FabPivotChart);
+      targetVue.component('FabPivotWorkspace', FabPivotWorkspace);
+      targetVue.component('FabPivotSlicer', FabPivotSlicer);
     }
   };
 }

@@ -56,6 +56,10 @@
         chartFullscreen: 'Pivot 图表全屏',
         exitFullscreen: '退出全屏',
         chartType: '图形类型',
+        progress: '汇总中 {progress}%',
+        cancel: '取消',
+        cancelled: '已取消汇总',
+        error: '汇总失败',
         chartTypes: {
           column: '柱形图',
           bar: '条形图',
@@ -77,6 +81,14 @@
         sortMenu: '维度排序设置',
         sortField: '设置“{field}”排序',
         sortDefault: '默认顺序',
+        filterMenu: 'Pivot 字段筛选',
+        editFilter: '编辑筛选',
+        searchValues: '搜索内容',
+        selectAll: '全部选择',
+        blankValue: '（空白）',
+        apply: '应用',
+        cancel: '取消',
+        showAs: '值显示方式',
         dropFields: '拖动字段到这里',
         noFields: '没有可用字段',
         removeField: '移除字段'
@@ -85,8 +97,26 @@
         sum: '求和',
         count: '计数',
         average: '平均',
+        weightedaverage: '加权平均',
         min: '最小值',
         max: '最大值'
+      },
+      showAs: {
+        'no-calculation': '不计算',
+        'percent-of-grand-total': '总计百分比',
+        'percent-of-row-total': '行总计百分比',
+        'percent-of-column-total': '列总计百分比',
+        'difference-from-previous': '与前一项差异',
+        'percent-difference-from-previous': '与前一项差异百分比',
+        'running-total': '累计'
+      },
+      slicer: {
+        ariaLabel: 'Pivot 切片器',
+        search: '搜索内容',
+        selectAll: '全部选择',
+        apply: '应用',
+        clear: '清除',
+        noField: '请选择字段'
       }
     },
     pagination: {

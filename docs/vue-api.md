@@ -98,3 +98,32 @@ JSON API 由底層 `control` 呼叫：`control.getJson(options)`、`control.expo
 宣告式欄位支援 `binding`、`header`、`width`、`minWidth`、`align`、`dataType`、`format`、`isReadOnly`、`visible`、`editor`、`formatter`、`cellTemplate`。`cellTemplate` 可傳入 String 或 Function；function 簽名為 `(ctx, cell)`，由 core 負責 rendering。
 
 若同時提供 `columns` prop 與 `FabGridColumn`，以 `columns` prop 為準。Wrapper 不提供 Vue cell slot，避免 Vue 接管大量 virtualized cells。
+
+## Pivot components
+
+Plugin 另註冊以下薄層元件：
+
+- `FabPivotPanel`
+- `FabPivotGrid`
+- `FabPivotChart`
+- `FabPivotWorkspace`
+- `FabPivotSlicer`
+
+共同 props 為 `engine`、`itemsSource`、`options`、`locale`；`FabPivotSlicer` 另支援 `field`。提供 `engine` 時直接共用既有 `fabui.pivot.PivotEngine`；未提供時，Panel／Grid／Chart／Slicer wrapper 會為自己的 `itemsSource` 建立並負責 dispose 一個 Engine。需要跨元件同步時應明確傳入同一個 `engine`。
+
+```html
+<fab-pivot-workspace
+  ref="workspace"
+  :engine="engine"
+  :options="{ chartSize: '40%' }"
+  locale="zh-TW"
+/>
+
+<fab-pivot-slicer
+  :engine="engine"
+  field="Region"
+  locale="zh-TW"
+/>
+```
+
+Pivot component ref 公開 `control`、`refresh()`、`refreshAsync(options)`、`cancelRefresh()`。Wrapper 只轉接 options、methods 與 lifecycle，不複製 PivotEngine、Grid 或 Chart 行為。

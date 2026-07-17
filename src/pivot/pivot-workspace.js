@@ -103,7 +103,8 @@ function getEngineOptions(options) {
     'showColumnTotals',
     'totalsBeforeData',
     'showZeros',
-    'autoGenerateFields'
+    'autoGenerateFields',
+    'asyncBatchSize'
   ];
   var i;
   for (i = 0; i < names.length; i += 1) {
@@ -291,6 +292,7 @@ export function createPivotWorkspaceFactory(
     this._createDom();
     this._createChildren();
     this._createControls();
+    this._bindEngineEvents();
     this._bindEvents();
     this._observeSize();
     registerControl(host, this);
@@ -372,6 +374,16 @@ export function createPivotWorkspaceFactory(
     var chartTypes = ['Column', 'Bar', 'Line', 'Pie'];
     var i;
     var option;
+    this.progressElement = document.createElement('span');
+    this.progressElement.className = 'fg-pivot-workspace-progress';
+    this.progressElement.setAttribute('role', 'status');
+    this.progressElement.setAttribute('aria-live', 'polite');
+    this.cancelRefreshButton = document.createElement('button');
+    this.cancelRefreshButton.type = 'button';
+    this.cancelRefreshButton.className = 'fg-pivot-workspace-control fg-pivot-workspace-cancel';
+    this.cancelRefreshButton.style.display = 'none';
+    this.gridPane.actions.appendChild(this.progressElement);
+    this.gridPane.actions.appendChild(this.cancelRefreshButton);
     if (this.options.showControls === false) {
       return;
     }
@@ -408,6 +420,9 @@ export function createPivotWorkspaceFactory(
     this.addEventListener(this.chartSplitter, 'pointerdown', this._handleSplitterPointerDown.bind(this));
     this.addEventListener(this.panelSplitter, 'keydown', this._handleSplitterKeyDown.bind(this));
     this.addEventListener(this.chartSplitter, 'keydown', this._handleSplitterKeyDown.bind(this));
+    this.addEventListener(this.cancelRefreshButton, 'click', function() {
+      this.cancelRefresh();
+    }.bind(this));
     if (this.panelToggleButton) {
       this.addEventListener(this.panelToggleButton, 'click', function() {
         this.setPanelVisible(!this._panelVisible);
@@ -438,6 +453,64 @@ export function createPivotWorkspaceFactory(
     this.addEventListener(document, 'keydown', this._handleFullscreenKeyDown.bind(this), true);
   };
 
+  PivotWorkspace.prototype._bindEngineEvents = function() {
+    if (!this._engine) {
+      return;
+    }
+    this._engineUpdatingHandler = this._handleEngineUpdating.bind(this);
+    this._engineProgressHandler = this._handleEngineProgress.bind(this);
+    this._engineUpdatedHandler = this._handleEngineUpdated.bind(this);
+    this._engineErrorHandler = this._handleEngineError.bind(this);
+    this._engine.updatingView.addHandler(this._engineUpdatingHandler, this);
+    this._engine.progress.addHandler(this._engineProgressHandler, this);
+    this._engine.updatedView.addHandler(this._engineUpdatedHandler, this);
+    this._engine.error.addHandler(this._engineErrorHandler, this);
+  };
+
+  PivotWorkspace.prototype._unbindEngineEvents = function() {
+    if (!this._engine) {
+      return;
+    }
+    if (this._engineUpdatingHandler) {
+      this._engine.updatingView.removeHandler(this._engineUpdatingHandler, this);
+      this._engine.progress.removeHandler(this._engineProgressHandler, this);
+      this._engine.updatedView.removeHandler(this._engineUpdatedHandler, this);
+      this._engine.error.removeHandler(this._engineErrorHandler, this);
+    }
+    this._engineUpdatingHandler = null;
+    this._engineProgressHandler = null;
+    this._engineUpdatedHandler = null;
+    this._engineErrorHandler = null;
+  };
+
+  PivotWorkspace.prototype._handleEngineUpdating = function(sender, args) {
+    this.hostElement.classList.add('fg-pivot-workspace-updating');
+    this.progressElement.textContent = args && args.async ?
+      this.getText('pivot.workspace.progress').replace('{progress}', '0') : '';
+    this.cancelRefreshButton.style.display = args && args.async ? '' : 'none';
+  };
+
+  PivotWorkspace.prototype._handleEngineProgress = function(sender, args) {
+    var progress = Math.round(Math.max(0, Math.min(1, Number(args && args.progress) || 0)) * 100);
+    this.progressElement.textContent = this.getText('pivot.workspace.progress')
+      .replace('{progress}', String(progress));
+  };
+
+  PivotWorkspace.prototype._handleEngineUpdated = function() {
+    this.hostElement.classList.remove('fg-pivot-workspace-updating', 'fg-pivot-workspace-error');
+    this.progressElement.textContent = '';
+    this.cancelRefreshButton.style.display = 'none';
+  };
+
+  PivotWorkspace.prototype._handleEngineError = function(sender, args) {
+    var error = args && args.error;
+    this.hostElement.classList.remove('fg-pivot-workspace-updating');
+    this.hostElement.classList.add('fg-pivot-workspace-error');
+    this.progressElement.textContent = this.getText('pivot.workspace.error') +
+      (error && error.message ? ': ' + error.message : '');
+    this.cancelRefreshButton.style.display = 'none';
+  };
+
   PivotWorkspace.prototype._observeSize = function() {
     var self = this;
     if (typeof ResizeObserver === 'function') {
@@ -466,6 +539,8 @@ export function createPivotWorkspaceFactory(
     this.panelPane.title.textContent = this.options.panelTitle || this.getText('pivot.workspace.panelTitle');
     this.gridPane.title.textContent = this.options.gridTitle || this.getText('pivot.workspace.gridTitle');
     this.chartPane.title.textContent = this.options.chartTitle || this.getText('pivot.workspace.chartTitle');
+    this.cancelRefreshButton.textContent = this.getText('pivot.workspace.cancel');
+    this.cancelRefreshButton.setAttribute('aria-label', this.getText('pivot.workspace.cancel'));
     this.panelSplitter.setAttribute('aria-label', this.getText('pivot.workspace.panelSplitter'));
     this.chartSplitter.setAttribute('aria-label', this.getText('pivot.workspace.chartSplitter'));
     this._syncVisibilityControls();
@@ -928,10 +1003,12 @@ export function createPivotWorkspaceFactory(
     if (this._engine === engine) {
       return this;
     }
+    this._unbindEngineEvents();
     this._engine = engine;
     this.panel.setItemsSource(engine);
     this.grid.setPivotEngine(engine);
     this.chart.setItemsSource(engine);
+    this._bindEngineEvents();
     return this;
   };
 
@@ -946,11 +1023,26 @@ export function createPivotWorkspaceFactory(
     return this;
   };
 
+  PivotWorkspace.prototype.refreshAsync = function(options) {
+    return this._engine.refreshAsync(options);
+  };
+
+  PivotWorkspace.prototype.cancelRefresh = function() {
+    var cancelled = this._engine && this._engine.cancelRefresh();
+    if (cancelled) {
+      this.hostElement.classList.remove('fg-pivot-workspace-updating');
+      this.progressElement.textContent = this.getText('pivot.workspace.cancelled');
+      this.cancelRefreshButton.style.display = 'none';
+    }
+    return cancelled;
+  };
+
   PivotWorkspace.prototype.dispose = function() {
     if (this._disposed) {
       return;
     }
     this._disposed = true;
+    this._unbindEngineEvents();
     this._endSplitterDrag(false);
     this._setFallbackFullscreen(null);
     if (this._resizeObserver) {
@@ -985,7 +1077,9 @@ export function createPivotWorkspaceFactory(
       'fg-pivot-workspace-panel-hidden',
       'fg-pivot-workspace-chart-hidden',
       'fg-pivot-workspace-headers-hidden',
-      'fg-pivot-workspace-resizing'
+      'fg-pivot-workspace-resizing',
+      'fg-pivot-workspace-updating',
+      'fg-pivot-workspace-error'
     );
     this._engine = null;
     this.panel = null;
@@ -996,6 +1090,8 @@ export function createPivotWorkspaceFactory(
     this.chartTypeSelect = null;
     this.gridFullscreenButton = null;
     this.chartFullscreenButton = null;
+    this.progressElement = null;
+    this.cancelRefreshButton = null;
   };
 
   Object.defineProperties(PivotWorkspace.prototype, {

@@ -56,6 +56,10 @@
         chartFullscreen: 'Pivot Chart fullscreen',
         exitFullscreen: 'Exit fullscreen',
         chartType: 'Chart type',
+        progress: 'Aggregating {progress}%',
+        cancel: 'Cancel',
+        cancelled: 'Aggregation cancelled',
+        error: 'Aggregation failed',
         chartTypes: {
           column: 'Column',
           bar: 'Bar',
@@ -77,6 +81,14 @@
         sortMenu: 'Dimension sorting settings',
         sortField: 'Set sorting for {field}',
         sortDefault: 'Default order',
+        filterMenu: 'Pivot field filter',
+        editFilter: 'Edit filter',
+        searchValues: 'Search values',
+        selectAll: 'Select all',
+        blankValue: '(blank)',
+        apply: 'Apply',
+        cancel: 'Cancel',
+        showAs: 'Show values as',
         dropFields: 'Drag fields here',
         noFields: 'No fields available',
         removeField: 'Remove field'
@@ -85,8 +97,26 @@
         sum: 'Sum',
         count: 'Count',
         average: 'Average',
+        weightedaverage: 'Weighted average',
         min: 'Minimum',
         max: 'Maximum'
+      },
+      showAs: {
+        'no-calculation': 'No calculation',
+        'percent-of-grand-total': '% of grand total',
+        'percent-of-row-total': '% of row total',
+        'percent-of-column-total': '% of column total',
+        'difference-from-previous': 'Difference from previous',
+        'percent-difference-from-previous': '% difference from previous',
+        'running-total': 'Running total'
+      },
+      slicer: {
+        ariaLabel: 'Pivot slicer',
+        search: 'Search values',
+        selectAll: 'Select all',
+        apply: 'Apply',
+        clear: 'Clear',
+        noField: 'Select a field'
       }
     },
     pagination: {

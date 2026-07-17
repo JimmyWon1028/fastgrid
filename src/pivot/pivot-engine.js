@@ -7,8 +7,19 @@ export var PivotAggregate = Object.freeze({
   Sum: 'Sum',
   Count: 'Count',
   Average: 'Average',
+  WeightedAverage: 'WeightedAverage',
   Min: 'Min',
   Max: 'Max'
+});
+
+export var PivotShowAs = Object.freeze({
+  NoCalculation: 'NoCalculation',
+  PercentOfGrandTotal: 'PercentOfGrandTotal',
+  PercentOfRowTotal: 'PercentOfRowTotal',
+  PercentOfColumnTotal: 'PercentOfColumnTotal',
+  DifferenceFromPrevious: 'DifferenceFromPrevious',
+  PercentDifferenceFromPrevious: 'PercentDifferenceFromPrevious',
+  RunningTotal: 'RunningTotal'
 });
 
 export var PivotShowTotals = Object.freeze({
@@ -90,6 +101,9 @@ function normalizeAggregate(value, dataType) {
   var text = String(value || '').toLowerCase();
   if (text === 'count') return PivotAggregate.Count;
   if (text === 'average' || text === 'avg') return PivotAggregate.Average;
+  if (text === 'weightedaverage' || text === 'weighted average' || text === 'weightedavg') {
+    return PivotAggregate.WeightedAverage;
+  }
   if (text === 'min') return PivotAggregate.Min;
   if (text === 'max') return PivotAggregate.Max;
   if (text === 'sum') return PivotAggregate.Sum;
@@ -170,7 +184,12 @@ export function PivotField(engine, binding, header, options) {
   });
   this.filter = options.filter || null;
   this.groupBy = options.groupBy || null;
-  this.getValue = typeof options.getValue === 'function' ? options.getValue : null;
+  this.getValue = typeof options.getValue === 'function' ? options.getValue :
+    (typeof options.calculate === 'function' ? options.calculate : null);
+  this.calculate = this.getValue;
+  this.weightBinding = options.weightBinding || '';
+  this.getWeight = typeof options.getWeight === 'function' ? options.getWeight : null;
+  this.showAs = normalizeShowAs(options.showAs);
   this.width = Math.max(48, Number(options.width) || (this.dataType === 'number' ? 112 : 132));
   this.visible = options.visible !== false;
 }
@@ -179,6 +198,24 @@ PivotField.prototype.getItemValue = function(item) {
   var value = this.getValue ? this.getValue(item) : getPivotBindingValue(item, this.binding);
   return getGroupedValue(value, this.groupBy);
 };
+
+PivotField.prototype.getWeightValue = function(item) {
+  if (this.getWeight) {
+    return this.getWeight(item);
+  }
+  return this.weightBinding ? getPivotBindingValue(item, this.weightBinding) : 1;
+};
+
+function normalizeShowAs(value) {
+  var text = String(value || '').replace(/[\s_-]+/g, '').toLowerCase();
+  if (text === 'percentofgrandtotal') return PivotShowAs.PercentOfGrandTotal;
+  if (text === 'percentofrowtotal') return PivotShowAs.PercentOfRowTotal;
+  if (text === 'percentofcolumntotal') return PivotShowAs.PercentOfColumnTotal;
+  if (text === 'differencefromprevious') return PivotShowAs.DifferenceFromPrevious;
+  if (text === 'percentdifferencefromprevious') return PivotShowAs.PercentDifferenceFromPrevious;
+  if (text === 'runningtotal') return PivotShowAs.RunningTotal;
+  return PivotShowAs.NoCalculation;
+}
 
 function createAggregatePaths(path, totals) {
   var result = [path.slice()];
@@ -292,13 +329,16 @@ function createAccumulator() {
     count: 0,
     numericCount: 0,
     sum: 0,
+    weightedSum: 0,
+    weightSum: 0,
     min: null,
     max: null
   };
 }
 
-function accumulateValue(accumulator, value, aggregate) {
+function accumulateValue(accumulator, value, aggregate, weight) {
   var number;
+  var numericWeight;
   if (value == null || value === '') {
     return;
   }
@@ -308,6 +348,14 @@ function accumulateValue(accumulator, value, aggregate) {
     if (!isNaN(number)) {
       accumulator.sum += number;
       accumulator.numericCount += 1;
+    }
+  }
+  if (aggregate === PivotAggregate.WeightedAverage) {
+    number = Number(value);
+    numericWeight = Number(weight);
+    if (!isNaN(number) && !isNaN(numericWeight)) {
+      accumulator.weightedSum += number * numericWeight;
+      accumulator.weightSum += numericWeight;
     }
   }
   if (accumulator.min == null || comparePivotValues(value, accumulator.min) < 0) {
@@ -325,6 +373,9 @@ function finalizeAccumulator(accumulator, aggregate) {
   if (aggregate === PivotAggregate.Count) return accumulator.count;
   if (aggregate === PivotAggregate.Average) {
     return accumulator.numericCount ? accumulator.sum / accumulator.numericCount : null;
+  }
+  if (aggregate === PivotAggregate.WeightedAverage) {
+    return accumulator.weightSum ? accumulator.weightedSum / accumulator.weightSum : null;
   }
   if (aggregate === PivotAggregate.Min) return accumulator.min;
   if (aggregate === PivotAggregate.Max) return accumulator.max;
@@ -382,9 +433,21 @@ function copyDefinitionField(field) {
     descending: field.descending,
     filter: filter,
     groupBy: typeof field.groupBy === 'string' ? field.groupBy : null,
+    weightBinding: field.weightBinding,
+    showAs: field.showAs,
     width: field.width,
     visible: field.visible
   };
+}
+
+function createPivotAbortError() {
+  var error = new Error('Pivot refresh was cancelled.');
+  error.name = 'AbortError';
+  return error;
+}
+
+function schedulePivotBatch(callback) {
+  return setTimeout(callback, 0);
 }
 
 export function PivotEngine(options) {
@@ -392,6 +455,10 @@ export function PivotEngine(options) {
   this.events = {};
   this._updateLevel = 0;
   this._pendingRefresh = false;
+  this._asyncRefreshToken = null;
+  this._asyncRefreshSequence = 0;
+  this._disposed = false;
+  this.asyncBatchSize = Math.max(1, Math.floor(Number(options.asyncBatchSize) || 1000));
   this._itemsSource = Array.isArray(options.itemsSource) ? options.itemsSource : [];
   this.autoGenerateFields = options.autoGenerateFields !== false;
   this.showRowTotals = normalizeTotals(options.showRowTotals, PivotShowTotals.GrandTotals);
@@ -608,12 +675,26 @@ PivotEngine.prototype.endUpdate = function() {
 };
 
 PivotEngine.prototype.deferUpdate = function(callback) {
+  var result;
+  var self = this;
   this.beginUpdate();
   try {
-    callback();
-  } finally {
+    result = callback();
+  } catch (error) {
     this.endUpdate();
+    throw error;
   }
+  if (result && typeof result.then === 'function') {
+    return result.then(function(value) {
+      self.endUpdate();
+      return value;
+    }, function(error) {
+      self.endUpdate();
+      throw error;
+    });
+  }
+  this.endUpdate();
+  return result;
 };
 
 PivotEngine.prototype.refresh = function() {
@@ -622,6 +703,7 @@ PivotEngine.prototype.refresh = function() {
     this._pendingRefresh = true;
     return this.pivotView;
   }
+  this.cancelRefresh();
   this.isUpdating = true;
   this.emit('updatingView', {});
   try {
@@ -638,16 +720,114 @@ PivotEngine.prototype.refresh = function() {
   }
 };
 
+PivotEngine.prototype.refreshAsync = function(options) {
+  var self = this;
+  var token;
+  var state;
+  var batchSize;
+  var total;
+  options = options || {};
+  if (this._updateLevel) {
+    this._pendingRefresh = true;
+    return Promise.resolve(this.pivotView);
+  }
+  this.cancelRefresh();
+  batchSize = Math.max(1, Math.floor(Number(options.batchSize) || this.asyncBatchSize));
+  total = this._itemsSource.length;
+  token = {
+    id: this._asyncRefreshSequence += 1,
+    cancelled: false
+  };
+  this._asyncRefreshToken = token;
+  this.isUpdating = true;
+  this.emit('updatingView', { async: true, total: total });
+  state = this._createPivotBuildState();
+  return new Promise(function(resolve, reject) {
+    function finishError(error) {
+      if (self._asyncRefreshToken === token) {
+        self._asyncRefreshToken = null;
+        self.isUpdating = false;
+      }
+      if (error && error.name !== 'AbortError') {
+        self.emit('error', { error: error, async: true });
+      }
+      reject(error);
+    }
+
+    function runBatch() {
+      var end;
+      var progress;
+      var view;
+      if (token.cancelled || self._disposed) {
+        finishError(createPivotAbortError());
+        return;
+      }
+      try {
+        end = Math.min(total, state.index + batchSize);
+        while (state.index < end) {
+          self._accumulatePivotItem(state, self._itemsSource[state.index]);
+          state.index += 1;
+        }
+        progress = total ? state.index / total : 1;
+        self.emit('progress', {
+          async: true,
+          progress: progress,
+          processed: state.index,
+          total: total
+        });
+        if (state.index < total) {
+          schedulePivotBatch(runBatch);
+          return;
+        }
+        view = self._finalizePivotBuildState(state);
+        if (token.cancelled || self._disposed) {
+          finishError(createPivotAbortError());
+          return;
+        }
+        self.pivotView = view;
+        if (self._asyncRefreshToken === token) {
+          self._asyncRefreshToken = null;
+          self.isUpdating = false;
+        }
+        self.emit('updatedView', { pivotView: view, async: true });
+        resolve(view);
+      } catch (error) {
+        finishError(error);
+      }
+    }
+
+    schedulePivotBatch(runBatch);
+  });
+};
+
+PivotEngine.prototype.cancelRefresh = function() {
+  if (!this._asyncRefreshToken) {
+    return false;
+  }
+  this._asyncRefreshToken.cancelled = true;
+  return true;
+};
+
 PivotEngine.prototype._buildPivotView = function() {
-  var rowEntryMap = new Map();
-  var columnEntryMap = new Map();
-  var accumulatorMap = new Map();
-  var filteredItems = [];
-  var rowEntries;
-  var columnEntries;
-  var dataColumns = [];
-  var rows = [];
-  var item;
+  var state = this._createPivotBuildState();
+  while (state.index < this._itemsSource.length) {
+    this._accumulatePivotItem(state, this._itemsSource[state.index]);
+    state.index += 1;
+  }
+  return this._finalizePivotBuildState(state);
+};
+
+PivotEngine.prototype._createPivotBuildState = function() {
+  return {
+    index: 0,
+    rowEntryMap: new Map(),
+    columnEntryMap: new Map(),
+    accumulatorMap: new Map(),
+    filteredItems: []
+  };
+};
+
+PivotEngine.prototype._accumulatePivotItem = function(state, item) {
   var rowPath;
   var columnPath;
   var rowPaths;
@@ -657,49 +837,70 @@ PivotEngine.prototype._buildPivotView = function() {
   var accumulatorKey;
   var accumulator;
   var field;
+  var r;
+  var c;
+  var v;
+  if (!this._itemMatchesFilters(item)) {
+    return;
+  }
+  state.filteredItems.push(item);
+  rowPath = this.rowFields.map(function(rowField) {
+    return rowField.getItemValue(item);
+  });
+  columnPath = this.columnFields.map(function(columnField) {
+    return columnField.getItemValue(item);
+  });
+  rowPaths = createAggregatePaths(rowPath, this.showRowTotals);
+  columnPaths = createAggregatePaths(columnPath, this.showColumnTotals);
+  for (r = 0; r < rowPaths.length; r += 1) {
+    rowKey = createPivotPathKey(rowPaths[r]);
+    if (!state.rowEntryMap.has(rowKey)) {
+      state.rowEntryMap.set(rowKey, createEntry(rowPaths[r], this.rowFields.length));
+    }
+    for (c = 0; c < columnPaths.length; c += 1) {
+      columnKey = createPivotPathKey(columnPaths[c]);
+      if (!state.columnEntryMap.has(columnKey)) {
+        state.columnEntryMap.set(columnKey, createEntry(columnPaths[c], this.columnFields.length));
+      }
+      for (v = 0; v < this.valueFields.length; v += 1) {
+        field = this.valueFields[v];
+        accumulatorKey = rowKey + '\u001f' + columnKey + '\u001f' + field.key;
+        accumulator = state.accumulatorMap.get(accumulatorKey);
+        if (!accumulator) {
+          accumulator = createAccumulator();
+          state.accumulatorMap.set(accumulatorKey, accumulator);
+        }
+        accumulateValue(
+          accumulator,
+          field.getItemValue(item),
+          field.aggregate,
+          field.getWeightValue(item)
+        );
+      }
+    }
+  }
+};
+
+PivotEngine.prototype._finalizePivotBuildState = function(state) {
+  var rowEntryMap = new Map();
+  var columnEntryMap = new Map();
+  var accumulatorMap = new Map();
+  var filteredItems = [];
+  var rowEntries;
+  var columnEntries;
+  var dataColumns = [];
+  var rows = [];
+  var accumulatorKey;
   var row;
   var dataColumn;
   var i;
   var r;
   var c;
   var v;
-  for (i = 0; i < this._itemsSource.length; i += 1) {
-    item = this._itemsSource[i];
-    if (!this._itemMatchesFilters(item)) {
-      continue;
-    }
-    filteredItems.push(item);
-    rowPath = this.rowFields.map(function(rowField) {
-      return rowField.getItemValue(item);
-    });
-    columnPath = this.columnFields.map(function(columnField) {
-      return columnField.getItemValue(item);
-    });
-    rowPaths = createAggregatePaths(rowPath, this.showRowTotals);
-    columnPaths = createAggregatePaths(columnPath, this.showColumnTotals);
-    for (r = 0; r < rowPaths.length; r += 1) {
-      rowKey = createPivotPathKey(rowPaths[r]);
-      if (!rowEntryMap.has(rowKey)) {
-        rowEntryMap.set(rowKey, createEntry(rowPaths[r], this.rowFields.length));
-      }
-      for (c = 0; c < columnPaths.length; c += 1) {
-        columnKey = createPivotPathKey(columnPaths[c]);
-        if (!columnEntryMap.has(columnKey)) {
-          columnEntryMap.set(columnKey, createEntry(columnPaths[c], this.columnFields.length));
-        }
-        for (v = 0; v < this.valueFields.length; v += 1) {
-          field = this.valueFields[v];
-          accumulatorKey = rowKey + '\u001f' + columnKey + '\u001f' + field.key;
-          accumulator = accumulatorMap.get(accumulatorKey);
-          if (!accumulator) {
-            accumulator = createAccumulator();
-            accumulatorMap.set(accumulatorKey, accumulator);
-          }
-          accumulateValue(accumulator, field.getItemValue(item), field.aggregate);
-        }
-      }
-    }
-  }
+  rowEntryMap = state.rowEntryMap;
+  columnEntryMap = state.columnEntryMap;
+  accumulatorMap = state.accumulatorMap;
+  filteredItems = state.filteredItems;
   if (!this.rowFields.length && !rowEntryMap.size) {
     rowEntryMap.set(createPivotPathKey([]), createEntry([], 0));
   }
@@ -744,6 +945,7 @@ PivotEngine.prototype._buildPivotView = function() {
     }
     rows.push(row);
   }
+  applyShowAsValues(rows, rowEntries, dataColumns);
   this._filteredItems = filteredItems;
   return {
     engine: this,
@@ -759,6 +961,86 @@ PivotEngine.prototype._buildPivotView = function() {
     filteredCount: filteredItems.length
   };
 };
+
+function dividePivotValue(value, total) {
+  value = Number(value);
+  total = Number(total);
+  if (!isFinite(value) || !isFinite(total) || total === 0) {
+    return null;
+  }
+  return value / total;
+}
+
+function applyShowAsValues(rows, rowEntries, dataColumns) {
+  var rawRows = rows.map(function(row) {
+    var copy = {};
+    dataColumns.forEach(function(column) {
+      copy[column.binding] = row[column.binding];
+    });
+    return copy;
+  });
+  var grandRowIndex = rowEntries.findIndex(function(entry) {
+    return entry.path.length === 0;
+  });
+  var rowTotalColumns = Object.create(null);
+  var previousByField;
+  var runningByField;
+  var column;
+  var field;
+  var rawValue;
+  var previous;
+  var running;
+  var r;
+  var c;
+  for (c = 0; c < dataColumns.length; c += 1) {
+    column = dataColumns[c];
+    if (column.entry.path.length === 0) {
+      rowTotalColumns[column.valueField.key] = column;
+    }
+  }
+  for (r = 0; r < rows.length; r += 1) {
+    previousByField = Object.create(null);
+    runningByField = Object.create(null);
+    for (c = 0; c < dataColumns.length; c += 1) {
+      column = dataColumns[c];
+      field = column.valueField;
+      rawValue = rawRows[r][column.binding];
+      if (field.showAs === PivotShowAs.PercentOfGrandTotal) {
+        rows[r][column.binding] = grandRowIndex >= 0 && rowTotalColumns[field.key] ?
+          dividePivotValue(rawValue, rawRows[grandRowIndex][rowTotalColumns[field.key].binding]) : null;
+      } else if (field.showAs === PivotShowAs.PercentOfRowTotal) {
+        rows[r][column.binding] = rowTotalColumns[field.key] ?
+          dividePivotValue(rawValue, rawRows[r][rowTotalColumns[field.key].binding]) : null;
+      } else if (field.showAs === PivotShowAs.PercentOfColumnTotal) {
+        rows[r][column.binding] = grandRowIndex >= 0 ?
+          dividePivotValue(rawValue, rawRows[grandRowIndex][column.binding]) : null;
+      } else if (field.showAs === PivotShowAs.DifferenceFromPrevious) {
+        if (!column.entry.isLeaf) {
+          continue;
+        }
+        previous = previousByField[field.key];
+        rows[r][column.binding] = previous == null || rawValue == null ? null :
+          Number(rawValue) - Number(previous);
+      } else if (field.showAs === PivotShowAs.PercentDifferenceFromPrevious) {
+        if (!column.entry.isLeaf) {
+          continue;
+        }
+        previous = previousByField[field.key];
+        rows[r][column.binding] = previous == null || rawValue == null ? null :
+          dividePivotValue(Number(rawValue) - Number(previous), previous);
+      } else if (field.showAs === PivotShowAs.RunningTotal) {
+        if (!column.entry.isLeaf) {
+          continue;
+        }
+        running = Number(runningByField[field.key]) || 0;
+        running += Number(rawValue) || 0;
+        runningByField[field.key] = running;
+        rows[r][column.binding] = running;
+      }
+      previousByField[field.key] = rawValue;
+    }
+  }
+}
 
 function createEntry(path, fieldCount) {
   return {
@@ -911,6 +1193,8 @@ PivotEngine.prototype.formatFieldValue = function(field, value, locale) {
 
 PivotEngine.prototype.dispose = function() {
   var name;
+  this._disposed = true;
+  this.cancelRefresh();
   for (name in this.events) {
     if (Object.prototype.hasOwnProperty.call(this.events, name)) {
       this.events[name].length = 0;

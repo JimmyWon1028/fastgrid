@@ -97,6 +97,11 @@ test('Vue wrapper plugin registers FabGrid components', function() {
   plugin.install(Vue);
   assert.equal(registered.FabGrid.name, 'FabGrid');
   assert.equal(registered.FabGridColumn.name, 'FabGridColumn');
+  assert.equal(registered.FabPivotPanel.name, 'FabPivotPanel');
+  assert.equal(registered.FabPivotGrid.name, 'FabPivotGrid');
+  assert.equal(registered.FabPivotChart.name, 'FabPivotChart');
+  assert.equal(registered.FabPivotWorkspace.name, 'FabPivotWorkspace');
+  assert.equal(registered.FabPivotSlicer.name, 'FabPivotSlicer');
 });
 
 test('Vue wrapper removes event handlers and disposes the core control', function() {

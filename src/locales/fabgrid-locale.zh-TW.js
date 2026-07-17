@@ -56,6 +56,10 @@
         chartFullscreen: 'Pivot 圖表全螢幕',
         exitFullscreen: '離開全螢幕',
         chartType: '圖形類型',
+        progress: '彙總中 {progress}%',
+        cancel: '取消',
+        cancelled: '已取消彙總',
+        error: '彙總失敗',
         chartTypes: {
           column: '直條圖',
           bar: '橫條圖',
@@ -77,6 +81,14 @@
         sortMenu: '維度排序設定',
         sortField: '設定「{field}」排序',
         sortDefault: '預設順序',
+        filterMenu: 'Pivot 欄位篩選',
+        editFilter: '編輯篩選',
+        searchValues: '搜尋內容',
+        selectAll: '全部選取',
+        blankValue: '（空白）',
+        apply: '套用',
+        cancel: '取消',
+        showAs: '值顯示方式',
         dropFields: '拖曳欄位到這裡',
         noFields: '沒有可用欄位',
         removeField: '移除欄位'
@@ -85,8 +97,26 @@
         sum: '加總',
         count: '筆數',
         average: '平均',
+        weightedaverage: '加權平均',
         min: '最小值',
         max: '最大值'
+      },
+      showAs: {
+        'no-calculation': '不計算',
+        'percent-of-grand-total': '總計百分比',
+        'percent-of-row-total': '列總計百分比',
+        'percent-of-column-total': '欄總計百分比',
+        'difference-from-previous': '與前一項差異',
+        'percent-difference-from-previous': '與前一項差異百分比',
+        'running-total': '累計'
+      },
+      slicer: {
+        ariaLabel: 'Pivot 交叉分析篩選器',
+        search: '搜尋內容',
+        selectAll: '全部選取',
+        apply: '套用',
+        clear: '清除',
+        noField: '請選擇欄位'
       }
     },
     pagination: {

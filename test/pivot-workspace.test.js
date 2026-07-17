@@ -314,3 +314,45 @@ test('PivotWorkspace binds document pointer handlers only during splitter drag',
     globalThis.document = originalDocument;
   }
 });
+
+test('PivotWorkspace mirrors async progress and cancellation state', function() {
+  var workspace = Object.create(fabui.pivot.PivotWorkspace.prototype);
+  var classes = [];
+  var cancelled = 0;
+
+  workspace.hostElement = {
+    classList: {
+      add: function(name) {
+        if (classes.indexOf(name) < 0) classes.push(name);
+      },
+      remove: function() {
+        var names = Array.prototype.slice.call(arguments);
+        classes = classes.filter(function(name) { return names.indexOf(name) < 0; });
+      }
+    }
+  };
+  workspace.progressElement = { textContent: '' };
+  workspace.cancelRefreshButton = { style: { display: 'none' } };
+  workspace._engine = {
+    cancelRefresh: function() {
+      cancelled += 1;
+      return true;
+    }
+  };
+  workspace.getText = function(path) {
+    return {
+      'pivot.workspace.progress': 'Aggregating {progress}%',
+      'pivot.workspace.cancelled': 'Cancelled'
+    }[path] || path;
+  };
+
+  workspace._handleEngineUpdating(null, { async: true });
+  assert.equal(classes.indexOf('fg-pivot-workspace-updating') >= 0, true);
+  assert.equal(workspace.cancelRefreshButton.style.display, '');
+  workspace._handleEngineProgress(null, { progress: 0.42 });
+  assert.equal(workspace.progressElement.textContent, 'Aggregating 42%');
+  assert.equal(workspace.cancelRefresh(), true);
+  assert.equal(cancelled, 1);
+  assert.equal(workspace.progressElement.textContent, 'Cancelled');
+  assert.equal(workspace.cancelRefreshButton.style.display, 'none');
+});

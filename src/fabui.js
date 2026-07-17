@@ -11,12 +11,14 @@ import {
   PivotAggregate,
   PivotEngine,
   PivotField,
+  PivotShowAs,
   PivotShowTotals
-} from './pivot/pivot-engine.js?v=20260717-pivot-refactor-v1';
+} from './pivot/pivot-engine.js?v=20260717-pivot-advanced-v1';
 import { createPivotChartFactory } from './pivot/pivot-chart.js?v=20260717-pivot-refactor-v1';
 import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260717-pivot-refactor-v1';
-import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260717-pivot-refactor-v1';
-import { createPivotWorkspaceFactory } from './pivot/pivot-workspace.js?v=20260717-pivot-refactor-v1';
+import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260717-pivot-advanced-v1';
+import { createPivotSlicerFactory } from './pivot/pivot-slicer.js?v=20260717-pivot-advanced-v1';
+import { createPivotWorkspaceFactory } from './pivot/pivot-workspace.js?v=20260717-pivot-advanced-v1';
 
 var editorDefinitions = createEditorDefinitions();
 var FabGrid = createFabGridFactory(editorDefinitions);
@@ -24,6 +26,13 @@ var Chart = createChartFactory();
 var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);
 var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);
 var PivotPanel = createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid);
+var PivotSlicer = createPivotSlicerFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  PivotEngine,
+  FabGrid
+);
 var PivotWorkspace = createPivotWorkspaceFactory(
   Control,
   registerControl,
@@ -41,7 +50,9 @@ var pivotNamespace = {
   PivotField: PivotField,
   PivotGrid: PivotGrid,
   PivotPanel: PivotPanel,
+  PivotShowAs: PivotShowAs,
   PivotShowTotals: PivotShowTotals,
+  PivotSlicer: PivotSlicer,
   PivotWorkspace: PivotWorkspace
 };
 var fabui = {

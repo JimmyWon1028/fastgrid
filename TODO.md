@@ -10,9 +10,11 @@
 - [x] 沿用 FabGrid virtualization、selection、clipboard、export、locale 與 theme variables。
 - [x] `demo/dev-pivot.html` source-mode 與 `demo/pivot.html` build-mode Demo。
 - [x] `PivotWorkspace` 三合一組合、自適應三欄／三列、可拖曳 Splitter，以及 `demo/dev-pivot-workspace.html`／`demo/pivot-workspace.html`。
-- [ ] 非同步分批彙總與取消中的工作。
-- [ ] PivotPanel 進階多值 filter dialog、deferredUpdate、touch drag、Slicer、calculated fields、weighted aggregate 與 ShowAs。
-- [ ] Server-side Pivot／SSAS 與 Vue 2／jQuery Pivot wrapper。
+- [x] 非同步分批彙總、進度回報與取消中的工作。
+- [x] PivotPanel 進階多值 filter dialog、非同步 `deferUpdate()`、touch drag、PivotSlicer、calculated fields、weighted aggregate 與 ShowAs。
+- [x] Vue 2／jQuery Pivot wrapper。
+
+Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 
 ## 遠端資料模式
 
@@ -76,14 +78,14 @@
 - [x] 英文、繁中、簡中基本文字。
 - [x] 四種圖表 Demo、API 文件、單元測試與 browser smoke。
 
-## 待獨立發佈元件
+## 不列入目前產品範圍的 standalone 元件
 
 以下表單元件目前保留原始碼作為後續開發基礎，但不會由 `src/fabui.js` 或 `dist/fabui.*` 公開或編譯。現階段主 bundle 包含 `fabui.FabGrid`、`fabui.Chart` 與必要定義。
 
-- [ ] TextBox
-- [ ] NumberBox
-- [ ] DateBox
-- [ ] ComboBox
-- [ ] Tabs
+- TextBox
+- NumberBox
+- DateBox
+- ComboBox
+- Tabs
 
-待各元件 API、主題與 demo 穩定後，再規劃各自的 entry、CSS 與發佈方式；不得重新併入 FabGrid 核心 bundle。
+以上控件不列入目前 roadmap，也不得重新併入 FabGrid 核心 bundle。保留的原始碼只作為既有 Grid editor 與歷史參考，不代表待發佈項目。

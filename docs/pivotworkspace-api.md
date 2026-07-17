@@ -44,6 +44,8 @@ var workspace = new fabui.pivot.PivotWorkspace('#pivotWorkspace', {
 
 Workspace 會將相同 Engine 傳給三個子元件，PivotChart 的 `selectionSource` 會自動指向 Workspace 內的 PivotGrid。
 
+Workspace 監聽 Engine 的 `updatingView`、`progress`、`updatedView` 與 `error`；執行 `refreshAsync()` 時會在 PivotGrid 標題列顯示進度與取消按鈕，錯誤時保留上一版完整 View 並顯示錯誤狀態。
+
 ## 公開子元件
 
 ```js
@@ -97,6 +99,8 @@ Panel／Grid 與 Grid／Chart 之間各有一條 `role="separator"` 分隔線：
 | `panelOptions` | `{}` | 傳給 PivotPanel 的 options。 |
 | `gridOptions` | `{}` | 傳給 PivotGrid 的 options。 |
 | `chartOptions` | `{}` | 傳給 PivotChart 的 options。 |
+
+`engineOptions.asyncBatchSize` 可設定非同步彙總的預設批次大小。
 | `locale` | `en` | Workspace 與三個子元件的語系。 |
 | `messages` | `null` | 自訂 locale messages。 |
 | `layout` | `Auto` | `Auto`、`Horizontal`、`Vertical`。 |
@@ -159,6 +163,8 @@ chartSize: '2fr'  // Chart gets two parts, Grid gets one part
 | `setEngine(engine)` | 切換三個子元件共用的 PivotEngine。 |
 | `setItemsSource(rowsOrEngine)` | 更新原始資料或切換 Engine。 |
 | `setLocale(locale, messages?)` | 同步切換 Workspace 與三個子元件語系。 |
+| `refreshAsync(options?)` | 轉交 Engine 非同步分批彙總並回傳 Promise。 |
+| `cancelRefresh()` | 取消目前非同步彙總。 |
 | `setPanelVisible(visible)` | 顯示或隱藏 PivotPanel Pane。 |
 | `setChartVisible(visible)` | 顯示或隱藏 PivotChart Pane。 |
 | `setChartType(type)` | 切換 PivotChart 圖形類型並同步內建圖形選單。 |

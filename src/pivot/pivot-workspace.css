@@ -110,6 +110,28 @@
   gap: 7px;
 }
 
+.fg-pivot-workspace-progress {
+  max-width: 190px;
+  overflow: hidden;
+  color: var(--fg-header-text);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-workspace-updating .fg-pivot-workspace-progress {
+  color: var(--fg-selected-border);
+}
+
+.fg-pivot-workspace-error .fg-pivot-workspace-progress {
+  color: #b42318;
+}
+
+.fg-pivot-workspace-cancel {
+  flex: 0 0 auto;
+}
+
 .fg-pivot-workspace-control {
   height: 28px;
   min-width: 0;

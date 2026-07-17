@@ -106,7 +106,6 @@ export function isPublicMethod(instance, name) {
 export function createFabGridJQuery($, fabui) {
   if (!$ || !$.fn) throw new Error('fabgrid-jquery requires jQuery.');
   if (!fabui || typeof fabui.FabGrid !== 'function') throw new Error('fabgrid-jquery requires fabui.FabGrid.');
-
   function getInstance(element) {
     return $.data(element, DATA_KEY);
   }
@@ -264,11 +263,121 @@ export function createFabGridJQuery($, fabui) {
 
   $.fn.fabgrid = plugin;
 
+  function registerPivotPlugin(pluginName, constructorName) {
+    var dataKey = 'fabui.' + pluginName;
+    var namespace = '.' + pluginName;
+
+    function getPivotInstance(element) {
+      return $.data(element, dataKey);
+    }
+
+    function setPivotOption(instance, name, value) {
+      if ((name === 'engine' || name === 'itemsSource') && value instanceof fabui.pivot.PivotEngine) {
+        if (constructorName === 'PivotGrid') instance.setPivotEngine(value);
+        else if (constructorName === 'PivotWorkspace') instance.setEngine(value);
+        else instance.setItemsSource(value);
+        return;
+      }
+      if (name === 'itemsSource' && constructorName === 'PivotWorkspace' && Array.isArray(value)) {
+        instance.setItemsSource(value);
+        return;
+      }
+      if (name === 'locale' && typeof instance.setLocale === 'function') {
+        instance.setLocale(value);
+        return;
+      }
+      if (name === 'field' && constructorName === 'PivotSlicer') {
+        instance.setField(value);
+        return;
+      }
+      if (name in instance && typeof instance[name] !== 'function') {
+        instance[name] = value;
+        return;
+      }
+      instance.options = instance.options || {};
+      instance.options[name] = value;
+      if (typeof instance.refresh === 'function') instance.refresh();
+    }
+
+    function createPivot(element, options) {
+      var Constructor = fabui.pivot[constructorName];
+      var instance = new Constructor(element, options || {});
+      $.data(element, dataKey, instance);
+      $(element).triggerHandler('initialized' + namespace, [instance]);
+      return instance;
+    }
+
+    function destroyPivot(element, instance) {
+      if (!instance) return;
+      if (typeof instance.dispose === 'function') instance.dispose();
+      $.removeData(element, dataKey);
+      $(element).triggerHandler('destroyed' + namespace, [instance]);
+    }
+
+    function pivotPlugin(command) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      var first = this[0];
+      var result;
+      if (typeof command !== 'string') {
+        return this.each(function() {
+          var current = getPivotInstance(this);
+          if (!current) {
+            createPivot(this, command || {});
+            return;
+          }
+          Object.keys(command || {}).forEach(function(name) {
+            setPivotOption(current, name, command[name]);
+          });
+        });
+      }
+      if (command === 'instance') return first ? getPivotInstance(first) : undefined;
+      if (command === 'option' && args.length === 1 && typeof args[0] === 'string') {
+        var instance = first ? getPivotInstance(first) : null;
+        return instance ? instance[args[0]] : undefined;
+      }
+      this.each(function() {
+        var current = getPivotInstance(this);
+        if (!current) throw new Error('Cannot call ' + pluginName + ' method before initialization: ' + command);
+        if (command === 'destroy') {
+          destroyPivot(this, current);
+        } else if (command === 'option') {
+          if (typeof args[0] === 'string') setPivotOption(current, args[0], args[1]);
+          else Object.keys(args[0] || {}).forEach(function(name) {
+            setPivotOption(current, name, args[0][name]);
+          });
+        } else {
+          if (!isPublicMethod(current, command)) {
+            throw new Error('Unknown or private ' + pluginName + ' method: ' + command);
+          }
+          result = current[command].apply(current, args);
+        }
+      });
+      return result === undefined ? this : result;
+    }
+
+    $.fn[pluginName] = pivotPlugin;
+    return {
+      dataKey: dataKey,
+      eventNamespace: namespace,
+      getInstance: getPivotInstance,
+      destroy: function(element) { destroyPivot(element, getPivotInstance(element)); }
+    };
+  }
+
+  var pivotPlugins = {
+    panel: registerPivotPlugin('fabpivotpanel', 'PivotPanel'),
+    grid: registerPivotPlugin('fabpivotgrid', 'PivotGrid'),
+    chart: registerPivotPlugin('fabpivotchart', 'PivotChart'),
+    workspace: registerPivotPlugin('fabpivotworkspace', 'PivotWorkspace'),
+    slicer: registerPivotPlugin('fabpivotslicer', 'PivotSlicer')
+  };
+
   return {
     dataKey: DATA_KEY,
     eventNamespace: EVENT_NAMESPACE,
     getInstance: getInstance,
-    destroy: function(element) { destroy(element, getInstance(element)); }
+    destroy: function(element) { destroy(element, getInstance(element)); },
+    pivot: pivotPlugins
   };
 }
 

@@ -1,0 +1,94 @@
+.fg-root.fg-pivot-slicer {
+  display: flex;
+  min-width: 180px;
+  min-height: 220px;
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font-family: helvetica, tahoma, verdana, sans-serif;
+  font-size: 14px;
+}
+
+.fg-pivot-slicer-title {
+  display: flex;
+  flex: 0 0 32px;
+  align-items: center;
+  min-width: 0;
+  padding: 0 9px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+  color: var(--fg-header-text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fg-pivot-slicer-search {
+  flex: 0 0 30px;
+  min-width: 0;
+  height: 30px;
+  margin: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+}
+
+.fg-pivot-slicer-select-all,
+.fg-pivot-slicer-value {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.fg-pivot-slicer-select-all {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--fg-border);
+  border-bottom: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+}
+
+.fg-pivot-slicer-values {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 3px;
+}
+
+.fg-pivot-slicer-value:hover {
+  background: var(--fg-cell-hover-bg);
+}
+
+.fg-pivot-slicer-footer {
+  display: flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 6px;
+  border-top: 1px solid var(--fg-border);
+  background: var(--fg-header-bg);
+}
+
+.fg-pivot-slicer-footer button {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--fg-border-strong);
+  background: var(--fg-cell-bg);
+  color: var(--fg-cell-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.fg-pivot-slicer-footer button:hover,
+.fg-pivot-slicer-footer button:focus-visible {
+  border-color: var(--fg-selected-border);
+  outline: none;
+}

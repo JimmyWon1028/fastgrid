@@ -106,6 +106,37 @@ function createSortMenuItem(value, label, active, fieldKey) {
   return item;
 }
 
+function createShowAsMenuItem(value, label, active, fieldKey) {
+  var item = document.createElement('button');
+  var icon = document.createElement('span');
+  var text = document.createElement('span');
+  item.type = 'button';
+  item.className = 'fg-top-left-menu-item' + (active ? ' fg-top-left-menu-item-active' : '');
+  item.setAttribute('role', 'menuitemradio');
+  item.setAttribute('aria-checked', active ? 'true' : 'false');
+  item.setAttribute('data-action', 'set-show-as');
+  item.setAttribute('data-show-as', value);
+  item.setAttribute('data-field-key', fieldKey);
+  icon.className = 'fg-top-left-menu-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = active ? '✓' : '';
+  text.className = 'fg-top-left-menu-label';
+  text.textContent = label;
+  item.appendChild(icon);
+  item.appendChild(text);
+  return item;
+}
+
+function getPivotPanelValueKey(value) {
+  if (value instanceof Date) {
+    return 'date:' + value.toISOString();
+  }
+  if (typeof value === 'number' && isNaN(value)) {
+    return 'number:NaN';
+  }
+  return typeof value + ':' + String(value);
+}
+
 export function createPivotPanelFactory(Control, registerControl, unregisterControl, PivotEngine, FabGrid) {
   var areaDefinitions = [
     { name: 'filterFields', labelKey: 'pivot.panel.filters' },
@@ -134,8 +165,14 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     this._dropIndicator = null;
     this._aggregateMenuFieldKey = null;
     this._sortMenuFieldKey = null;
+    this._filterMenuFieldKey = null;
+    this._filterMenuValues = [];
+    this._filterDraftKeys = Object.create(null);
+    this._touchDragState = null;
     this._documentPointerDownBound = false;
     this._documentPointerDownHandler = this._handleDocumentPointerDown.bind(this);
+    this._touchPointerMoveHandler = this._handleTouchPointerMove.bind(this);
+    this._touchPointerUpHandler = this._handleTouchPointerUp.bind(this);
     this._updatedHandler = this.refresh.bind(this);
     this._createDom();
     this._bindEvents();
@@ -157,6 +194,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     var areas = document.createElement('div');
     var aggregateMenu = document.createElement('div');
     var sortMenu = document.createElement('div');
+    var filterMenu = document.createElement('div');
     var section;
     var title;
     var list;
@@ -202,15 +240,22 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     sortMenu.setAttribute('role', 'menu');
     sortMenu.setAttribute('aria-hidden', 'true');
     this.hostElement.appendChild(sortMenu);
+    filterMenu.className = 'fg-top-left-menu fg-pivot-panel-filter-menu';
+    filterMenu.setAttribute('role', 'dialog');
+    filterMenu.setAttribute('aria-modal', 'false');
+    filterMenu.setAttribute('aria-hidden', 'true');
+    this.hostElement.appendChild(filterMenu);
     this.availableFields = available;
     this.areasElement = areas;
     this.aggregateMenu = aggregateMenu;
     this.sortMenu = sortMenu;
+    this.filterMenu = filterMenu;
     this.applyLocaleToDom();
   };
 
   PivotPanel.prototype._bindEvents = function() {
     this.addEventListener(this.hostElement, 'change', this._handleChange.bind(this));
+    this.addEventListener(this.hostElement, 'input', this._handleInput.bind(this));
     this.addEventListener(this.hostElement, 'click', this._handleClick.bind(this));
     this.addEventListener(this.hostElement, 'contextmenu', this._handleContextMenu.bind(this));
     this.addEventListener(this.hostElement, 'dragstart', this._handleDragStart.bind(this));
@@ -218,6 +263,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     this.addEventListener(this.hostElement, 'dragleave', this._handleDragLeave.bind(this));
     this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
     this.addEventListener(this.hostElement, 'dragend', this._clearDragState.bind(this));
+    this.addEventListener(this.hostElement, 'pointerdown', this._handleTouchPointerDown.bind(this));
     this.addEventListener(this.hostElement, 'keydown', this._handleKeyDown.bind(this));
   };
 
@@ -237,6 +283,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     this.hostElement.setAttribute('aria-label', this.getText('pivot.panel.ariaLabel'));
     this.aggregateMenu.setAttribute('aria-label', this.getText('pivot.panel.aggregateMenu'));
     this.sortMenu.setAttribute('aria-label', this.getText('pivot.panel.sortMenu'));
+    this.filterMenu.setAttribute('aria-label', this.getText('pivot.panel.filterMenu'));
     this.areaTitles.fields.textContent = this.getText('pivot.panel.fields');
     this.areaLists.fields.setAttribute('aria-label', this.getText('pivot.panel.fields'));
     for (i = 0; i < areaDefinitions.length; i += 1) {
@@ -332,6 +379,9 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     item.appendChild(drag);
     item.appendChild(label);
     actions.className = 'fg-pivot-panel-item-actions';
+    if (area === 'filterFields') {
+      actions.appendChild(createButton('filter', this.getText('pivot.panel.editFilter'), '⌕'));
+    }
     actions.appendChild(createButton('remove', this.getText('pivot.panel.removeField'), '×'));
     item.appendChild(actions);
     return item;
@@ -359,6 +409,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     var i;
     this.hideAggregateMenu();
     this.hideSortMenu();
+    this.hideFilterMenu();
     this.availableFields.innerHTML = '';
     if (this._engine) {
       for (i = 0; i < this._engine.fields.length; i += 1) {
@@ -448,7 +499,17 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
 
   PivotPanel.prototype._handleChange = function(event) {
     var fieldKey = event.target.getAttribute('data-field-key');
+    var filterKey = event.target.getAttribute('data-filter-value-key');
     var field;
+    if (filterKey) {
+      this._filterDraftKeys[filterKey] = event.target.checked;
+      this._renderFilterMenuValues();
+      return;
+    }
+    if (event.target.hasAttribute('data-filter-select-all')) {
+      this._setVisibleFilterDraft(event.target.checked);
+      return;
+    }
     if (event.target.classList.contains('fg-pivot-panel-field-check')) {
       field = this._engine && this._engine.getField(fieldKey);
       if (event.target.checked && field) {
@@ -456,6 +517,12 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
       } else if (field) {
         this.moveField(field, 'fields', 0);
       }
+    }
+  };
+
+  PivotPanel.prototype._handleInput = function(event) {
+    if (event.target.classList.contains('fg-pivot-panel-filter-search')) {
+      this._renderFilterMenuValues();
     }
   };
 
@@ -468,28 +535,45 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     if (!actionElement || actionElement.tagName === 'SELECT') {
       return;
     }
+    action = actionElement.getAttribute('data-action');
+    if (action === 'filter-apply') {
+      event.preventDefault();
+      this.applyFilterMenu();
+      return;
+    }
+    if (action === 'filter-cancel') {
+      event.preventDefault();
+      this.hideFilterMenu();
+      return;
+    }
     item = closestWithAttribute(actionElement, 'data-field-key', this.hostElement);
     if (!item) {
       return;
     }
     event.preventDefault();
-    action = actionElement.getAttribute('data-action');
     area = item.getAttribute('data-area-item');
     fieldKey = item.getAttribute('data-field-key');
     if (action === 'set-aggregate') {
       this.setAggregate(fieldKey, actionElement.getAttribute('data-aggregate'));
+      this.hideAggregateMenu();
+    } else if (action === 'set-show-as') {
+      this.setShowAs(fieldKey, actionElement.getAttribute('data-show-as'));
       this.hideAggregateMenu();
     } else if (action === 'set-sort-direction') {
       this.setSortDirection(fieldKey, Number(actionElement.getAttribute('data-sort-direction')));
       this.hideSortMenu();
     } else if (action === 'remove') {
       this.removeField(fieldKey, area);
+    } else if (action === 'filter') {
+      this.hideAggregateMenu();
+      this.hideSortMenu();
+      this.showFilterMenu(fieldKey, actionElement);
     }
   };
 
   PivotPanel.prototype.setAggregate = function(fieldReference, aggregate) {
     var field = this._engine && this._engine.getField(fieldReference);
-    var values = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var values = ['Sum', 'Count', 'Average', 'WeightedAverage', 'Min', 'Max'];
     if (!field || values.indexOf(aggregate) < 0 || this._engine.valueFields.indexOf(field) < 0) {
       return false;
     }
@@ -513,6 +597,29 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
     field.sortDirection = normalized;
     this._engine.emit('viewDefinitionChanged', { property: 'sortDirection', field: field });
+    this._engine.refresh();
+    return true;
+  };
+
+  PivotPanel.prototype.setShowAs = function(fieldReference, showAs) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var values = [
+      'NoCalculation',
+      'PercentOfGrandTotal',
+      'PercentOfRowTotal',
+      'PercentOfColumnTotal',
+      'DifferenceFromPrevious',
+      'PercentDifferenceFromPrevious',
+      'RunningTotal'
+    ];
+    if (!field || values.indexOf(showAs) < 0 || this._engine.valueFields.indexOf(field) < 0) {
+      return false;
+    }
+    if (field.showAs === showAs) {
+      return true;
+    }
+    field.showAs = showAs;
+    this._engine.emit('viewDefinitionChanged', { property: 'showAs', field: field });
     this._engine.refresh();
     return true;
   };
@@ -541,8 +648,18 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
 
   PivotPanel.prototype.showAggregateMenu = function(fieldReference, clientX, clientY) {
     var field = this._engine && this._engine.getField(fieldReference);
-    var values = ['Sum', 'Count', 'Average', 'Min', 'Max'];
+    var values = ['Sum', 'Count', 'Average', 'WeightedAverage', 'Min', 'Max'];
+    var showAsValues = [
+      'NoCalculation',
+      'PercentOfGrandTotal',
+      'PercentOfRowTotal',
+      'PercentOfColumnTotal',
+      'DifferenceFromPrevious',
+      'PercentDifferenceFromPrevious',
+      'RunningTotal'
+    ];
     var title;
+    var showAsTitle;
     var hostRect;
     var left;
     var top;
@@ -561,6 +678,18 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
         values[i],
         this.getText('pivot.aggregates.' + values[i].toLowerCase()),
         field.aggregate === values[i],
+        field.key
+      ));
+    }
+    showAsTitle = document.createElement('div');
+    showAsTitle.className = 'fg-pivot-panel-menu-title';
+    showAsTitle.textContent = this.getText('pivot.panel.showAs');
+    this.aggregateMenu.appendChild(showAsTitle);
+    for (i = 0; i < showAsValues.length; i += 1) {
+      this.aggregateMenu.appendChild(createShowAsMenuItem(
+        showAsValues[i],
+        this.getText('pivot.showAs.' + showAsValues[i].replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()),
+        field.showAs === showAsValues[i],
         field.key
       ));
     }
@@ -658,8 +787,172 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     return !!(this.sortMenu && this.sortMenu.style.display === 'block');
   };
 
+  PivotPanel.prototype.showFilterMenu = function(fieldReference, trigger) {
+    var field = this._engine && this._engine.getField(fieldReference);
+    var selected;
+    var title;
+    var search;
+    var selectAllLabel;
+    var selectAll;
+    var selectAllText;
+    var values;
+    var footer;
+    var cancel;
+    var apply;
+    var hostRect;
+    var triggerRect;
+    var left;
+    var top;
+    var i;
+    if (!field || this._engine.filterFields.indexOf(field) < 0) {
+      return false;
+    }
+    this._filterMenuFieldKey = field.key;
+    this._filterMenuValues = getPivotSlicerValues(this._engine, field);
+    selected = field.filter && Array.isArray(field.filter.values) ?
+      field.filter.values : this._filterMenuValues;
+    this._filterDraftKeys = Object.create(null);
+    for (i = 0; i < selected.length; i += 1) {
+      this._filterDraftKeys[getPivotPanelValueKey(selected[i])] = true;
+    }
+    this.filterMenu.innerHTML = '';
+    title = document.createElement('div');
+    title.className = 'fg-pivot-panel-menu-title';
+    title.textContent = field.header;
+    search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'fg-pivot-panel-filter-search';
+    search.placeholder = this.getText('pivot.panel.searchValues');
+    selectAllLabel = document.createElement('label');
+    selectAllLabel.className = 'fg-pivot-panel-filter-select-all';
+    selectAll = document.createElement('input');
+    selectAll.type = 'checkbox';
+    selectAll.setAttribute('data-filter-select-all', '');
+    selectAllText = document.createElement('span');
+    selectAllText.textContent = this.getText('pivot.panel.selectAll');
+    selectAllLabel.appendChild(selectAll);
+    selectAllLabel.appendChild(selectAllText);
+    values = document.createElement('div');
+    values.className = 'fg-pivot-panel-filter-values';
+    values.setAttribute('role', 'listbox');
+    values.setAttribute('aria-multiselectable', 'true');
+    footer = document.createElement('div');
+    footer.className = 'fg-pivot-panel-filter-footer';
+    cancel = createButton('filter-cancel', this.getText('pivot.panel.cancel'), this.getText('pivot.panel.cancel'));
+    apply = createButton('filter-apply', this.getText('pivot.panel.apply'), this.getText('pivot.panel.apply'));
+    footer.appendChild(cancel);
+    footer.appendChild(apply);
+    this.filterMenu.appendChild(title);
+    this.filterMenu.appendChild(search);
+    this.filterMenu.appendChild(selectAllLabel);
+    this.filterMenu.appendChild(values);
+    this.filterMenu.appendChild(footer);
+    this.filterMenuSearch = search;
+    this.filterMenuSelectAll = selectAll;
+    this.filterMenuValuesElement = values;
+    this._renderFilterMenuValues();
+    this.filterMenu.style.display = 'flex';
+    this.filterMenu.setAttribute('aria-hidden', 'false');
+    hostRect = this.hostElement.getBoundingClientRect();
+    triggerRect = trigger && trigger.getBoundingClientRect ? trigger.getBoundingClientRect() : hostRect;
+    left = triggerRect.left - hostRect.left;
+    top = triggerRect.bottom - hostRect.top;
+    left = Math.max(0, Math.min(left, this.hostElement.clientWidth - this.filterMenu.offsetWidth));
+    top = Math.max(0, Math.min(top, this.hostElement.clientHeight - this.filterMenu.offsetHeight));
+    this.filterMenu.style.left = left + 'px';
+    this.filterMenu.style.top = top + 'px';
+    this._syncDocumentMenuPointerListener();
+    search.focus({ preventScroll: true });
+    return true;
+  };
+
+  PivotPanel.prototype._renderFilterMenuValues = function() {
+    var field = this._engine && this._engine.getField(this._filterMenuFieldKey);
+    var search;
+    var value;
+    var key;
+    var text;
+    var label;
+    var input;
+    var visibleCount = 0;
+    var selectedCount = 0;
+    var i;
+    if (!field || !this.filterMenuValuesElement) {
+      return;
+    }
+    search = String(this.filterMenuSearch.value || '').toLowerCase();
+    this.filterMenuValuesElement.innerHTML = '';
+    for (i = 0; i < this._filterMenuValues.length; i += 1) {
+      value = this._filterMenuValues[i];
+      key = getPivotPanelValueKey(value);
+      text = this._engine.formatFieldValue(field, value, this.locale) || this.getText('pivot.panel.blankValue');
+      if (search && text.toLowerCase().indexOf(search) < 0) {
+        continue;
+      }
+      label = document.createElement('label');
+      label.className = 'fg-pivot-panel-filter-value';
+      label.setAttribute('role', 'option');
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = this._filterDraftKeys[key] === true;
+      input.setAttribute('data-filter-value-key', key);
+      label.setAttribute('aria-selected', input.checked ? 'true' : 'false');
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(text));
+      this.filterMenuValuesElement.appendChild(label);
+      visibleCount += 1;
+      if (input.checked) selectedCount += 1;
+    }
+    this.filterMenuSelectAll.checked = visibleCount > 0 && selectedCount === visibleCount;
+    this.filterMenuSelectAll.indeterminate = selectedCount > 0 && selectedCount < visibleCount;
+  };
+
+  PivotPanel.prototype._setVisibleFilterDraft = function(selected) {
+    var inputs = this.filterMenuValuesElement ?
+      this.filterMenuValuesElement.querySelectorAll('input[data-filter-value-key]') : [];
+    var i;
+    for (i = 0; i < inputs.length; i += 1) {
+      this._filterDraftKeys[inputs[i].getAttribute('data-filter-value-key')] = selected;
+    }
+    this._renderFilterMenuValues();
+  };
+
+  PivotPanel.prototype.applyFilterMenu = function() {
+    var field = this._engine && this._engine.getField(this._filterMenuFieldKey);
+    var selected;
+    if (!field) {
+      return false;
+    }
+    selected = this._filterMenuValues.filter(function(value) {
+      return this._filterDraftKeys[getPivotPanelValueKey(value)] === true;
+    }, this);
+    field.filter = selected.length === this._filterMenuValues.length ? null : { values: selected };
+    this.hideFilterMenu();
+    this._engine.emit('viewDefinitionChanged', { property: 'filter', field: field });
+    this._engine.refresh();
+    return true;
+  };
+
+  PivotPanel.prototype.hideFilterMenu = function() {
+    if (this.filterMenu) {
+      this.filterMenu.style.display = 'none';
+      this.filterMenu.setAttribute('aria-hidden', 'true');
+    }
+    this._filterMenuFieldKey = null;
+    this._filterMenuValues = [];
+    this._filterDraftKeys = Object.create(null);
+    this.filterMenuSearch = null;
+    this.filterMenuSelectAll = null;
+    this.filterMenuValuesElement = null;
+    this._syncDocumentMenuPointerListener();
+  };
+
+  PivotPanel.prototype.isFilterMenuOpen = function() {
+    return !!(this.filterMenu && this.filterMenu.style.display === 'flex');
+  };
+
   PivotPanel.prototype._syncDocumentMenuPointerListener = function() {
-    var shouldBind = this.isAggregateMenuOpen() || this.isSortMenuOpen();
+    var shouldBind = this.isAggregateMenuOpen() || this.isSortMenuOpen() || this.isFilterMenuOpen();
     if (shouldBind && !this._documentPointerDownBound) {
       this.addEventListener(document, 'pointerdown', this._documentPointerDownHandler);
       this._documentPointerDownBound = true;
@@ -675,6 +968,9 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
     if (this.isSortMenuOpen() && !this.sortMenu.contains(event.target)) {
       this.hideSortMenu();
+    }
+    if (this.isFilterMenuOpen() && !this.filterMenu.contains(event.target)) {
+      this.hideFilterMenu();
     }
   };
 
@@ -786,17 +1082,84 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
   };
 
   PivotPanel.prototype._handleKeyDown = function(event) {
-    if (event.key === 'Escape' && (this.isAggregateMenuOpen() || this.isSortMenuOpen())) {
+    if (event.key === 'Escape' &&
+        (this.isAggregateMenuOpen() || this.isSortMenuOpen() || this.isFilterMenuOpen())) {
       event.preventDefault();
       event.stopPropagation();
-      this.hideAggregateMenu();
-      this.hideSortMenu();
+      if (this.isAggregateMenuOpen()) this.hideAggregateMenu();
+      if (this.isSortMenuOpen()) this.hideSortMenu();
+      if (this.isFilterMenuOpen()) this.hideFilterMenu();
       return;
     }
     if (event.key === 'Escape' && this._dragFieldKey) {
       event.preventDefault();
       this._clearDragState();
     }
+  };
+
+  PivotPanel.prototype._handleTouchPointerDown = function(event) {
+    var dragHandle;
+    var item;
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') {
+      return;
+    }
+    dragHandle = event.target.closest ? event.target.closest('.fg-pivot-panel-drag') : null;
+    item = dragHandle && closestWithAttribute(dragHandle, 'data-field-key', this.hostElement);
+    if (!item) {
+      return;
+    }
+    event.preventDefault();
+    this._dragFieldKey = item.getAttribute('data-field-key');
+    this._dragSourceArea = item.getAttribute('data-area-item');
+    this._touchDragState = {
+      pointerId: event.pointerId
+    };
+    item.classList.add('fg-pivot-panel-dragging');
+    document.addEventListener('pointermove', this._touchPointerMoveHandler, false);
+    document.addEventListener('pointerup', this._touchPointerUpHandler, false);
+    document.addEventListener('pointercancel', this._touchPointerUpHandler, false);
+  };
+
+  PivotPanel.prototype._handleTouchPointerMove = function(event) {
+    var target;
+    var list;
+    var area;
+    if (!this._touchDragState ||
+        (this._touchDragState.pointerId != null && event.pointerId !== this._touchDragState.pointerId)) {
+      return;
+    }
+    event.preventDefault();
+    target = document.elementFromPoint(event.clientX, event.clientY);
+    list = closestWithAttribute(target, 'data-area', this.hostElement);
+    if (!list) {
+      this._clearDropIndicator();
+      return;
+    }
+    area = list.getAttribute('data-area');
+    this._showDropIndicator(list, area, event.clientY);
+    list.classList.add('fg-pivot-panel-drop-active');
+  };
+
+  PivotPanel.prototype._handleTouchPointerUp = function(event) {
+    var area;
+    var index;
+    if (!this._touchDragState ||
+        (this._touchDragState.pointerId != null && event.pointerId !== this._touchDragState.pointerId)) {
+      return;
+    }
+    if (event.type !== 'pointercancel' && this._dragTargetArea) {
+      area = this._dragTargetArea;
+      index = area === 'fields' ? Infinity : this._dragTargetIndex;
+      this.moveField(this._dragFieldKey, area, index);
+    }
+    this._clearDragState();
+  };
+
+  PivotPanel.prototype._unbindTouchDragListeners = function() {
+    document.removeEventListener('pointermove', this._touchPointerMoveHandler, false);
+    document.removeEventListener('pointerup', this._touchPointerUpHandler, false);
+    document.removeEventListener('pointercancel', this._touchPointerUpHandler, false);
+    this._touchDragState = null;
   };
 
   PivotPanel.prototype._clearDragState = function() {
@@ -808,6 +1171,7 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
     this._dragFieldKey = null;
     this._dragSourceArea = null;
+    this._unbindTouchDragListeners();
   };
 
   PivotPanel.prototype.dispose = function() {
@@ -816,6 +1180,8 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
     }
     this.hideAggregateMenu();
     this.hideSortMenu();
+    this.hideFilterMenu();
+    this._unbindTouchDragListeners();
     this.removeEventListener();
     unregisterControl(this.hostElement, this);
     this.hostElement.innerHTML = '';
@@ -858,3 +1224,4 @@ export function createPivotPanelFactory(Control, registerControl, unregisterCont
 
   return PivotPanel;
 }
+import { getPivotSlicerValues } from './pivot-slicer.js?v=20260717-pivot-advanced-v1';

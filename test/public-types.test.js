@@ -18,9 +18,13 @@ test('FabUI publishes PivotGrid and its data model', function() {
   assert.equal(typeof fabui.pivot.PivotField, 'function');
   assert.equal(typeof fabui.pivot.PivotGrid, 'function');
   assert.equal(typeof fabui.pivot.PivotPanel, 'function');
+  assert.equal(typeof fabui.pivot.PivotSlicer, 'function');
   assert.equal(Object.getPrototypeOf(fabui.pivot.PivotGrid.prototype), fabui.FabGrid.prototype);
   assert.equal(Object.getPrototypeOf(fabui.pivot.PivotPanel.prototype), fabui.Control.prototype);
+  assert.equal(Object.getPrototypeOf(fabui.pivot.PivotSlicer.prototype), fabui.Control.prototype);
   assert.equal(fabui.pivot.PivotAggregate.Sum, 'Sum');
+  assert.equal(fabui.pivot.PivotAggregate.WeightedAverage, 'WeightedAverage');
+  assert.equal(fabui.pivot.PivotShowAs.RunningTotal, 'RunningTotal');
   assert.equal(fabui.pivot.PivotShowTotals.Subtotals, 'Subtotals');
   assert.equal(fabui.PivotEngine, undefined);
   assert.equal(fabui.PivotGrid, undefined);
@@ -58,7 +62,42 @@ test('PivotPanel moves fields between view areas through the shared engine', fun
   assert.deepEqual(engine.valueFields.map(function(field) { return field.key; }), ['Cost', 'Sales']);
   assert.equal(panel.setAggregate('sales', 'Average'), true);
   assert.equal(engine.getField('sales').aggregate, 'Average');
+  assert.equal(panel.setShowAs('sales', 'PercentOfGrandTotal'), true);
+  assert.equal(engine.getField('sales').showAs, 'PercentOfGrandTotal');
   assert.equal(typeof panel.viewDefinition, 'string');
+});
+
+test('PivotPanel applies a multi-value filter draft only on confirmation', function() {
+  var engine = new fabui.pivot.PivotEngine({
+    itemsSource: [
+      { region: 'North', sales: 10 },
+      { region: 'South', sales: 20 }
+    ],
+    fields: [
+      { binding: 'region', header: 'Region' },
+      { binding: 'sales', header: 'Sales', dataType: 'number' }
+    ],
+    filterFields: ['Region'],
+    rowFields: ['Region'],
+    valueFields: ['Sales']
+  });
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+
+  panel._engine = engine;
+  panel._filterMenuFieldKey = 'Region';
+  panel._filterMenuValues = ['North', 'South'];
+  panel._filterDraftKeys = {
+    'string:North': true,
+    'string:South': false
+  };
+  panel.hideFilterMenu = function() {
+    panel._filterMenuFieldKey = null;
+  };
+
+  assert.equal(engine.getField('Region').filter, null);
+  assert.equal(panel.applyFilterMenu(), true);
+  assert.deepEqual(engine.getField('Region').filter, { values: ['North'] });
+  assert.equal(engine.pivotView.filteredCount, 1);
 });
 
 test('PivotPanel opens the sorting popup from row and column field items', function() {
@@ -268,6 +307,62 @@ test('PivotPanel drag indicator reports the insertion index without counting the
     assert.equal(appended, panel._dropIndicator);
   } finally {
     panel._clearDropIndicator();
+    globalThis.document = originalDocument;
+  }
+});
+
+test('PivotPanel binds document pointer handlers only during a touch drag', function() {
+  var panel = Object.create(fabui.pivot.PivotPanel.prototype);
+  var originalDocument = globalThis.document;
+  var added = [];
+  var removed = [];
+  var item = {
+    nodeType: 1,
+    parentElement: null,
+    hasAttribute: function(name) {
+      return name === 'data-field-key' || name === 'data-area-item';
+    },
+    getAttribute: function(name) {
+      if (name === 'data-field-key') return 'Region';
+      if (name === 'data-area-item') return 'rowFields';
+      return null;
+    },
+    closest: function() { return item; },
+    classList: {
+      add: function() {}
+    }
+  };
+
+  panel.hostElement = {
+    querySelectorAll: function() { return []; }
+  };
+  panel._touchPointerMoveHandler = function() {};
+  panel._touchPointerUpHandler = function() {};
+  panel._dropIndicator = null;
+  panel._dragTargetArea = null;
+  panel._dragTargetIndex = Infinity;
+  globalThis.document = {
+    addEventListener: function(type) { added.push(type); },
+    removeEventListener: function(type) { removed.push(type); }
+  };
+
+  try {
+    panel._handleTouchPointerDown({
+      pointerType: 'touch',
+      pointerId: 8,
+      target: item,
+      preventDefault: function() {}
+    });
+    assert.deepEqual(added, ['pointermove', 'pointerup', 'pointercancel']);
+    assert.equal(panel._touchDragState.pointerId, 8);
+
+    panel._handleTouchPointerUp({
+      type: 'pointercancel',
+      pointerId: 8
+    });
+    assert.deepEqual(removed, ['pointermove', 'pointerup', 'pointercancel']);
+    assert.equal(panel._touchDragState, null);
+  } finally {
     globalThis.document = originalDocument;
   }
 });

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FabUI Pivot 進階功能開發版</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260717-pivot-advanced-v1">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body { margin: 0; background: #f3f4f6; color: #1f2937; font-family: helvetica, tahoma, verdana, sans-serif; }
+    .page { display: flex; width: 100%; height: 100dvh; min-height: 0; padding: 10px; flex-direction: column; gap: 8px; }
+    .toolbar { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; }
+    .toolbar h1 { margin: 0 auto 0 0; font-size: 19px; }
+    .toolbar button { height: 29px; padding: 0 10px; border: 1px solid #b8c4d4; border-radius: 3px; background: #fff; color: inherit; cursor: pointer; }
+    .toolbar button:hover { border-color: #2b7fd3; background: #eef6ff; }
+    .status { color: #475569; font-size: 12px; }
+    .content { display: grid; flex: 1 1 auto; min-width: 0; min-height: 0; gap: 8px; grid-template-columns: 220px minmax(0, 1fr); }
+    #regionSlicer, #workspace { min-width: 0; min-height: 0; }
+    @media (max-width: 760px) {
+      .page { padding: 6px; }
+      .toolbar h1 { font-size: 16px; }
+      .content { grid-template-columns: minmax(0, 1fr); grid-template-rows: 210px minmax(0, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="toolbar" aria-label="Pivot 進階功能工具列">
+      <h1>Pivot 非同步／Slicer／計算欄位</h1>
+      <span id="status" class="status">準備完成</span>
+      <button id="refreshAsync" type="button">非同步彙總</button>
+      <button id="cancelRefresh" type="button">取消</button>
+    </section>
+    <section class="content">
+      <div id="regionSlicer"></div>
+      <div id="workspace"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260717-pivot-advanced-v1';
+
+    window.fabui = fabui;
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-advanced-v1');
+
+    const regions = ['北區', '中區', '南區'];
+    const products = ['FabGrid', 'FabChart', 'FabForms'];
+    const rows = Array.from({ length: 12000 }, function(_, index) {
+      const quantity = index % 5 + 1;
+      const price = 80 + index % 7 * 15;
+      return {
+        id: index + 1,
+        region: regions[index % regions.length],
+        product: products[Math.floor(index / regions.length) % products.length],
+        quarter: 'Q' + (index % 4 + 1),
+        quantity: quantity,
+        price: price,
+        sales: quantity * price
+      };
+    });
+
+    const engine = new fabui.pivot.PivotEngine({
+      itemsSource: rows,
+      asyncBatchSize: 500,
+      fields: [
+        { key: 'region', binding: 'region', header: '區域' },
+        { key: 'product', binding: 'product', header: '產品' },
+        { key: 'quarter', binding: 'quarter', header: '季度' },
+        { key: 'sales', binding: 'sales', header: '銷售額', dataType: 'number', aggregate: 'Sum', format: 'n0' },
+        {
+          key: 'revenue',
+          header: '計算營收',
+          dataType: 'number',
+          calculate: function(item) { return item.quantity * item.price; },
+          aggregate: 'Sum',
+          format: 'n0'
+        },
+        {
+          key: 'weightedPrice',
+          binding: 'price',
+          header: '加權單價',
+          dataType: 'number',
+          aggregate: 'WeightedAverage',
+          weightBinding: 'quantity',
+          format: 'n2'
+        }
+      ],
+      rowFields: ['region'],
+      columnFields: ['quarter'],
+      valueFields: ['revenue'],
+      filterFields: ['product'],
+      showRowTotals: 'GrandTotals',
+      showColumnTotals: 'GrandTotals'
+    });
+
+    const workspace = new fabui.pivot.PivotWorkspace('#workspace', {
+      engine: engine,
+      locale: 'zh-TW',
+      compactBreakpoint: 900,
+      chartSize: '36%',
+      panelSize: 290
+    });
+    const slicer = new fabui.pivot.PivotSlicer('#regionSlicer', {
+      itemsSource: engine,
+      field: 'region',
+      locale: 'zh-TW',
+      deferApply: true
+    });
+    const status = document.getElementById('status');
+
+    document.getElementById('refreshAsync').addEventListener('click', async function() {
+      status.textContent = '彙總中…';
+      try {
+        await workspace.refreshAsync({ batchSize: 5 });
+        status.textContent = '彙總完成';
+      } catch (error) {
+        status.textContent = error && error.name === 'AbortError' ? '已取消' : '彙總失敗';
+      }
+    });
+    document.getElementById('cancelRefresh').addEventListener('click', function() {
+      workspace.cancelRefresh();
+    });
+
+    window.pivotEngine = engine;
+    window.pivotWorkspace = workspace;
+    window.pivotSlicer = slicer;
+  </script>
+</body>
+</html>

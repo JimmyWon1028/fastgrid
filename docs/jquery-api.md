@@ -125,3 +125,34 @@ $("#grid").fabgrid("destroy");
 ```
 
 `destroy` 會解除 wrapper 對 core events 的監聽、呼叫 `FabGrid.dispose()` 並清除 element 上儲存的 instance。它不會移除使用者綁定的其他 jQuery events；同一個 element 之後可以重新初始化。
+
+## Pivot plugins
+
+Wrapper 同時註冊以下薄層 plugin：
+
+- `$.fn.fabpivotpanel`
+- `$.fn.fabpivotgrid`
+- `$.fn.fabpivotchart`
+- `$.fn.fabpivotworkspace`
+- `$.fn.fabpivotslicer`
+
+它們沿用 `instance`、`option`、公開方法與 `destroy` 命令，但不複製 PivotEngine 行為：
+
+```js
+$("#workspace").fabpivotworkspace({
+  engine: engine,
+  locale: "zh-TW",
+  chartSize: "40%",
+});
+
+$("#regionSlicer").fabpivotslicer({
+  itemsSource: engine,
+  field: "Region",
+  locale: "zh-TW",
+});
+
+await $("#workspace").fabpivotworkspace("refreshAsync", { batchSize: 1000 });
+$("#workspace").fabpivotworkspace("cancelRefresh");
+```
+
+各 plugin 的 lifecycle namespace 分別為 `.fabpivotpanel`、`.fabpivotgrid`、`.fabpivotchart`、`.fabpivotworkspace` 與 `.fabpivotslicer`，例如 `initialized.fabpivotworkspace`、`destroyed.fabpivotworkspace`。

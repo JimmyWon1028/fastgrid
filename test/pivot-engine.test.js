@@ -4,6 +4,7 @@ import {
   PivotAggregate,
   PivotEngine,
   PivotField,
+  PivotShowAs,
   PivotShowTotals
 } from '../src/pivot/pivot-engine.js';
 
@@ -79,6 +80,120 @@ test('PivotEngine averages only numeric values', function() {
   });
 
   assert.equal(getCell(engine, ['A'], [], 'Amount'), 15);
+});
+
+test('PivotEngine supports calculated fields and weighted averages', function() {
+  var engine = new PivotEngine({
+    itemsSource: [
+      { group: 'A', quantity: 2, price: 10 },
+      { group: 'A', quantity: 1, price: 40 }
+    ],
+    fields: [
+      { binding: 'group', header: 'Group' },
+      {
+        key: 'Revenue',
+        header: 'Revenue',
+        dataType: 'number',
+        calculate: function(item) { return item.quantity * item.price; }
+      },
+      {
+        binding: 'price',
+        header: 'Weighted Price',
+        dataType: 'number',
+        aggregate: 'WeightedAverage',
+        weightBinding: 'quantity'
+      }
+    ],
+    rowFields: ['Group'],
+    valueFields: ['Revenue', 'Weighted Price'],
+    showRowTotals: 'None',
+    showColumnTotals: 'None'
+  });
+
+  assert.equal(getCell(engine, ['A'], [], 'Revenue'), 60);
+  assert.equal(getCell(engine, ['A'], [], 'Weighted Price'), 20);
+  assert.equal(engine.getField('Weighted Price').aggregate, PivotAggregate.WeightedAverage);
+});
+
+test('PivotEngine applies percent and running total ShowAs modes', function() {
+  var engine = new PivotEngine({
+    itemsSource: [
+      { region: 'North', quarter: 'Q1', sales: 10 },
+      { region: 'North', quarter: 'Q2', sales: 30 },
+      { region: 'South', quarter: 'Q1', sales: 60 }
+    ],
+    fields: [
+      { binding: 'region', header: 'Region' },
+      { binding: 'quarter', header: 'Quarter' },
+      {
+        binding: 'sales',
+        header: 'Sales',
+        dataType: 'number',
+        showAs: PivotShowAs.PercentOfGrandTotal
+      }
+    ],
+    rowFields: ['Region'],
+    columnFields: ['Quarter'],
+    valueFields: ['Sales'],
+    showRowTotals: 'GrandTotals',
+    showColumnTotals: 'GrandTotals'
+  });
+
+  assert.equal(getCell(engine, ['North'], ['Q1'], 'Sales'), 0.1);
+  assert.equal(getCell(engine, ['South'], ['Q1'], 'Sales'), 0.6);
+
+  engine.getField('Sales').showAs = PivotShowAs.RunningTotal;
+  engine.refresh();
+  assert.equal(getCell(engine, ['North'], ['Q1'], 'Sales'), 10);
+  assert.equal(getCell(engine, ['North'], ['Q2'], 'Sales'), 40);
+});
+
+test('PivotEngine refreshAsync reports progress and preserves synchronous refresh', async function() {
+  var engine = createSalesEngine();
+  var progress = [];
+
+  engine.progress.addHandler(function(sender, args) {
+    if (args.async) progress.push(args.progress);
+  });
+  engine.itemsSource.push({ region: 'East', product: 'A', channel: 'Web', sales: 50, orders: 5 });
+  await engine.refreshAsync({ batchSize: 2 });
+
+  assert.equal(getCell(engine, [], [], 'Sales'), 150);
+  assert.equal(progress.length >= 3, true);
+  assert.equal(progress[progress.length - 1], 1);
+  assert.equal(engine.isUpdating, false);
+  assert.equal(engine.refresh(), engine.pivotView);
+});
+
+test('PivotEngine can cancel an asynchronous refresh without replacing the current view', async function() {
+  var engine = createSalesEngine();
+  var previousView = engine.pivotView;
+  var pending = engine.refreshAsync({ batchSize: 1 });
+
+  assert.equal(engine.cancelRefresh(), true);
+  await assert.rejects(pending, function(error) {
+    return error && error.name === 'AbortError';
+  });
+  assert.equal(engine.pivotView, previousView);
+  assert.equal(engine.isUpdating, false);
+});
+
+test('PivotEngine deferUpdate supports asynchronous callbacks', async function() {
+  var engine = createSalesEngine();
+  var updatedCalls = 0;
+
+  engine.updatedView.addHandler(function() {
+    updatedCalls += 1;
+  });
+  await engine.deferUpdate(async function() {
+    engine.setViewFields('rowFields', ['Region'], false);
+    await Promise.resolve();
+    engine.setViewFields('columnFields', ['Product'], false);
+  });
+
+  assert.equal(updatedCalls, 1);
+  assert.deepEqual(engine.rowFields.map(function(field) { return field.key; }), ['Region']);
+  assert.deepEqual(engine.columnFields.map(function(field) { return field.key; }), ['Product']);
 });
 
 test('PivotEngine applies field filters before aggregation and returns matching detail', function() {

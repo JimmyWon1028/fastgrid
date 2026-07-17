@@ -27,6 +27,7 @@ const javascriptSources = [
   'pivot/pivot-chart.js',
   'pivot/pivot-grid.js',
   'pivot/pivot-panel.js',
+  'pivot/pivot-slicer.js',
   'pivot/pivot-workspace.js'
 ];
 const localeSources = [
@@ -256,10 +257,13 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.pivot.PivotPanel = createPivotPanelFactory') < 0) {
     throw new Error('FabUI PivotPanel is missing from the JavaScript bundle.');
   }
+  if (javascript.indexOf('global.fabui.pivot.PivotSlicer = createPivotSlicerFactory') < 0) {
+    throw new Error('FabUI PivotSlicer is missing from the JavaScript bundle.');
+  }
   if (javascript.indexOf('global.fabui.pivot.PivotWorkspace = createPivotWorkspaceFactory') < 0) {
     throw new Error('FabUI PivotWorkspace is missing from the JavaScript bundle.');
   }
-  if (/global\.fabui\.(?:PivotAggregate|PivotChart|PivotEngine|PivotField|PivotGrid|PivotPanel|PivotShowTotals|PivotWorkspace)\s*=/.test(javascript)) {
+  if (/global\.fabui\.(?:PivotAggregate|PivotChart|PivotEngine|PivotField|PivotGrid|PivotPanel|PivotShowAs|PivotShowTotals|PivotSlicer|PivotWorkspace)\s*=/.test(javascript)) {
     throw new Error('Pivot APIs must only be published through fabui.pivot.');
   }
   if (javascript.indexOf('global.fabui.Control = Control') < 0) {
