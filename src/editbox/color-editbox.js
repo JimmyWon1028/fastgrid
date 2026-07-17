@@ -361,9 +361,9 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
       }
       self._colorDragState = null;
     };
-    this._onDocumentMouseDown = function(event) {
+    this._onDocumentPointerDown = function(event) {
       if (!self._panelVisible) return;
-      if (self._panel.contains(event.target) || self._field.contains(event.target)) return;
+      if (self._panel.contains(event.target) || self._shell.contains(event.target)) return;
       self.hidePanel();
     };
     this._onDocumentKeyDown = function(event) {
@@ -381,7 +381,7 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     this._panel.addEventListener('pointermove', this._onPanelPointerMove);
     this._panel.addEventListener('pointerup', this._onPanelPointerUp);
     this._panel.addEventListener('pointercancel', this._onPanelPointerUp);
-    document.addEventListener('mousedown', this._onDocumentMouseDown);
+    document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
     document.addEventListener('keydown', this._onDocumentKeyDown);
     window.addEventListener('resize', this._onWindowResize);
     window.addEventListener('scroll', this._onWindowScroll, true);
@@ -624,7 +624,7 @@ export function createColorEditBoxFactory(TextBox, editorDefinitions) {
     this._panel.removeEventListener('pointermove', this._onPanelPointerMove);
     this._panel.removeEventListener('pointerup', this._onPanelPointerUp);
     this._panel.removeEventListener('pointercancel', this._onPanelPointerUp);
-    document.removeEventListener('mousedown', this._onDocumentMouseDown);
+    document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
     document.removeEventListener('keydown', this._onDocumentKeyDown);
     window.removeEventListener('resize', this._onWindowResize);
     window.removeEventListener('scroll', this._onWindowScroll, true);

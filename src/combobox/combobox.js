@@ -308,8 +308,10 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
       if (!item || item.classList.contains('fui-combobox-item-disabled')) return;
       self._setActiveIndex(Number(item.getAttribute('data-index')), false);
     };
-    this._onDocumentMouseDown = function(event) {
-      if (self._panelVisible && !self._panel.contains(event.target) && !self._field.contains(event.target)) self.hidePanel();
+    this._onDocumentPointerDown = function(event) {
+      if (!self._panelVisible) return;
+      if (self._panel.contains(event.target) || self._shell.contains(event.target)) return;
+      self.hidePanel();
     };
     this._onDocumentKeyDown = function(event) {
       if (!self._panelVisible || event.key !== 'Escape') return;
@@ -327,7 +329,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     this._panel.addEventListener('mousedown', this._onPanelMouseDown);
     this._panel.addEventListener('click', this._onPanelClick);
     this._panel.addEventListener('mouseover', this._onPanelMouseOver);
-    document.addEventListener('mousedown', this._onDocumentMouseDown);
+    document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
     document.addEventListener('keydown', this._onDocumentKeyDown);
     window.addEventListener('resize', this._onWindowResize);
     window.addEventListener('scroll', this._onWindowScroll, true);
@@ -848,7 +850,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     this._panel.removeEventListener('mousedown', this._onPanelMouseDown);
     this._panel.removeEventListener('click', this._onPanelClick);
     this._panel.removeEventListener('mouseover', this._onPanelMouseOver);
-    document.removeEventListener('mousedown', this._onDocumentMouseDown);
+    document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
     document.removeEventListener('keydown', this._onDocumentKeyDown);
     window.removeEventListener('resize', this._onWindowResize);
     window.removeEventListener('scroll', this._onWindowScroll, true);
