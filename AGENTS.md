@@ -53,7 +53,7 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - Chart 位於 `fabui.Chart`；使用 pure JavaScript SVG rendering，只支援直條圖、橫條圖、折線圖與圓餅圖，原始碼位於 `src/chart/` 並納入主 bundle。
 - PivotChart 位於 `fabui.pivot.PivotChart`；直接監聽共用 PivotEngine 的 `updatedView`，只負責將 Pivot view 轉成既有 `fabui.Chart` 的 categories／series，不得重新彙總原始資料或複製 Chart renderer。
 - FabGrid 與 `fabui.EditBox` 的公開 editor 名稱統一為 `text`、`number`、`date`、`combo`、`color`；舊 `textbox`、`numberbox`、`datebox`、`combobox` 僅保留為相容別名，CSS class 名稱不必跟著改。EditBox 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class；editor 類型別名、共用 definitions、icon descriptor 與 Color palette／HSV／alpha 樣式契約必須和 FabGrid 一致。原四個 Box class 只保留為 EditBox 內部實作，原始碼統一放在 `src/editbox/` 的 `text-editbox.*`、`number-editbox.*`、`date-editbox.*`、`combo-editbox.*`，不得再建立分散的 `src/*box/` 目錄，也不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開。EditBox 使用獨立 entry、CSS 與 `dist/editbox.*`，不得併入 FabGrid core bundle。Tabs 仍只保留原始碼且不列入目前產品 roadmap。
-- EditBox jQuery wrapper 位於 `packages/fabeditbox-jquery`，以 `$.fn.fabeditbox` 對應 EditBox options、events、methods 與 lifecycle；使用獨立 build，不得依賴或載入 FabGrid core。
+- EditBox jQuery wrapper 位於 `packages/fabeditbox-jquery`，以 `$.fn.fabeditbox` 對應 EditBox options、events、methods 與 lifecycle；使用獨立 build，不得依賴或載入 FabGrid core。宣告式初始化使用 `.fab-editbox` 搭配安全解析的 EasyUI 風格 `data-options`，例如 `editor:'text',iconCls:'icon-search'`，並沿用 inline width／height；JavaScript options 優先於 HTML 設定。
 - `Window`、`Panel`、`Layout` 已列入後續元件 roadmap；樣式與 API 契約參考 jQuery EasyUI Material Teal，但不得加入 jQuery／EasyUI runtime 依賴。
 - 未來發佈任何 standalone 控件時，必須建立獨立 entry、CSS、demo、API 文件與驗證；不得併回 FabGrid core bundle。
 - 核心使用不綁定框架的 pure JavaScript。

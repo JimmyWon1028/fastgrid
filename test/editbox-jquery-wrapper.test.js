@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createFabEditBoxJQuery,
   isFabEditBoxPublicMethod,
+  parseFabEditBoxDataOptions,
   toFabEditBoxJQueryEventName
 } from '../packages/fabeditbox-jquery/src/fabeditbox-jquery.js';
 
@@ -117,6 +118,55 @@ test('FabEditBox jQuery helpers normalize events and reject private methods', fu
   assert.equal(toFabEditBoxJQueryEventName('showPanel'), 'showpanel');
   assert.equal(isFabEditBoxPublicMethod(instance, 'setValue'), true);
   assert.equal(isFabEditBoxPublicMethod(instance, '_privateMethod'), false);
+});
+
+test('FabEditBox jQuery safely parses EasyUI-style data-options', function() {
+  assert.deepEqual(
+    parseFabEditBoxDataOptions(
+      "editor:'text',iconCls:'icon-search',width:300,clearButton:true"
+    ),
+    {
+      editor: 'text',
+      iconCls: 'icon-search',
+      width: 300,
+      clearButton: true
+    }
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      parseFabEditBoxDataOptions("__proto__:{polluted:true}"),
+      '__proto__'
+    ),
+    false
+  );
+});
+
+test('FabEditBox jQuery parses declarative elements and inline dimensions', function() {
+  var $ = createJQueryStub();
+  var element = {
+    className: 'fab-editbox',
+    style: { width: '300px' },
+    getAttribute: function(name) {
+      return name === 'data-options' ?
+        "editor:'text',iconCls:'icon-search'" :
+        null;
+    }
+  };
+  var context = {
+    querySelectorAll: function() {
+      return [element];
+    }
+  };
+  var adapter = createFabEditBoxJQuery($, { EditBox: FakeEditBox });
+  adapter.parse(context);
+  assert.equal($(element).fabeditbox('option', 'editor'), 'text');
+  assert.equal($(element).fabeditbox('option', 'iconCls'), 'icon-search');
+  assert.equal($(element).fabeditbox('option', 'width'), '300px');
+  assert.deepEqual($(element).fabeditbox('option', 'icons'), [{
+    iconCls: 'icon-search',
+    align: 'right',
+    width: undefined
+  }]);
 });
 
 test('FabEditBox jQuery initializes each element and keeps setters chainable', function() {

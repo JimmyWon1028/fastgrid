@@ -53,7 +53,7 @@
   <h1>EditBox jQuery 開發版 Demo</h1>
   <p class="intro">使用 <code>$.fn.fabeditbox</code> 建立並操作 EditBox。</p>
 
-  <div class="form-row"><label for="edit-name">文字</label><input class="editbox-jquery-input" id="edit-name" value="王小明"></div>
+  <div class="form-row"><label for="edit-name">文字</label><input class="editbox-jquery-input fab-editbox" id="edit-name" value="王小明" data-options="editor:'text',iconCls:'icon-search'" style="width:300px"></div>
   <div class="form-row"><label for="edit-amount">數字</label><input class="editbox-jquery-input" id="edit-amount" value="1280.5"></div>
   <div class="form-row"><label for="edit-date">日期</label><input class="editbox-jquery-input" id="edit-date" value="2026/07/17"></div>
   <div class="form-row"><label for="edit-status">清單</label><input class="editbox-jquery-input" id="edit-status" value="active"></div>
@@ -72,7 +72,8 @@
     import EditBox from '../src/editbox/editbox.js?v=20260717-editbox-jquery-v1';
     import { createFabEditBoxJQuery } from '../packages/fabeditbox-jquery/src/fabeditbox-jquery.js?v=20260717-editbox-jquery-v1';
 
-    createFabEditBoxJQuery(window.jQuery, { EditBox: EditBox });
+    var adapter = createFabEditBoxJQuery(window.jQuery, { EditBox: EditBox });
+    adapter.parse(document);
     window.mountFabEditBoxJQueryDemo(window.jQuery);
   </script>
 </body>

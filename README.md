@@ -106,6 +106,14 @@ $('#amount').fabeditbox('setValue', 1280.5);
 var value = $('#amount').fabeditbox('getValue');
 ```
 
+也支援 EasyUI 風格的宣告式初始化：
+
+```html
+<input class="fab-editbox"
+  data-options="editor:'text',iconCls:'icon-search'"
+  style="width:300px">
+```
+
 ## 主要能力
 
 - `fabui.pivot.PivotEngine` 使用 `rowFields`、`columnFields`、`valueFields` 與 `filterFields` 將本機 Array 建立為 Pivot view；支援 Sum、Count、Average、Min、Max、日期 Year／Quarter／Month／Day groupBy、小計、總計、總計位置與 viewDefinition。Average 只計入有效數值，Date filter 的 viewDefinition 經 JSON 保存／還原後仍依日期值比對；重新設定 fields 時會用穩定 key 重綁目前 View 區域。

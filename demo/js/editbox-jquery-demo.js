@@ -5,11 +5,6 @@
     var $boxes = $('.editbox-jquery-input');
     var $output = $('#editbox-jquery-output');
 
-    $('#edit-name').fabeditbox({
-      editor: 'text',
-      width: 280,
-      clearButton: true
-    });
     $('#edit-amount').fabeditbox({
       editor: 'number',
       width: 280,

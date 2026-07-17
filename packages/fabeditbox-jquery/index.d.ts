@@ -5,10 +5,12 @@ export interface FabEditBoxJQueryPlugin {
   eventNamespace: string;
   events: string[];
   getInstance(element: Element): unknown;
+  parse(context?: ParentNode): JQuery;
   destroy(element: Element): void;
 }
 
 export declare function toFabEditBoxJQueryEventName(value: string): string;
+export declare function parseFabEditBoxDataOptions(value: string): object;
 export declare function isFabEditBoxPublicMethod(
   instance: unknown,
   name: string

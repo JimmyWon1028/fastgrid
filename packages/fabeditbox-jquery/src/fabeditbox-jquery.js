@@ -29,6 +29,163 @@ function assign(target) {
   return target;
 }
 
+function splitTopLevel(value, delimiter) {
+  var parts = [];
+  var start = 0;
+  var depth = 0;
+  var quote = '';
+  var escaped = false;
+  var index;
+  var character;
+  for (index = 0; index < value.length; index += 1) {
+    character = value.charAt(index);
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === quote) {
+        quote = '';
+      }
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+    } else if (character === '[' || character === '{' || character === '(') {
+      depth += 1;
+    } else if (character === ']' || character === '}' || character === ')') {
+      depth = Math.max(0, depth - 1);
+    } else if (character === delimiter && depth === 0) {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
+function findTopLevelColon(value) {
+  var parts = splitTopLevel(value, ':');
+  return parts.length > 1 ? parts[0].length : -1;
+}
+
+function unquote(value) {
+  var quote = value.charAt(0);
+  var body = value.slice(1, -1);
+  return body.replace(/\\(.)/g, function(match, character) {
+    if (character === 'n') return '\n';
+    if (character === 'r') return '\r';
+    if (character === 't') return '\t';
+    return character;
+  }).replace(new RegExp('\\\\' + quote, 'g'), quote);
+}
+
+function parseDataOptionValue(value) {
+  var text = String(value == null ? '' : value).trim();
+  var number;
+  if (!text) return '';
+  if (
+    (text.charAt(0) === '"' && text.charAt(text.length - 1) === '"') ||
+    (text.charAt(0) === "'" && text.charAt(text.length - 1) === "'")
+  ) {
+    return unquote(text);
+  }
+  if (text === 'true') return true;
+  if (text === 'false') return false;
+  if (text === 'null') return null;
+  if (/^-?(?:\d+|\d*\.\d+)$/.test(text)) {
+    number = Number(text);
+    return isNaN(number) ? text : number;
+  }
+  if (text.charAt(0) === '[' && text.charAt(text.length - 1) === ']') {
+    text = text.slice(1, -1).trim();
+    return text ? splitTopLevel(text, ',').map(parseDataOptionValue) : [];
+  }
+  if (text.charAt(0) === '{' && text.charAt(text.length - 1) === '}') {
+    return parseFabEditBoxDataOptions(text);
+  }
+  return text;
+}
+
+export function parseFabEditBoxDataOptions(value) {
+  var text = String(value == null ? '' : value).trim();
+  var options = {};
+  if (text.charAt(0) === '{' && text.charAt(text.length - 1) === '}') {
+    text = text.slice(1, -1);
+  }
+  splitTopLevel(text, ',').forEach(function(entry) {
+    var colon = findTopLevelColon(entry);
+    var key;
+    if (colon < 0) return;
+    key = entry.slice(0, colon).trim();
+    if (
+      (key.charAt(0) === '"' && key.charAt(key.length - 1) === '"') ||
+      (key.charAt(0) === "'" && key.charAt(key.length - 1) === "'")
+    ) {
+      key = unquote(key);
+    }
+    if (!key || key === '__proto__' || key === 'prototype' || key === 'constructor') {
+      return;
+    }
+    options[key] = parseDataOptionValue(entry.slice(colon + 1));
+  });
+  return options;
+}
+
+function hasClass(element, name) {
+  var className;
+  if (!element) return false;
+  if (element.classList && typeof element.classList.contains === 'function') {
+    return element.classList.contains(name);
+  }
+  className = String(element.className || '');
+  return (' ' + className + ' ').indexOf(' ' + name + ' ') >= 0;
+}
+
+function getDeclarativeEditor(element) {
+  if (hasClass(element, 'fab-textbox')) return 'text';
+  if (hasClass(element, 'fab-numberbox')) return 'number';
+  if (hasClass(element, 'fab-datebox')) return 'date';
+  if (hasClass(element, 'fab-combobox')) return 'combo';
+  if (hasClass(element, 'fab-colorbox')) return 'color';
+  return '';
+}
+
+function normalizeEasyUiOptions(options) {
+  var normalized = assign({}, options || {});
+  if (Object.prototype.hasOwnProperty.call(normalized, 'iconCls')) {
+    normalized.icons = normalized.iconCls ? [{
+      iconCls: normalized.iconCls,
+      align: normalized.iconAlign === 'left' ? 'left' : 'right',
+      width: normalized.iconWidth
+    }] : [];
+  }
+  return normalized;
+}
+
+function mergeEasyUiOptions(base, override) {
+  var merged = assign({}, base || {}, override || {});
+  if (
+    Object.prototype.hasOwnProperty.call(override || {}, 'icons') &&
+    !Object.prototype.hasOwnProperty.call(override || {}, 'iconCls')
+  ) {
+    delete merged.iconCls;
+  }
+  return normalizeEasyUiOptions(merged);
+}
+
+function getDeclarativeOptions(element) {
+  var options = parseFabEditBoxDataOptions(
+    element && element.getAttribute ? element.getAttribute('data-options') : ''
+  );
+  var editor = getDeclarativeEditor(element);
+  var style = element && element.style || {};
+  if (editor && options.editor == null) options.editor = editor;
+  if (options.width == null && style.width) options.width = style.width;
+  if (options.height == null && style.height) options.height = style.height;
+  return normalizeEasyUiOptions(options);
+}
+
 export function toFabEditBoxJQueryEventName(value) {
   return String(value || '').toLowerCase();
 }
@@ -91,8 +248,9 @@ export function createFabEditBoxJQuery($, fabui) {
   }
 
   function create(element, options, lifecycle) {
-    var instance = new fabui.EditBox(element, options || {});
-    instance.__fabeditboxJQueryOptions = assign({}, options || {});
+    var resolvedOptions = mergeEasyUiOptions(getDeclarativeOptions(element), options);
+    var instance = new fabui.EditBox(element, resolvedOptions);
+    instance.__fabeditboxJQueryOptions = assign({}, resolvedOptions);
     if (
       instance.__fabeditboxJQueryOptions.editor == null &&
       typeof instance.getEditorType === 'function'
@@ -131,7 +289,11 @@ export function createFabEditBoxJQuery($, fabui) {
   }
 
   function recreate(element, instance, options) {
-    var nextOptions = assign({}, getOptions(instance), options || {});
+    var currentOptions = mergeEasyUiOptions(
+      getDeclarativeOptions(element),
+      getOptions(instance)
+    );
+    var nextOptions = mergeEasyUiOptions(currentOptions, options);
     disposeInstance(instance);
     return create(element, nextOptions, false);
   }
@@ -185,13 +347,51 @@ export function createFabEditBoxJQuery($, fabui) {
     return result === undefined ? this : result;
   }
 
+  function findDeclarativeElements(context) {
+    var selector = [
+      '.fab-editbox',
+      '.fab-textbox',
+      '.fab-numberbox',
+      '.fab-datebox',
+      '.fab-combobox',
+      '.fab-colorbox'
+    ].join(',');
+    var elements = [];
+    if (context && context.matches && context.matches(selector)) elements.push(context);
+    if (context && context.querySelectorAll) {
+      elements = elements.concat(Array.prototype.slice.call(context.querySelectorAll(selector)));
+    }
+    return elements;
+  }
+
+  function parse(context) {
+    var root = context || (typeof document !== 'undefined' ? document : null);
+    var elements = findDeclarativeElements(root);
+    elements.forEach(function(element) {
+      if (!getInstance(element)) create(element, getDeclarativeOptions(element));
+    });
+    return $(elements);
+  }
+
   $.fn.fabeditbox = plugin;
+  $.fn.fabeditbox.parse = parse;
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        parse(document);
+      }, { once: true });
+    } else {
+      parse(document);
+    }
+  }
 
   return {
     dataKey: DATA_KEY,
     eventNamespace: EVENT_NAMESPACE,
     events: EDITBOX_EVENTS.slice(),
     getInstance: getInstance,
+    parse: parse,
     destroy: function(element) {
       destroy(element, getInstance(element));
     }
