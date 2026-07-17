@@ -8,6 +8,7 @@ FabUI 提供 pure JavaScript FabGrid、PivotPanel／PivotGrid／PivotChart、三
 
 ## 文件與 Demo
 
+- [Demo 索引](./demo/index.html)
 - [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/grid.html)
 - [線上 TreeGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/treegrid.html)
 - [線上 Grid / Grid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-grid.html)
