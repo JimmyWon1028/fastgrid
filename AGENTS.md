@@ -48,11 +48,11 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 - `fabui` 是最上層 UI namespace，Browser global 與 ES module 公開入口目前輸出 FabGrid、Chart 與其必要定義。
 - Browser global 與 ES module 皆以 `fabui.version` 公開 `YYYY.M.D` 格式的發佈日期版本，每次 build 依本機當天日期自動產生。
 - FabGrid 與 EditBox 共用的 editor 定義位於 `src/editbox/editbox-definitions.js`，由 core bundle 的 `fabui.editorDefinitions` 與獨立 EditBox 的 `EditBox.editorDefinitions` 公開；不可在 Grid 內維護多套數字／日期清理、格式化或 editor class。`src/editor/editor-definitions.js` 只保留舊 import path 相容入口。
-- FabGrid 年月編輯統一使用 `datebox`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不另外定義年月專用 editor。FabGrid 與獨立 EditBox 的 DateBox `autoUnmask` 預設皆為 `true`，複製日期／年月內容時必須移除遮罩字面值；只有明確設定 `autoUnmask: false` 時才保留遮罩。
+- FabGrid 年月編輯統一使用 `date`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不另外定義年月專用 editor。FabGrid 與獨立 EditBox 的 DateBox `autoUnmask` 預設皆為 `true`，複製日期／年月內容時必須移除遮罩字面值；只有明確設定 `autoUnmask: false` 時才保留遮罩。
 - FabGrid 位於 `fabui.FabGrid`；`src/fabui.js` 是入口，`src/grid/fabgrid.js` 是 Grid 子模組。
 - Chart 位於 `fabui.Chart`；使用 pure JavaScript SVG rendering，只支援直條圖、橫條圖、折線圖與圓餅圖，原始碼位於 `src/chart/` 並納入主 bundle。
 - PivotChart 位於 `fabui.pivot.PivotChart`；直接監聽共用 PivotEngine 的 `updatedView`，只負責將 Pivot view 轉成既有 `fabui.Chart` 的 categories／series，不得重新彙總原始資料或複製 Chart renderer。
-- `fabui.EditBox` 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class，使用 `editor` 選項切換 textbox、numberbox、datebox、combobox、color 五種模式；editor 類型別名、共用 definitions、icon descriptor 與 Color palette／HSV／alpha 樣式契約必須和 FabGrid 一致。原四個 Box class 只保留為 EditBox 內部實作，原始碼統一放在 `src/editbox/` 的 `text-editbox.*`、`number-editbox.*`、`date-editbox.*`、`combo-editbox.*`，不得再建立分散的 `src/*box/` 目錄，也不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開。EditBox 使用獨立 entry、CSS 與 `dist/editbox.*`，不得併入 FabGrid core bundle。Tabs 仍只保留原始碼且不列入目前產品 roadmap。
+- FabGrid 與 `fabui.EditBox` 的公開 editor 名稱統一為 `text`、`number`、`date`、`combo`、`color`；舊 `textbox`、`numberbox`、`datebox`、`combobox` 僅保留為相容別名，CSS class 名稱不必跟著改。EditBox 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class；editor 類型別名、共用 definitions、icon descriptor 與 Color palette／HSV／alpha 樣式契約必須和 FabGrid 一致。原四個 Box class 只保留為 EditBox 內部實作，原始碼統一放在 `src/editbox/` 的 `text-editbox.*`、`number-editbox.*`、`date-editbox.*`、`combo-editbox.*`，不得再建立分散的 `src/*box/` 目錄，也不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開。EditBox 使用獨立 entry、CSS 與 `dist/editbox.*`，不得併入 FabGrid core bundle。Tabs 仍只保留原始碼且不列入目前產品 roadmap。
 - `Window`、`Panel`、`Layout` 已列入後續元件 roadmap；樣式與 API 契約參考 jQuery EasyUI Material Teal，但不得加入 jQuery／EasyUI runtime 依賴。
 - 未來發佈任何 standalone 控件時，必須建立獨立 entry、CSS、demo、API 文件與驗證；不得併回 FabGrid core bundle。
 - 核心使用不綁定框架的 pure JavaScript。
@@ -98,8 +98,8 @@ fabgrid-jquery
 - 欄位拖曳、欄寬調整、雙擊 header 分隔線 AutoFit、欄位顯示切換、footer aggregate。
 - CSV 與 Excel 匯出，以及 Excel hidden columns、格式、凍結窗格與 autoFilter。
 - JSON API 使用 `getJson(options)`、`exportJson(filename, options)` 與 `importJson(source)`；預設匯出完整 `itemsSource` 以保留 TreeGrid 階層，只有 `viewOnly === true` 才匯出排除合成群組列的目前 view。
-- `textbox`、`numberbox`、`datebox`、`combobox`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。
-- 欄位搜尋列遇到 `datebox`、`combobox`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
+- `text`、`number`、`date`、`combo`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。
+- 欄位搜尋列遇到 `date`、`combo`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
 - Header 漏斗採互斥的兩套欄位篩選：`showSearchRow: true` 使用原 Search Row 運算子，`false` 使用 Excel-like 值篩選；每次切換模式先清除另一套欄位條件，右下角 Quick Search 保留。
 - Filterable Header 文字必須垂直置中，漏斗 icon 疊在右上方；icon 必須維持獨立且高於文字的 hit area，點擊只開啟篩選選單，不得觸發排序或欄位拖曳；Header 右邊界的 resize handle 必須高於 filter icon，確保拖曳調寬與雙擊 AutoFit 可用。
 - `allowFiltering` 是 Search Row 與 Excel-like 欄位篩選的共用開關；設為 `false` 時必須隱藏兩套欄位篩選 UI、清除兩套欄位條件，但保留右下角 Quick Search。

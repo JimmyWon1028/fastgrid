@@ -1891,7 +1891,7 @@ export function installFabGridView(FabGrid, context) {
       text = column.aggregate ? this.formatAggregateValue(value, column, item.items) : '';
       return text == null ? '' : String(text);
     }
-    if (editorConfig.type === 'combobox') {
+    if (editorConfig.type === 'combo') {
       text = getComboboxTextByValue(value, editorConfig);
     }
     if (column.dataType === 'number' && value != null && value !== '' &&

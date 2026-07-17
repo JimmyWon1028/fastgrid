@@ -2,7 +2,7 @@ export function createTextBoxFactory(editorDefinitions) {
   'use strict';
 
   editorDefinitions = editorDefinitions || {};
-  var editorDefinition = editorDefinitions.textbox || null;
+  var editorDefinition = editorDefinitions.text || editorDefinitions.textbox || null;
 
   var defaults = {
     width: 200,

@@ -466,15 +466,15 @@ export function createEditorDefinitions() {
     return normalized || text;
   }
 
-  return {
-    textbox: {
-      type: 'textbox',
+  var definitions = {
+    text: {
+      type: 'text',
       className: 'textbox-f fg-editor-textbox',
       inputMode: 'text',
       normalize: function(value) { return value == null ? '' : String(value); }
     },
-    numberbox: {
-      type: 'numberbox',
+    number: {
+      type: 'number',
       className: 'textbox-f numberbox-f fg-editor-numberbox',
       inputMode: 'decimal',
       normalizePrecision: normalizePrecision,
@@ -486,14 +486,14 @@ export function createEditorDefinitions() {
       getCopyText: stripNumberFormatting,
       isTextAllowed: isNumberTextAllowed
     },
-    combobox: {
-      type: 'combobox',
+    combo: {
+      type: 'combo',
       className: 'textbox-f combobox-f fg-editor-combobox',
       inputMode: 'text',
       normalize: function(value) { return value == null ? '' : String(value); }
     },
-    datebox: {
-      type: 'datebox',
+    date: {
+      type: 'date',
       className: 'textbox-f datebox-f fg-editor-datebox',
       inputMode: 'numeric',
       mask: '9999/99/99',
@@ -528,4 +528,9 @@ export function createEditorDefinitions() {
       }
     }
   };
+  definitions.textbox = definitions.text;
+  definitions.numberbox = definitions.number;
+  definitions.datebox = definitions.date;
+  definitions.combobox = definitions.combo;
+  return definitions;
 }

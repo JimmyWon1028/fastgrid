@@ -6,7 +6,7 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
   }
 
   editorDefinitions = editorDefinitions || {};
-  var editorDefinition = editorDefinitions.numberbox || null;
+  var editorDefinition = editorDefinitions.number || editorDefinitions.numberbox || null;
 
   var numberDefaults = {
     min: null,

@@ -15,7 +15,7 @@
     }
 
     boxes.name = new EditBox('#edit-name', {
-      editor: 'textbox',
+      editor: 'text',
       width: 280,
       prompt: '請輸入姓名',
       icons: [{
@@ -30,7 +30,7 @@
       clearButton: true
     });
     boxes.amount = new EditBox('#edit-amount', {
-      editor: 'numberbox',
+      editor: 'number',
       width: 280,
       min: 0,
       precision: 2,
@@ -38,21 +38,21 @@
       prefix: '$'
     });
     boxes.date = new EditBox('#edit-date', {
-      editor: 'datebox',
+      editor: 'date',
       width: 280,
       locale: 'zh-TW',
       mask: '9999/99/99',
       autoUnmask: true
     });
     boxes.month = new EditBox('#edit-month', {
-      editor: 'datebox',
+      editor: 'date',
       width: 280,
       locale: 'zh-TW',
       mask: '9999/99',
       autoUnmask: true
     });
     boxes.status = new EditBox('#edit-status', {
-      editor: 'combobox',
+      editor: 'combo',
       width: 280,
       editable: true,
       limitToList: true,

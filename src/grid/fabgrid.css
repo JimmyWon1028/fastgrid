@@ -1475,6 +1475,7 @@
   opacity: 1;
 }
 
+.fg-editor-trigger-combo,
 .fg-editor-trigger-combobox,
 .fg-editor-trigger-color {
   background-image: none;
@@ -1484,6 +1485,7 @@
   background-image: none;
 }
 
+.fg-editor-trigger-combo::before,
 .fg-editor-trigger-combobox::before,
 .fg-editor-trigger-color::before {
   display: block;

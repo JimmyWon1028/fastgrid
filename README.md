@@ -105,7 +105,7 @@ jQuery Demo 分成以下兩層：
 - `childItemsPath` TreeGrid 模式、節點收合／展開、階層鍵盤導覽、同層排序、保留祖先路徑的篩選，以及收合／篩選後維持原始列號。樹欄所有資料 cell 都可按滑鼠右鍵開啟單一狀態項目，依目前狀態切換整棵樹的全部展開／全部疊合。
 - `allowDragging: 'Rows'` 支援一般 Grid 列重排、跨 Grid 移動、跨 Grid 移入 TreeGrid，以及 TreeGrid `before`／`inside`／`after` 節點上下階；開發範例為 `demo/dev-grid-grid.html` 與 `demo/dev-grid-treegrid.html`，其他範例為 `demo/grid-grid.html`、`demo/grid-grid-vue2.html`、`demo/grid-treegrid.html` 與 `demo/grid-treegrid-vue2.html`。
 - 欄位 Header Row 右鍵功能表，可切換搜尋列、清除所有篩選、從「列號」下層選擇關閉／顯示列號／只顯示 cell、匯出 Excel／CSV 與進入或離開 Grid fullscreen。
-- Grid 右鍵選單、Filter、欄位選擇器與 datebox／combobox／color editor popup，以及 PivotPanel 排序／彙總 popup，都支援按 `Escape` 或點擊 popup 外部關閉；點擊 popup 內部或 trigger 不會誤關閉，關閉也不會提交尚未確認的內容。
+- Grid 右鍵選單、Filter、欄位選擇器與 date／combo／color editor popup，以及 PivotPanel 排序／彙總 popup，都支援按 `Escape` 或點擊 popup 外部關閉；點擊 popup 內部或 trigger 不會誤關閉，關閉也不會提交尚未確認的內容。
 - 左右凍結欄、可由 `setRowHeaderWidth(width)` runtime 調整的列號欄、欄位顯示切換、footer aggregate 與 1 至 3 階群組；body 凍結分隔線只顯示於實際資料列。
 - 本機資料或 `remote: true` 遠端分頁、排序與搜尋；`allowFiltering` 是 Search Row 與 Excel-like 欄位篩選的共用開關，關閉時會清除兩套欄位條件且只保留右下角 Quick Search；啟用後由 `showSearchRow` 選擇 Search Row 或 Excel-like 值篩選，兩套不混用，Excel-like popup 可按 `Escape` 關閉且不套用草稿。
 - Filterable Header 文字維持垂直置中，漏斗 icon 疊在右上方；filter icon 使用獨立 hit area，點擊只開啟篩選選單，不觸發欄位排序，Header 右邊界仍保留較高層級的欄寬調整 hit area。
@@ -117,8 +117,8 @@ jQuery Demo 分成以下兩層：
 - `g.rows` 與 `selectedRows` 回傳 `fabui.FabGrid.Row`／`fabui.FabGrid.GroupRow` instance；`GroupRow` 繼承 `Row`，可用來判斷一般資料列與群組列。
 - `fabui.Control.getControl(elementOrSelector)` 可用 host element 或 `'#' + grdId` 取得既有 FabGrid instance；找不到或 Grid 已 `dispose()` 時回傳 `null`。
 - `grid.addEventListener(target, type, fn, capture?, passive?)` 提供 Wijmo-compatible managed DOM event，`dispose()` 時自動解除；欄位拖曳、欄寬調整、CellRange、捲軸與資料列拖曳使用的 document pointer listener 只在互動期間綁定。`grid.hitTest(e)` 以 `fabui.CellType`、panel、row／col 與 `isSearchRow` 辨識資料 cell、Header、Search Row、列頭及 Footer。
-- `textbox`、`numberbox`、`datebox`、`combobox`、`color` editor，以及同步／非同步欄位驗證；`datebox` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup，且 `autoUnmask` 預設為 `true`，複製時移除遮罩；`color` 可輸入 hex 或標準 CSS 顏色名稱，名稱提交後保留原文字，並提供 60 色 palette、飽和度／明度、色相與透明度控制。獨立 EditBox 與 FabGrid 使用相同 editor 類型、別名、共用 definitions 與 icon descriptor 契約。
-- 欄位搜尋列會為 `datebox`、`combobox`、`color` 顯示對應下拉 panel；搜尋輸入僅建立 filter，不執行 cell validation。
+- `text`、`number`、`date`、`combo`、`color` editor，以及同步／非同步欄位驗證；舊 `textbox`、`numberbox`、`datebox`、`combobox` 保留為相容別名。`date` 在 mask 為 `9999/99` 或 `9999-99` 時使用年月 popup，且 `autoUnmask` 預設為 `true`，複製時移除遮罩；`color` 可輸入 hex 或標準 CSS 顏色名稱，名稱提交後保留原文字，並提供 60 色 palette、飽和度／明度、色相與透明度控制。獨立 EditBox 與 FabGrid 使用相同 editor 類型、別名、共用 definitions 與 icon descriptor 契約。
+- 欄位搜尋列會為 `date`、`combo`、`color` 顯示對應下拉 panel；搜尋輸入僅建立 filter，不執行 cell validation。
 - JSON 匯入／匯出與 CSV、XLSX 匯出；JSON 預設完整 round-trip `itemsSource`，Excel 支援凍結窗格、篩選、群組、footer、格式與隱藏欄，匯出標題跟隨當下 header／binding 顯示模式。
 - `en`、`zh-TW`、`zh-CN` locale 檔案與多組內建主題。
 

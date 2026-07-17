@@ -1,11 +1,11 @@
-import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v20';
-import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v20';
-import { createTextBoxFactory } from './text-editbox.js?v=20260717-editbox-v20';
-import { createNumberBoxFactory } from './number-editbox.js?v=20260717-editbox-v20';
-import { createDateBoxFactory } from './date-editbox.js?v=20260717-editbox-v20';
-import { createComboBoxFactory } from './combo-editbox.js?v=20260717-editbox-v20';
+import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v21';
+import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v21';
+import { createTextBoxFactory } from './text-editbox.js?v=20260717-editbox-v21';
+import { createNumberBoxFactory } from './number-editbox.js?v=20260717-editbox-v21';
+import { createDateBoxFactory } from './date-editbox.js?v=20260717-editbox-v21';
+import { createComboBoxFactory } from './combo-editbox.js?v=20260717-editbox-v21';
 
-var EDITOR_TYPES = ['textbox', 'numberbox', 'datebox', 'combobox', 'color'];
+var EDITOR_TYPES = ['text', 'number', 'date', 'combo', 'color'];
 
 function assign(target) {
   var index;
@@ -28,9 +28,10 @@ function resolveElement(element) {
 
 function normalizeEditorType(value) {
   var type = String(value == null ? '' : value).toLowerCase();
-  if (type === 'number' || type === 'numeric') return 'numberbox';
-  if (type === 'date' || type === 'calendar') return 'datebox';
-  if (type === 'combo' || type === 'select' || type === 'dropdown') return 'combobox';
+  if (type === 'text' || type === 'textbox') return 'text';
+  if (type === 'number' || type === 'numberbox' || type === 'numeric') return 'number';
+  if (type === 'date' || type === 'datebox' || type === 'calendar') return 'date';
+  if (type === 'combo' || type === 'combobox' || type === 'select' || type === 'dropdown') return 'combo';
   if (type === 'colour' || type === 'colorbox' || type === 'colourbox') return 'color';
   return EDITOR_TYPES.indexOf(type) >= 0 ? type : '';
 }
@@ -46,12 +47,12 @@ function inferEditorType(element, options) {
   var inputType;
   if (explicit) return explicit;
   if (normalizeEditorType(options.type)) return normalizeEditorType(options.type);
-  if (element && element.tagName === 'SELECT') return 'combobox';
+  if (element && element.tagName === 'SELECT') return 'combo';
   inputType = element && element.getAttribute ? String(element.getAttribute('type') || '').toLowerCase() : '';
-  if (inputType === 'number') return 'numberbox';
-  if (inputType === 'date' || inputType === 'month') return 'datebox';
+  if (inputType === 'number') return 'number';
+  if (inputType === 'date' || inputType === 'month') return 'date';
   if (inputType === 'color') return 'color';
-  return 'textbox';
+  return 'text';
 }
 
 export function createEditBoxFactory(editorDefinitions) {
@@ -62,10 +63,10 @@ export function createEditBoxFactory(editorDefinitions) {
   var ComboBox = createComboBoxFactory(TextBox, definitions);
   var ColorEditBox = createColorEditBoxFactory(TextBox, definitions);
   var factories = {
-    textbox: TextBox,
-    numberbox: NumberBox,
-    datebox: DateBox,
-    combobox: ComboBox,
+    text: TextBox,
+    number: NumberBox,
+    date: DateBox,
+    combo: ComboBox,
     color: ColorEditBox
   };
 
@@ -88,8 +89,8 @@ export function createEditBoxFactory(editorDefinitions) {
     if (!factory) {
       throw new Error('Unsupported fabui.EditBox editor: ' + String(options.editor || options.type || ''));
     }
-    if (this._source.tagName === 'SELECT' && this._editorType !== 'combobox') {
-      throw new Error('fabui.EditBox select elements require editor "combobox".');
+    if (this._source.tagName === 'SELECT' && this._editorType !== 'combo') {
+      throw new Error('fabui.EditBox select elements require editor "combo".');
     }
     childOptions = assign({}, options);
     delete childOptions.editor;
@@ -186,7 +187,7 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.prototype.select = function(value) {
     if (typeof this._control.select !== 'function') {
-      throw new Error('fabui.EditBox select() requires editor "combobox".');
+      throw new Error('fabui.EditBox select() requires editor "combo".');
     }
     this._control.select(value);
     return this;
@@ -194,7 +195,7 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.prototype.unselect = function(value) {
     if (typeof this._control.unselect !== 'function') {
-      throw new Error('fabui.EditBox unselect() requires editor "combobox".');
+      throw new Error('fabui.EditBox unselect() requires editor "combo".');
     }
     this._control.unselect(value);
     return this;
@@ -202,7 +203,7 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.prototype.scrollTo = function(value) {
     if (typeof this._control.scrollTo !== 'function') {
-      throw new Error('fabui.EditBox scrollTo() requires editor "combobox".');
+      throw new Error('fabui.EditBox scrollTo() requires editor "combo".');
     }
     this._control.scrollTo(value);
     return this;
@@ -210,7 +211,7 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.prototype.setDate = function(value, silent) {
     if (typeof this._control.setDate !== 'function') {
-      throw new Error('fabui.EditBox setDate() requires editor "datebox".');
+      throw new Error('fabui.EditBox setDate() requires editor "date".');
     }
     this._control.setDate(value, silent);
     return this;
@@ -283,7 +284,7 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.prototype.loadData = function(data, silent) {
     if (typeof this._control.loadData !== 'function') {
-      throw new Error('fabui.EditBox loadData() requires editor "combobox".');
+      throw new Error('fabui.EditBox loadData() requires editor "combo".');
     }
     this._control.loadData(data, silent);
     return this;
@@ -291,7 +292,7 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.prototype.reload = function(urlOrParams) {
     if (typeof this._control.reload !== 'function') {
-      throw new Error('fabui.EditBox reload() requires editor "combobox".');
+      throw new Error('fabui.EditBox reload() requires editor "combo".');
     }
     this._control.reload(urlOrParams);
     return this;
@@ -300,7 +301,7 @@ export function createEditBoxFactory(editorDefinitions) {
   EditBox.prototype.cloneFrom = function(from) {
     var source = from instanceof EditBox ? from._control : from;
     if (typeof this._control.cloneFrom !== 'function') {
-      throw new Error('fabui.EditBox cloneFrom() requires editor "datebox".');
+      throw new Error('fabui.EditBox cloneFrom() requires editor "date".');
     }
     this._control.cloneFrom(source);
     return this;

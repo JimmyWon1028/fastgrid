@@ -194,7 +194,7 @@ const columns = [
 | `cellTemplate` | `string \| ((ctx, cell) => string \| null)` | 產生 body cell HTML；預設為 `null`。函式也可直接修改 `cell` 並回傳 `null`。 |
 | `footer` / `footerFormatter` | `string \| function` | 自訂 footer 文字或格式化。 |
 | `aggregate` | `'sum' \| 'avg' \| 'average' \| 'count' \| 'min' \| 'max' \| function` | Footer 與群組列的聚合計算。 |
-| `editor` | `string \| object` | `textbox`、`numberbox`、`datebox`、`combobox` 或 `color`。 |
+| `editor` | `string \| object` | `text`、`number`、`date`、`combo` 或 `color`；舊 `*box` 名稱保留為相容別名。 |
 | `thousandsSeparator` | `boolean` | number 顯示千分位。 |
 | `precision` | `number` | number 顯示與提交時的小數位。 |
 | `mask` | `string` | 文字／日期遮罩；支援 `9`、`A`、`*`。 |
@@ -312,7 +312,7 @@ grid.columns[idx].cellTemplate = (ctx, cell) => {
 
 Excel-like 篩選 popup 開啟時可按 `Escape` 關閉；尚未按「套用」的選取變更不會寫入篩選條件。
 
-所有 Grid popup（右鍵選單、Filter、欄位選擇器與 datebox／combobox／color editor panel）都會在點擊外部時關閉；點擊 popup 內部或其 trigger 不會誤關閉。若同時存在多個 popup，點進其中一個會關閉其餘 popup。關閉 popup 不會自動套用、清除或提交尚未確認的內容。
+所有 Grid popup（右鍵選單、Filter、欄位選擇器與 date／combo／color editor panel）都會在點擊外部時關閉；點擊 popup 內部或其 trigger 不會誤關閉。若同時存在多個 popup，點進其中一個會關閉其餘 popup。關閉 popup 不會自動套用、清除或提交尚未確認的內容。
 
 ### 分頁、遠端載入與選取
 
@@ -597,7 +597,7 @@ var columns = [
     header: '金額',
     dataType: 'number',
     align: 'right',
-    editor: 'numberbox',
+    editor: 'number',
     thousandsSeparator: true,
     precision: 2
   },
@@ -605,7 +605,7 @@ var columns = [
     binding: 'status',
     header: '狀態',
     editor: {
-      type: 'combobox',
+      type: 'combo',
       valueField: 'id',
       textField: 'descr',
       limitToList: true,
@@ -627,10 +627,10 @@ var columns = [
 ];
 ```
 
-- `textbox`：一般文字輸入。
-- `numberbox`：數字、千分位與 `precision`。
-- `datebox`：日期面板與日期遮罩。
-- `combobox`：下拉選項；可配合 `limitToList` 限制輸入值。
+- `text`：一般文字輸入。
+- `number`：數字、千分位與 `precision`。
+- `date`：日期面板與日期遮罩。
+- `combo`：下拉選項；可配合 `limitToList` 限制輸入值。
 - `color`：色票與 HSV 顏色面板；支援 `#RGB`、`#RGBA`、`#RRGGBB`、`#RRGGBBAA` 與標準 CSS 顏色名稱。名稱不分大小寫，可直接預覽並保留原輸入文字，例如 `red` 提交後仍為 `red`；hex 短格式仍會正規化，例如 `#f00` 成為 `#ff0000`。`palette` 可自訂色票，`showAlpha: false` 可隱藏透明度控制。
 
 雙擊 cell、按 `Enter` 或 `F2` 可開始編輯；`Enter` / `Tab` 提交並移至下一個可編輯欄，`Escape` 取消。

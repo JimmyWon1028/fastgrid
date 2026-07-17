@@ -2,6 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createEditorDefinitions } from '../src/editor/editor-definitions.js';
 
+test('editor definitions expose simplified names with legacy aliases', function() {
+  var definitions = createEditorDefinitions();
+  assert.equal(definitions.text, definitions.textbox);
+  assert.equal(definitions.number, definitions.numberbox);
+  assert.equal(definitions.date, definitions.datebox);
+  assert.equal(definitions.combo, definitions.combobox);
+  assert.equal(definitions.text.type, 'text');
+  assert.equal(definitions.number.type, 'number');
+  assert.equal(definitions.date.type, 'date');
+  assert.equal(definitions.combo.type, 'combo');
+});
+
 test('color editor normalizes supported hex formats', function() {
   var color = createEditorDefinitions().color;
 

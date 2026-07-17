@@ -95,7 +95,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.editing = { row: row, col: col, item: item, original: value, editor: this.editorConfig };
     this.configureEditor(column);
     this.editor.value = this.getEditorText(value, column);
-    if (this.editorConfig.type === 'combobox') {
+    if (this.editorConfig.type === 'combo') {
       this.editing.comboboxValue = value;
     }
     if (this.editorConfig.type === 'color') {
@@ -115,7 +115,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     var type = config.type;
     var definition = editorDefinitions[type] || null;
     var editorClassName = definition && definition.className ? definition.className : 'textbox-f fg-editor-' + type + ' ' + type + '-f';
-    var hasBuiltInEditorIcon = isDateLikeEditorType(type) || type === 'combobox' || type === 'color';
+    var hasBuiltInEditorIcon = isDateLikeEditorType(type) || type === 'combo' || type === 'color';
     var iconConfigs = hasBuiltInEditorIcon ? [] : getEditorIconConfigs(config);
     var hasEditorIcons = hasBuiltInEditorIcon || iconConfigs.length > 0;
     this.editorConfig = config;
@@ -131,7 +131,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (!isDateLikeEditorType(type)) {
       this.hideDateboxPanel();
     }
-    if (type !== 'combobox') {
+    if (type !== 'combo') {
       this.hideComboboxPanel();
     }
     if (type !== 'color') {
@@ -179,13 +179,13 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (mask) {
       return formatMaskText(value, getMaskOptions(column, mask));
     }
-    if (config.type === 'numberbox') {
+    if (config.type === 'number') {
       return formatNumberEditorText(value, shouldUseThousandsSeparator(column), getNumberPrecision(column));
     }
-    if (config.type === 'datebox') {
+    if (config.type === 'date') {
       return formatDateboxEditorText(value, config, column);
     }
-    if (config.type === 'combobox') {
+    if (config.type === 'combo') {
       return getComboboxTextByValue(value, config);
     }
     if (config.type === 'color') {
@@ -217,7 +217,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       }
       return !isDigitKey(key);
     }
-    if (config.type === 'numberbox') {
+    if (config.type === 'number') {
       return !isNumberEditorTextAllowed(this.editor, key);
     }
     return false;
@@ -293,7 +293,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       event.preventDefault();
       return;
     }
-    if (config.type === 'numberbox' && !isNumberEditorTextAllowed(this.editor, text)) {
+    if (config.type === 'number' && !isNumberEditorTextAllowed(this.editor, text)) {
       event.preventDefault();
     }
   };
@@ -333,7 +333,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       }
       return;
     }
-    if (config.type === 'datebox') {
+    if (config.type === 'date') {
       formatted = sanitizeDateEditorText(this.editor.value);
       if (formatted !== this.editor.value) {
         this.editor.value = formatted;
@@ -342,7 +342,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       this.syncDateboxPanelToEditor();
       return;
     }
-    if (config.type === 'combobox') {
+    if (config.type === 'combo') {
       if (this.editing) {
         this.editing.comboboxValue = null;
       }
@@ -353,7 +353,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       }
       return;
     }
-    if (config.type === 'numberbox') {
+    if (config.type === 'number') {
       formatted = formatNumberEditorText(sanitizeNumberEditorText(this.editor.value), shouldUseThousandsSeparator(column));
       if (formatted !== this.editor.value) {
         this.editor.value = formatted;
@@ -374,7 +374,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return;
     }
     column = this.visibleColumns[edit.col];
-    if (column && getColumnEditorConfig(column).type === 'numberbox') {
+    if (column && getColumnEditorConfig(column).type === 'number') {
       start = this.editor.selectionStart;
       end = this.editor.selectionEnd;
       if (start == null || end == null || start === end) {
@@ -455,7 +455,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       this.editor.focus();
       return;
     }
-    if (this.editorConfig.type === 'combobox') {
+    if (this.editorConfig.type === 'combo') {
       if (this.comboboxPanel.style.display === 'block') {
         this.hideComboboxPanel();
       } else {
@@ -634,7 +634,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.handleComboboxKeyDown = function(event) {
-    if (!this.editorConfig || this.editorConfig.type !== 'combobox') {
+    if (!this.editorConfig || this.editorConfig.type !== 'combo') {
       return false;
     }
     if (event.key === 'ArrowDown' && event.altKey) {
@@ -851,7 +851,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     isScrollableEditor = edit.col >= this.frozenColumns && edit.col < this.scrollableColumnEnd;
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
     this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
-    if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combobox' || this.editorConfig.type === 'color' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
+    if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combo' || this.editorConfig.type === 'color' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
       this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - 2) + 'px';
       this.editorIconHost.style.top = top + 'px';
       this.editorIconHost.style.height = height + 'px';
@@ -859,7 +859,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (this.editorConfig && isDateLikeEditorType(this.editorConfig.type)) {
       this.positionDateboxPanel(left, top + height, width);
     }
-    if (this.editorConfig && this.editorConfig.type === 'combobox') {
+    if (this.editorConfig && this.editorConfig.type === 'combo') {
       this.positionComboboxPanel(left, top + height, width);
     }
     if (this.editorConfig && this.editorConfig.type === 'color') {
@@ -905,7 +905,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.showComboboxPanel = function(showAll) {
-    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'combobox') {
+    if (!this.editing || !this.editorConfig || this.editorConfig.type !== 'combo') {
       return;
     }
     this.comboboxTarget = {
@@ -924,7 +924,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
 
   FabGrid.prototype.showHeaderSearchComboboxPanel = function(input, column, showAll) {
     var config = getColumnEditorConfig(column);
-    if (!input || !column || !config || config.type !== 'combobox') {
+    if (!input || !column || !config || config.type !== 'combo') {
       return;
     }
     this.comboboxTarget = {
@@ -1341,7 +1341,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   FabGrid.prototype.handleComboboxMouseDown = function(event) {
     var option = closest(event.target, 'fg-combobox-option');
     var index;
-    if (!option || !this.comboboxTarget || !this.comboboxTarget.config || this.comboboxTarget.config.type !== 'combobox') {
+    if (!option || !this.comboboxTarget || !this.comboboxTarget.config || this.comboboxTarget.config.type !== 'combo') {
       return;
     }
     event.preventDefault();
@@ -1889,14 +1889,14 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (!config) {
       return null;
     }
-    if (config.type === 'combobox' && options.limitToList === true) {
+    if (config.type === 'combo' && options.limitToList === true) {
       text = value == null ? '' : String(value).trim();
       if (text === '' || isComboboxValueInList(value, config)) {
         return null;
       }
       message = grid ? grid.getText('validation.comboboxLimitToList') : 'Please select a valid item';
       return {
-        type: 'combobox',
+        type: 'combo',
         message: options.limitToListMessage || message,
         value: value
       };
@@ -1913,7 +1913,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       };
     }
     isYearMonth = isYearMonthDateboxConfig(config, column);
-    if (config.type !== 'datebox') {
+    if (config.type !== 'date') {
       return null;
     }
     text = value == null ? '' : String(value).trim();
@@ -2081,10 +2081,10 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (mask) {
       return getMaskDataValue(this.editor.value, getMaskOptions(column, mask));
     }
-    if (config.type === 'datebox') {
+    if (config.type === 'date') {
       return getDateboxDataValue(this.editor.value, config, this.editing);
     }
-    if (config.type === 'combobox') {
+    if (config.type === 'combo') {
       return getComboboxDataValue(this.editor.value, config, this.editing);
     }
     if (config.type === 'color') {

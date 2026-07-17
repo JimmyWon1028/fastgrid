@@ -63,7 +63,7 @@
             thousandsSeparator: true,
             precision: 2,
             editor: {
-              type: 'numberbox'
+              type: 'number'
             }
           }
         ];
@@ -75,7 +75,7 @@
             width: 110,
             dataType: i === 6 || i === 8 ? 'date' : 'string',
             editor: i === 4 ? {
-              type: 'combobox',
+              type: 'combo',
               valueField: 'id',
               textField: 'descr',
               data: [
@@ -83,7 +83,7 @@
                 { id: 'BB', descr: 'Beta' }
               ]
             } : i === 9 ? {
-              type: 'combobox',
+              type: 'combo',
               valueField: 'id',
               textField: 'descr',
               limitToList: true,
@@ -94,7 +94,7 @@
                 { id: '2', descr: '加工' }
               ]
             } : i === 10 ? {
-              type: 'textbox',
+              type: 'text',
               icons: [
                 {
                   iconCls: 'icon-add',
@@ -122,7 +122,7 @@
                 }
               ]
             } : i === 6 ? {
-              type: 'datebox',
+              type: 'date',
               icons: [
                 {
                   iconCls: 'icon-remove',
@@ -131,7 +131,7 @@
                   }
                 }
               ]
-            } : i === 5 || i === 7 || i === 8 ? 'datebox' : null,
+            } : i === 5 || i === 7 || i === 8 ? 'date' : null,
             mask: i === 5 || i === 7 ? '9999/99/99' : i === 8 ? '9999-99-99' : '',
             autoUnmask: i === 5
           });
@@ -1076,7 +1076,7 @@
               grid.getClipString() === '20260808';
             grid.startEditing(0, 4);
             var textDateDateboxEditorWorks = grid.activeEditor &&
-              grid.activeEditor.getAttribute('data-editor-type') === 'datebox' &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'date' &&
               grid.activeEditor.value === '2026/08/08';
             var textDateDateboxPanelHiddenOnStartWorks =
               window.getComputedStyle(document.querySelector('.fg-datebox-panel')).display === 'none';
@@ -1116,7 +1116,7 @@
             var dashMaskDateCopyWorks = grid.getClipString() === '2026-10-20';
             grid.startEditing(0, 7);
             var dashMaskDateEditorWorks = grid.activeEditor &&
-              grid.activeEditor.getAttribute('data-editor-type') === 'datebox' &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'date' &&
               grid.activeEditor.value === '2026-10-20';
             grid.activeEditor.value = '20261122';
             grid.activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1290,7 +1290,7 @@
             grid.select(0, 1);
             grid.startEditing(0, 1);
             var textboxDefaultEditorWorks = grid.activeEditor &&
-              grid.activeEditor.getAttribute('data-editor-type') === 'textbox' &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'text' &&
               grid.activeEditor.className.indexOf('textbox-f') >= 0;
             grid.finishEditing(false);
             grid.scrollIntoView(0, 9);
@@ -1329,14 +1329,14 @@
             grid.select(0, 2);
             grid.startEditing(0, 2);
             var numberboxEditorConfigWorks = grid.activeEditor &&
-              grid.activeEditor.getAttribute('data-editor-type') === 'numberbox' &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'number' &&
               grid.activeEditor.className.indexOf('numberbox-f') >= 0;
             grid.finishEditing(false);
             grid.select(0, 3);
             grid.startEditing(0, 3);
             var comboboxPanel = document.querySelector('.fg-combobox-panel');
             var comboboxEditorConfigWorks = grid.activeEditor &&
-              grid.activeEditor.getAttribute('data-editor-type') === 'combobox' &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'combo' &&
               grid.activeEditor.className.indexOf('combobox-f') >= 0 &&
               grid.activeEditor.value === 'Alpha';
             document.querySelector('.fg-editor-trigger').click();
@@ -1390,7 +1390,7 @@
             grid.setCellData(0, 8, '1');
             grid.startEditing(0, 8);
             var comboboxLimitEditorInitialWorks = grid.activeEditor &&
-              grid.activeEditor.getAttribute('data-editor-type') === 'combobox' &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'combo' &&
               grid.activeEditor.value === '買賣';
             document.querySelector('.fg-editor-trigger').click();
             var comboboxValueInListOption = comboboxPanel.querySelector('.fg-combobox-option[data-index="0"]');
@@ -1412,7 +1412,7 @@
             var comboboxLimitToListInvalidWorks = grid.getCellData(0, 8) === '其他' &&
               grid.invalidItems.length === 1 &&
               comboboxLimitInvalidItem &&
-              comboboxLimitInvalidItem.type === 'combobox' &&
+              comboboxLimitInvalidItem.type === 'combo' &&
               comboboxLimitInvalidItem.message === 'Category must be in list' &&
               comboboxLimitInvalidItem.value === '其他' &&
               comboboxLimitInvalidItem.rowIndex === 0 &&
@@ -1436,7 +1436,7 @@
             grid.startEditing(0, 5);
             var dateboxPanel = document.querySelector('.fg-datebox-panel');
             var dateboxEditorConfigWorks = grid.activeEditor &&
-              grid.activeEditor.getAttribute('data-editor-type') === 'datebox' &&
+              grid.activeEditor.getAttribute('data-editor-type') === 'date' &&
               grid.activeEditor.className.indexOf('datebox-f') >= 0 &&
               grid.activeEditor.value === '2026/07/07';
             var dateDigitKey = new KeyboardEvent('keydown', { key: '8', bubbles: true, cancelable: true });
@@ -1593,7 +1593,7 @@
                   binding: 'period',
                   header: 'Period',
                   width: 110,
-                  editor: 'datebox',
+                  editor: 'date',
                   mask: '9999/99',
                   autoUnmask: true
                 }
@@ -1650,7 +1650,7 @@
               locale: 'en',
               itemsSource: [],
               columns: [
-                { binding: 'date', header: 'Date', dataType: 'date', editor: 'datebox' }
+                { binding: 'date', header: 'Date', dataType: 'date', editor: 'date' }
               ]
             });
             var englishEmptyTextWorks = localeHost.querySelector('.fg-empty').textContent === 'No data';

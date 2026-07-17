@@ -6,7 +6,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   }
 
   editorDefinitions = editorDefinitions || {};
-  var editorDefinition = editorDefinitions.datebox || null;
+  var editorDefinition = editorDefinitions.date || editorDefinitions.datebox || null;
 
   var localePacks = {
     en: {

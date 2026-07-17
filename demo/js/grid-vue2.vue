@@ -961,7 +961,7 @@ function createColumns(count, openLookupPopup, locale) {
       minWidth: 100,
       dataType: "string",
       editor: {
-        type: "textbox",
+        type: "text",
         icons: [
           {
             iconCls: "icon-refwin",
@@ -987,7 +987,7 @@ function createColumns(count, openLookupPopup, locale) {
       width: 113.5,
       minWidth: 92,
       dataType: "date",
-      editor: "datebox",
+      editor: "date",
       mask: "9999-99-99",
     },
     {
@@ -1007,7 +1007,7 @@ function createColumns(count, openLookupPopup, locale) {
         ],
       },
       editor: {
-        type: "textbox",
+        type: "text",
         icons: [
           {
             iconCls: "icon-refwin",
@@ -1040,7 +1040,7 @@ function createColumns(count, openLookupPopup, locale) {
       width: 120,
       minWidth: 100,
       dataType: "string",
-      editor: "datebox",
+      editor: "date",
       mask: "9999/99/99",
       autoUnmask: true,
     },
@@ -1050,7 +1050,7 @@ function createColumns(count, openLookupPopup, locale) {
       width: 90,
       minWidth: 90,
       dataType: "string",
-      editor: "datebox",
+      editor: "date",
       mask: "9999/99",
       autoUnmask: true,
     },
@@ -1065,7 +1065,7 @@ function createColumns(count, openLookupPopup, locale) {
       aggregate: "sum",
       thousandsSeparator: true,
       precision: 2,
-      editor: "numberbox",
+      editor: "number",
       validate: function (args) {
         var value = args.value;
         if (
@@ -1089,7 +1089,7 @@ function createColumns(count, openLookupPopup, locale) {
       align: "right",
       dataType: "number",
       aggregate: "avg",
-      editor: "numberbox",
+      editor: "number",
       validate: function (args) {
         return new Promise(function (resolve) {
           window.setTimeout(function () {
@@ -1371,7 +1371,7 @@ function createWorkflowEditor(locale) {
   var localePack = DEMO_LOCALES[locale] || DEMO_LOCALES["zh-TW"];
   var labels = localePack.workflowLabels;
   return {
-    type: "combobox",
+    type: "combo",
     valueField: "value",
     textField: "text",
     limitToList: true,

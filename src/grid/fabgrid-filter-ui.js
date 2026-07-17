@@ -1106,11 +1106,11 @@ export function installFabGridFilterUi(FabGrid, context) {
     iconConfig = icons[iconIndex];
     handler = iconConfig && (iconConfig.onClick || iconConfig.click || iconConfig.handler);
     input = this.header.querySelector('.fg-header-search-input[data-col="' + colIndex + '"]');
-    if (iconConfig && iconConfig.builtin === 'datebox') {
+    if (iconConfig && iconConfig.builtin === 'date') {
       this.showHeaderSearchDateboxPanel(input, column);
       return;
     }
-    if (iconConfig && iconConfig.builtin === 'combobox') {
+    if (iconConfig && iconConfig.builtin === 'combo') {
       this.showHeaderSearchComboboxPanel(input, column, true);
       return;
     }
@@ -1193,7 +1193,7 @@ export function installFabGridFilterUi(FabGrid, context) {
       return;
     }
     config = getColumnEditorConfig(column);
-    if (!config || config.type !== 'combobox') {
+    if (!config || config.type !== 'combo') {
       return;
     }
     value = String(input.value || '').trim();
@@ -1217,7 +1217,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     }
     colIndex = toNumber(input.getAttribute('data-col'), -1);
     column = this.visibleColumns[colIndex];
-    if (!column || getColumnEditorConfig(column).type !== 'combobox') {
+    if (!column || getColumnEditorConfig(column).type !== 'combo') {
       return false;
     }
     if (event.key === 'ArrowDown' && event.altKey) {

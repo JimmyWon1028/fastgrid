@@ -503,7 +503,7 @@
         minWidth: 100,
         dataType: "string",
         editor: {
-          type: "textbox",
+          type: "text",
           icons: [
             {
               iconCls: "icon-refwin",
@@ -534,7 +534,7 @@
         width: 113.5,
         minWidth: 92,
         dataType: "date",
-        editor: "datebox",
+        editor: "date",
         mask: "9999-99-99",
       },
       {
@@ -555,7 +555,7 @@
           ],
         },
         editor: {
-          type: "textbox",
+          type: "text",
           icons: [
             {
               iconCls: "icon-refwin",
@@ -574,7 +574,7 @@
         minWidth: 100,
         dataType: "string",
         editor: {
-          type: "combobox",
+          type: "combo",
           valueField: "value",
           textField: "text",
           limitToList: true,
@@ -598,7 +598,7 @@
         header: "文字日期",
         width: 120,
         dataType: "string",
-        editor: "datebox",
+        editor: "date",
         readOnly: false,
         mask: "9999/99/99",
         autoUnmask: true,
@@ -609,7 +609,7 @@
         width: 90,
         minWidth: 90,
         dataType: "string",
-        editor: "datebox",
+        editor: "date",
         mask: "9999/99",
         autoUnmask: true,
       },
@@ -625,7 +625,7 @@
         thousandsSeparator: true,
         precision: 2,
         editor: {
-          type: "numberbox",
+          type: "number",
         },
         validate: function (args) {
           var value = args.value;
@@ -650,7 +650,7 @@
         align: "right",
         dataType: "number",
         aggregate: "avg",
-        editor: "numberbox",
+        editor: "number",
         validate: function (args) {
           return new Promise(function (resolve) {
             var value = args.value;

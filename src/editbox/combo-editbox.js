@@ -6,7 +6,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   }
 
   editorDefinitions = editorDefinitions || {};
-  var editorDefinition = editorDefinitions.combobox || null;
+  var editorDefinition = editorDefinitions.combo || editorDefinitions.combobox || null;
 
   var localePacks = {
     en: { openListText: 'Open list' },

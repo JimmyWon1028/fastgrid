@@ -51,7 +51,7 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 - [x] `src/grid/fabgrid-editor.js`
   - mask、caret、copy 與 validation result helper。
 - [x] `src/grid/fabgrid-editor-runtime.js`
-  - editor lifecycle、textbox／numberbox、datebox／年月模式、combobox 與 color。
+  - editor lifecycle、text／number、date／年月模式、combo 與 color。
   - 同步／非同步 validation、invalid item 狀態與 popup rendering／定位。
 - [x] `src/grid/fabgrid-filter-ui.js`
   - Search Row、Excel-like filter、欄位選擇器與 Grid popup UI。
@@ -83,7 +83,7 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 以下元件已列入後續 roadmap，目前尚未由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開或編譯：
 
 - [x] `EditBox`
-  - 以單一 `fabui.EditBox` 整合 textbox、numberbox、datebox、combobox、color，原四個 Box class 僅保留為內部實作。
+  - 以單一 `fabui.EditBox` 整合 text、number、date、combo、color，原四個 Box class 僅保留為內部實作。
   - 共用視覺樣式以 TextBox 為基準，提供共用 value、state、event methods 與必要的日期／清單 methods。
   - FabGrid 與 EditBox 共用 `src/editbox/editbox-definitions.js`，不再維護重複 editor 定義。
   - 提供獨立 browser global／ES module build、CSS、API、測試與 source-mode／build-mode Demo。

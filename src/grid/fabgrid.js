@@ -732,7 +732,7 @@ export function createFabGridFactory(editorDefinitions) {
     if (this.editorIconConfigs && this.editorIconConfigs.length) {
       return this.editorIconConfigs[0].ariaLabel || this.editorIconConfigs[0].label || this.editorIconConfigs[0].title || this.getText('aria.cellEditor');
     }
-    if (this.editorConfig && this.editorConfig.type === 'combobox') {
+    if (this.editorConfig && this.editorConfig.type === 'combo') {
       return this.getText('aria.openComboBox');
     }
     if (this.editorConfig && this.editorConfig.type === 'color') {
@@ -1839,10 +1839,10 @@ export function createFabGridFactory(editorDefinitions) {
     }
     config = getColumnEditorConfig(column);
     if (config && isDateLikeEditorType(config.type)) {
-      return [{ iconCls: 'icon-datebox', builtin: 'datebox' }];
+      return [{ iconCls: 'icon-datebox', builtin: 'date' }];
     }
-    if (config && config.type === 'combobox') {
-      return [{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combobox' }];
+    if (config && config.type === 'combo') {
+      return [{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combo' }];
     }
     if (config && config.type === 'color') {
       return [{ iconCls: 'fg-editor-trigger-color', builtin: 'color' }];
@@ -1879,7 +1879,7 @@ export function createFabGridFactory(editorDefinitions) {
 
   function getEditorIconConfigWidth(icons, type) {
     if (!icons || !icons.length) {
-      return isDateLikeEditorType(type) || type === 'combobox' || type === 'color' ? 22 : 0;
+      return isDateLikeEditorType(type) || type === 'combo' || type === 'color' ? 22 : 0;
     }
     return getIconConfigWidth(icons, 22);
   }
@@ -1906,7 +1906,7 @@ export function createFabGridFactory(editorDefinitions) {
       return mask;
     }
     config = getColumnEditorConfig(column);
-    if (config.type === 'datebox') {
+    if (config.type === 'date') {
       return '9999/99/99';
     }
     return '';
@@ -1930,7 +1930,7 @@ export function createFabGridFactory(editorDefinitions) {
     var config = getColumnEditorConfig(column);
     var options = config && config.options ? config.options : {};
     var autoUnmask = column && column.autoUnmask != null ? column.autoUnmask : options.autoUnmask;
-    if (autoUnmask == null && config.type === 'datebox') {
+    if (autoUnmask == null && config.type === 'date') {
       autoUnmask = true;
     }
     return {
@@ -1950,12 +1950,12 @@ export function createFabGridFactory(editorDefinitions) {
 
   function getDefaultEditorType(column) {
     if (column && column.dataType === 'number') {
-      return 'numberbox';
+      return 'number';
     }
     if (column && column.dataType === 'date') {
-      return 'datebox';
+      return 'date';
     }
-    return 'textbox';
+    return 'text';
   }
 
   function shouldUseThousandsSeparator(column) {
@@ -2016,23 +2016,26 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function normalizeEditorType(type) {
-    type = String(type || 'textbox').toLowerCase();
-    if (type === 'number' || type === 'numeric') {
-      return 'numberbox';
+    type = String(type || 'text').toLowerCase();
+    if (type === 'text' || type === 'textbox') {
+      return 'text';
     }
-    if (type === 'date' || type === 'calendar') {
-      return 'datebox';
+    if (type === 'number' || type === 'numberbox' || type === 'numeric') {
+      return 'number';
     }
-    if (type === 'combo' || type === 'select' || type === 'dropdown') {
-      return 'combobox';
+    if (type === 'date' || type === 'datebox' || type === 'calendar') {
+      return 'date';
+    }
+    if (type === 'combo' || type === 'combobox' || type === 'select' || type === 'dropdown') {
+      return 'combo';
     }
     if (type === 'colour' || type === 'colorbox' || type === 'colourbox') {
       return 'color';
     }
-    if (type === 'numberbox' || type === 'datebox' || type === 'combobox' || type === 'color') {
+    if (type === 'text' || type === 'number' || type === 'date' || type === 'combo' || type === 'color') {
       return type;
     }
-    return 'textbox';
+    return 'text';
   }
 
   function getComboboxData(config) {
@@ -2168,8 +2171,8 @@ export function createFabGridFactory(editorDefinitions) {
     var text = date ? formatDateboxText(date, config) : value;
     var mask = getEditorMask(column);
     var formatter = config && config.options ? config.options.formatter : null;
-    if (typeof formatter !== 'function' && editorDefinitions.datebox && typeof editorDefinitions.datebox.format === 'function') {
-      return editorDefinitions.datebox.format(value, mergeOptions(config && config.options ? config.options : {}, { mask: mask }));
+    if (typeof formatter !== 'function' && editorDefinitions.date && typeof editorDefinitions.date.format === 'function') {
+      return editorDefinitions.date.format(value, mergeOptions(config && config.options ? config.options : {}, { mask: mask }));
     }
     if (mask) {
       return formatMaskText(text, { mask: mask });
@@ -2184,8 +2187,8 @@ export function createFabGridFactory(editorDefinitions) {
     var date = parseYearMonthValue(value);
     var text = date ? formatYearMonthDataText(date, column) : value;
     var mask = getEditorMask(column);
-    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.format === 'function') {
-      return editorDefinitions.datebox.format(value, mergeOptions(config && config.options ? config.options : {}, { mask: mask || '9999/99' }));
+    if (editorDefinitions.date && typeof editorDefinitions.date.format === 'function') {
+      return editorDefinitions.date.format(value, mergeOptions(config && config.options ? config.options : {}, { mask: mask || '9999/99' }));
     }
     if (mask) {
       return formatMaskText(text, { mask: mask });
@@ -2208,8 +2211,8 @@ export function createFabGridFactory(editorDefinitions) {
         return parsed;
       }
     }
-    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.getDataValue === 'function') {
-      return editorDefinitions.datebox.getDataValue(value, config && config.options ? config.options : {});
+    if (editorDefinitions.date && typeof editorDefinitions.date.getDataValue === 'function') {
+      return editorDefinitions.date.getDataValue(value, config && config.options ? config.options : {});
     }
     parsed = parseDateValue(value);
     return parsed ? formatDateIso(parsed) : value;
@@ -2237,8 +2240,8 @@ export function createFabGridFactory(editorDefinitions) {
     var match;
     var year;
     var month;
-    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.parse === 'function') {
-      return editorDefinitions.datebox.parse(value, { mask: '9999/99' });
+    if (editorDefinitions.date && typeof editorDefinitions.date.parse === 'function') {
+      return editorDefinitions.date.parse(value, { mask: '9999/99' });
     }
     if (value instanceof Date && !isNaN(value.getTime())) {
       return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -2284,8 +2287,8 @@ export function createFabGridFactory(editorDefinitions) {
     var month;
     var day;
     var date;
-    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.parse === 'function') {
-      return editorDefinitions.datebox.parse(value, {});
+    if (editorDefinitions.date && typeof editorDefinitions.date.parse === 'function') {
+      return editorDefinitions.date.parse(value, {});
     }
     if (value instanceof Date && !isNaN(value.getTime())) {
       return new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -2320,7 +2323,7 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function isDateLikeEditorType(type) {
-    return type === 'datebox';
+    return type === 'date';
   }
 
   function isYearMonthMask(mask) {
@@ -2331,7 +2334,7 @@ export function createFabGridFactory(editorDefinitions) {
   function isYearMonthDateboxConfig(config, column) {
     var options = config && config.options ? config.options : {};
     var mask = column ? getEditorMask(column) : options.mask;
-    return Boolean(config && config.type === 'datebox' && isYearMonthMask(mask));
+    return Boolean(config && config.type === 'date' && isYearMonthMask(mask));
   }
 
   function isYearMonthDateboxTarget(target) {
@@ -3047,7 +3050,7 @@ export function createFabGridFactory(editorDefinitions) {
           String(value).toLowerCase();
         targetText = String(searchText).toLowerCase();
       }
-    } else if (dateConfig && dateConfig.type === 'combobox') {
+    } else if (dateConfig && dateConfig.type === 'combo') {
       sourceText = getComboboxTextByValue(value, dateConfig).toLowerCase();
       alternateSourceText = String(value).toLowerCase();
       targetText = String(searchText).toLowerCase();
@@ -3223,8 +3226,8 @@ export function createFabGridFactory(editorDefinitions) {
     var text;
     var number;
     if (type === 'number') {
-      if (editorDefinitions.numberbox && typeof editorDefinitions.numberbox.parse === 'function') {
-        return editorDefinitions.numberbox.parse(value, { groupSeparator: ',' });
+      if (editorDefinitions.number && typeof editorDefinitions.number.parse === 'function') {
+        return editorDefinitions.number.parse(value, { groupSeparator: ',' });
       }
       if (value == null) {
         return null;
@@ -3256,8 +3259,8 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function stripNumberGroupSeparators(value) {
-    if (editorDefinitions.numberbox && typeof editorDefinitions.numberbox.stripFormatting === 'function') {
-      return editorDefinitions.numberbox.stripFormatting(value, { groupSeparator: ',' });
+    if (editorDefinitions.number && typeof editorDefinitions.number.stripFormatting === 'function') {
+      return editorDefinitions.number.stripFormatting(value, { groupSeparator: ',' });
     }
     return String(value).replace(/,/g, '');
   }
@@ -3267,8 +3270,8 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function isNumberEditorTextAllowed(editor, text) {
-    if (editorDefinitions.numberbox && typeof editorDefinitions.numberbox.isTextAllowed === 'function') {
-      return editorDefinitions.numberbox.isTextAllowed(editor, text, { groupSeparator: ',' });
+    if (editorDefinitions.number && typeof editorDefinitions.number.isTextAllowed === 'function') {
+      return editorDefinitions.number.isTextAllowed(editor, text, { groupSeparator: ',' });
     }
     var start = editor.selectionStart == null ? editor.value.length : editor.selectionStart;
     var end = editor.selectionEnd == null ? start : editor.selectionEnd;
@@ -3277,8 +3280,8 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function sanitizeNumberEditorText(value) {
-    if (editorDefinitions.numberbox && typeof editorDefinitions.numberbox.sanitize === 'function') {
-      return editorDefinitions.numberbox.sanitize(value, { groupSeparator: ',' });
+    if (editorDefinitions.number && typeof editorDefinitions.number.sanitize === 'function') {
+      return editorDefinitions.number.sanitize(value, { groupSeparator: ',' });
     }
     var text = stripNumberGroupSeparators(value).trim();
     var output = '';
@@ -3300,29 +3303,29 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function sanitizeDateEditorText(value) {
-    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.sanitize === 'function') {
-      return editorDefinitions.datebox.sanitize(value, { mask: editorDefinitions.datebox.mask });
+    if (editorDefinitions.date && typeof editorDefinitions.date.sanitize === 'function') {
+      return editorDefinitions.date.sanitize(value, { mask: editorDefinitions.date.mask });
     }
     return String(value == null ? '' : value).replace(/[^0-9]/g, '').slice(0, 8);
   }
 
   function sanitizeYearMonthEditorText(value) {
-    if (editorDefinitions.datebox && typeof editorDefinitions.datebox.sanitize === 'function') {
-      return editorDefinitions.datebox.sanitize(value, { mask: '9999/99' });
+    if (editorDefinitions.date && typeof editorDefinitions.date.sanitize === 'function') {
+      return editorDefinitions.date.sanitize(value, { mask: '9999/99' });
     }
     return String(value == null ? '' : value).replace(/[^0-9]/g, '').slice(0, 6);
   }
 
   function getNumberCopyText(value) {
-    if (editorDefinitions.numberbox && typeof editorDefinitions.numberbox.getCopyText === 'function') {
-      return editorDefinitions.numberbox.getCopyText(value, { groupSeparator: ',' });
+    if (editorDefinitions.number && typeof editorDefinitions.number.getCopyText === 'function') {
+      return editorDefinitions.number.getCopyText(value, { groupSeparator: ',' });
     }
     return stripNumberGroupSeparators(value == null ? '' : value).trim();
   }
 
   function formatNumberEditorText(value, useThousandsSeparator, precision) {
-    if (editorDefinitions.numberbox && typeof editorDefinitions.numberbox.format === 'function') {
-      return editorDefinitions.numberbox.format(value, {
+    if (editorDefinitions.number && typeof editorDefinitions.number.format === 'function') {
+      return editorDefinitions.number.format(value, {
         thousandsSeparator: useThousandsSeparator === true,
         precision: precision
       });
