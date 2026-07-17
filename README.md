@@ -122,7 +122,7 @@ jQuery Demo 分成以下兩層：
 
 ## 套件與原始碼結構
 
-`fabui` 是最上層 namespace，目前公開 `fabui.FabGrid`、`fabui.pivot`、`fabui.Chart` 與必要的 `fabui.Control`、`fabui.CellType`、`fabui.editorDefinitions`、`fabui.FabGridLocales`。Pivot 類別與列舉統一由 `fabui.pivot.PivotPanel`、`fabui.pivot.PivotGrid`、`fabui.pivot.PivotChart`、`fabui.pivot.PivotWorkspace`、`fabui.pivot.PivotSlicer`、`fabui.pivot.PivotEngine`、`fabui.pivot.PivotField`、`fabui.pivot.PivotAggregate`、`fabui.pivot.PivotShowAs`、`fabui.pivot.PivotShowTotals` 取得；頂層不重複公開。Row 類型只由 `fabui.FabGrid.Row` 與 `fabui.FabGrid.GroupRow` 公開。其他表單控件保留在原始碼中，但不列入目前產品 roadmap，詳見 [TODO](./TODO.md)。
+`fabui` 是最上層 namespace，目前公開 `fabui.FabGrid`、`fabui.pivot`、`fabui.Chart` 與必要的 `fabui.Control`、`fabui.CellType`、`fabui.editorDefinitions`、`fabui.FabGridLocales`。Pivot 類別與列舉統一由 `fabui.pivot.PivotPanel`、`fabui.pivot.PivotGrid`、`fabui.pivot.PivotChart`、`fabui.pivot.PivotWorkspace`、`fabui.pivot.PivotSlicer`、`fabui.pivot.PivotEngine`、`fabui.pivot.PivotField`、`fabui.pivot.PivotAggregate`、`fabui.pivot.PivotShowAs`、`fabui.pivot.PivotShowTotals` 取得；頂層不重複公開。Row 類型只由 `fabui.FabGrid.Row` 與 `fabui.FabGrid.GroupRow` 公開。後續元件 roadmap 包含整合 TextBox、NumberBox、DateBox、ComboBox 與 Grid editor 定義的 EditBox，以及參考 EasyUI Material Teal 契約的 Window、Panel、Layout，詳見 [TODO](./TODO.md)。
 
 可透過 `fabui.version` 取得發佈日期版本，格式為 `YYYY.M.D`，例如 `2026.7.11`。每次執行 build 時會依本機當天日期自動產生。
 

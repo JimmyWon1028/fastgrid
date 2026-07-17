@@ -78,14 +78,21 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 - [x] 英文、繁中、簡中基本文字。
 - [x] 四種圖表 Demo、API 文件、單元測試與 browser smoke。
 
-## 不列入目前產品範圍的 standalone 元件
+## 後續 FabUI 元件
 
-以下表單元件目前保留原始碼作為後續開發基礎，但不會由 `src/fabui.js` 或 `dist/fabui.*` 公開或編譯。現階段主 bundle 包含 `fabui.FabGrid`、`fabui.Chart` 與必要定義。
+以下元件已列入後續 roadmap，目前尚未由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開或編譯：
 
-- TextBox
-- NumberBox
-- DateBox
-- ComboBox
-- Tabs
+- [ ] `EditBox`
+  - 整合現有 TextBox、NumberBox、DateBox、ComboBox。
+  - 共用視覺樣式以現有 TextBox 為基準。
+  - 將 FabGrid 現有 editor 定義與共用編輯契約整併到 EditBox；完成後由 FabGrid 重用 EditBox，不再維護重複定義。
+- [ ] `Window`
+  - 樣式、options、methods 與 events 定義參考 [jQuery EasyUI Window／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Window&theme=material-teal&dir=ltr&pitem=&sort=asc)。
+- [ ] `Panel`
+  - 樣式、options、methods 與 events 定義參考 [jQuery EasyUI Panel／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Panel&theme=material-teal&dir=ltr&pitem=&sort=asc)。
+- [ ] `Layout`
+  - 樣式、options、methods、events 與 north／south／east／west／center 區域定義參考 [jQuery EasyUI Layout／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Layout&theme=material-teal&dir=ltr&pitem=&sort=asc)。
 
-以上控件不列入目前 roadmap，也不得重新併入 FabGrid 核心 bundle。保留的原始碼只作為既有 Grid editor 與歷史參考，不代表待發佈項目。
+以上元件實作時仍須維持 pure JavaScript 核心；EasyUI 僅作為視覺與 API 契約參考，不加入 jQuery／EasyUI runtime 依賴。每個元件必須建立獨立 entry、CSS、demo、API 文件與驗證，不得直接併回 FabGrid core bundle。
+
+現有 TextBox、NumberBox、DateBox、ComboBox 原始碼保留到 EditBox 完成整併；Tabs 仍只保留原始碼，不列入目前 roadmap。
