@@ -379,6 +379,11 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._onDocumentMouseDown = function(event) {
       if (self._panelVisible && !self._panel.contains(event.target) && !self._field.contains(event.target)) self.hidePanel();
     };
+    this._onDocumentKeyDown = function(event) {
+      if (!self._panelVisible || event.key !== 'Escape') return;
+      event.preventDefault();
+      self.hidePanel();
+    };
     this._onWindowResize = function() { if (self._panelVisible) self._positionPanel(); };
     this._onWindowScroll = function() { if (self._panelVisible) self._positionPanel(); };
     this._onFormReset = function() {
@@ -391,6 +396,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._panel.addEventListener('mousedown', this._onPanelMouseDown);
     this._panel.addEventListener('click', this._onPanelClick);
     document.addEventListener('mousedown', this._onDocumentMouseDown);
+    document.addEventListener('keydown', this._onDocumentKeyDown);
     window.addEventListener('resize', this._onWindowResize);
     window.addEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
@@ -860,6 +866,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._panel.removeEventListener('mousedown', this._onPanelMouseDown);
     this._panel.removeEventListener('click', this._onPanelClick);
     document.removeEventListener('mousedown', this._onDocumentMouseDown);
+    document.removeEventListener('keydown', this._onDocumentKeyDown);
     window.removeEventListener('resize', this._onWindowResize);
     window.removeEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);

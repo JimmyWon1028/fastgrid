@@ -82,10 +82,11 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 
 以下元件已列入後續 roadmap，目前尚未由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開或編譯：
 
-- [ ] `EditBox`
-  - 整合現有 TextBox、NumberBox、DateBox、ComboBox。
-  - 共用視覺樣式以現有 TextBox 為基準。
-  - 將 FabGrid 現有 editor 定義與共用編輯契約整併到 EditBox；完成後由 FabGrid 重用 EditBox，不再維護重複定義。
+- [x] `EditBox`
+  - 以單一 `fabui.EditBox` 整合 textbox、numberbox、datebox、combobox，原四個 class 僅保留為內部實作。
+  - 共用視覺樣式以 TextBox 為基準，提供共用 value、state、event methods 與必要的日期／清單 methods。
+  - FabGrid 與 EditBox 共用 `src/editbox/editbox-definitions.js`，不再維護重複 editor 定義。
+  - 提供獨立 browser global／ES module build、CSS、API、測試與 source-mode／build-mode Demo。
 - [ ] `Window`
   - 樣式、options、methods 與 events 定義參考 [jQuery EasyUI Window／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Window&theme=material-teal&dir=ltr&pitem=&sort=asc)。
 - [ ] `Panel`
@@ -95,4 +96,4 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 
 以上元件實作時仍須維持 pure JavaScript 核心；EasyUI 僅作為視覺與 API 契約參考，不加入 jQuery／EasyUI runtime 依賴。每個元件必須建立獨立 entry、CSS、demo、API 文件與驗證，不得直接併回 FabGrid core bundle。
 
-現有 TextBox、NumberBox、DateBox、ComboBox 原始碼保留到 EditBox 完成整併；Tabs 仍只保留原始碼，不列入目前 roadmap。
+TextBox、NumberBox、DateBox、ComboBox 原始碼只作為 EditBox 內部實作，不再各自作為公開 standalone class；Tabs 仍只保留原始碼，不列入目前 roadmap。

@@ -1,4 +1,4 @@
-import { createEditorDefinitions } from './editor/editor-definitions.js?v=20260713-color-names-v10';
+import { createEditorDefinitions } from './editbox/editbox-definitions.js?v=20260717-editbox-v2';
 import { createChartFactory } from './chart/chart.js?v=20260717-chart-axis-density-v4';
 import {
   Control,

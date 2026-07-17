@@ -4,11 +4,12 @@
 
 # FabGrid
 
-FabUI 提供 pure JavaScript FabGrid、PivotPanel／PivotGrid／PivotChart、三合一 PivotWorkspace 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁與 JSON / CSV / Excel 匯入匯出；PivotPanel 可互動定義 View，PivotGrid 顯示多階列／欄彙總，PivotChart 使用同一個 PivotEngine 將目前 View 顯示為直條圖、橫條圖、折線圖或圓餅圖。
+FabUI 提供 pure JavaScript FabGrid、獨立 EditBox、PivotPanel／PivotGrid／PivotChart、三合一 PivotWorkspace 與 SVG Chart。FabGrid 支援雙向 virtualization、凍結欄、TreeGrid、排序、搜尋、編輯、群組、分頁與 JSON / CSV / Excel 匯入匯出；EditBox 以單一 class 提供文字、數字、日期與清單編輯；PivotPanel 可互動定義 View，PivotGrid 顯示多階列／欄彙總，PivotChart 使用同一個 PivotEngine 將目前 View 顯示為直條圖、橫條圖、折線圖或圓餅圖。
 
 ## 文件與 Demo
 
 - [Demo 索引](./demo/index.html)
+- EditBox 本機 Demo：[source-mode 開發版](./demo/dev-editbox.html) 與 [獨立 build-mode 正式版](./demo/editbox.html)。
 - [線上 FabGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/grid.html)
 - [線上 TreeGrid Demo](https://jimmywon1028.github.io/fabgrid/demo/treegrid.html)
 - [線上 Grid / Grid 拖曳 Demo](https://jimmywon1028.github.io/fabgrid/demo/grid-grid.html)
@@ -25,6 +26,7 @@ FabUI 提供 pure JavaScript FabGrid、PivotPanel／PivotGrid／PivotChart、三
 - [PivotChart API 操作手冊](./docs/pivotchart-api.md)
 - [PivotWorkspace API 操作手冊](./docs/pivotworkspace-api.md)
 - [Chart API 操作手冊](./docs/chart-api.md)
+- [EditBox API 操作手冊](./docs/editbox-api.md)
 - [Vue 2 Wrapper API](./docs/vue-api.md)
 - [jQuery Wrapper API](./docs/jquery-api.md)
 - [工作進度](./worklogs/)
@@ -122,7 +124,7 @@ jQuery Demo 分成以下兩層：
 
 ## 套件與原始碼結構
 
-`fabui` 是最上層 namespace，目前公開 `fabui.FabGrid`、`fabui.pivot`、`fabui.Chart` 與必要的 `fabui.Control`、`fabui.CellType`、`fabui.editorDefinitions`、`fabui.FabGridLocales`。Pivot 類別與列舉統一由 `fabui.pivot.PivotPanel`、`fabui.pivot.PivotGrid`、`fabui.pivot.PivotChart`、`fabui.pivot.PivotWorkspace`、`fabui.pivot.PivotSlicer`、`fabui.pivot.PivotEngine`、`fabui.pivot.PivotField`、`fabui.pivot.PivotAggregate`、`fabui.pivot.PivotShowAs`、`fabui.pivot.PivotShowTotals` 取得；頂層不重複公開。Row 類型只由 `fabui.FabGrid.Row` 與 `fabui.FabGrid.GroupRow` 公開。後續元件 roadmap 包含整合 TextBox、NumberBox、DateBox、ComboBox 與 Grid editor 定義的 EditBox，以及參考 EasyUI Material Teal 契約的 Window、Panel、Layout，詳見 [TODO](./TODO.md)。
+`fabui` 是最上層 namespace，FabGrid core bundle 公開 `fabui.FabGrid`、`fabui.pivot`、`fabui.Chart` 與必要的 `fabui.Control`、`fabui.CellType`、`fabui.editorDefinitions`、`fabui.FabGridLocales`。獨立載入 `dist/editbox.min.js` 後會增加 `fabui.EditBox`，但 EditBox 不會併入 core bundle。Pivot 類別與列舉統一由 `fabui.pivot.PivotPanel`、`fabui.pivot.PivotGrid`、`fabui.pivot.PivotChart`、`fabui.pivot.PivotWorkspace`、`fabui.pivot.PivotSlicer`、`fabui.pivot.PivotEngine`、`fabui.pivot.PivotField`、`fabui.pivot.PivotAggregate`、`fabui.pivot.PivotShowAs`、`fabui.pivot.PivotShowTotals` 取得；頂層不重複公開。Row 類型只由 `fabui.FabGrid.Row` 與 `fabui.FabGrid.GroupRow` 公開。後續元件 roadmap 另有參考 EasyUI Material Teal 契約的 Window、Panel、Layout，詳見 [TODO](./TODO.md)。
 
 可透過 `fabui.version` 取得發佈日期版本，格式為 `YYYY.M.D`，例如 `2026.7.11`。每次執行 build 時會依本機當天日期自動產生。
 
@@ -138,6 +140,9 @@ src/grid/fabgrid-data.js            Data view、remote、pagination 與 grouping
 src/grid/fabgrid-tree.js            TreeGrid 可視列、狀態與互動
 src/grid/fabgrid-drag.js            Row drag 與跨 Grid drop
 src/grid/fabgrid-export.js          CSV 與 Excel 匯出
+src/editbox/editbox.js             獨立 EditBox 公開入口與統一 API
+src/editbox/editbox-definitions.js FabGrid／EditBox 共用 editor 定義
+src/editbox/editbox.css            EditBox 獨立樣式入口
 src/pivot/pivot-engine.js           Pivot 欄位、分組、彙總與 view definition
 src/pivot/pivot-chart.js            Pivot view 到 SVG Chart 的 adapter 與 lifecycle
 src/pivot/pivot-chart.css           沿用 FabGrid theme variables 的 PivotChart 樣式
@@ -147,10 +152,10 @@ src/pivot/pivot-panel.js            Pivot View 欄位配置與儲存還原 UI
 src/pivot/pivot-panel.css           沿用 FabGrid theme variables 的 PivotPanel 樣式
 src/pivot/pivot-grid.js             PivotGrid lifecycle、多層標頭與互動
 src/pivot/pivot-grid.css            沿用 FabGrid CSS variables 的 Pivot 樣式
-src/editor/                         共用 editor 定義
+src/editor/editor-definitions.js   舊 editor definitions import 相容入口
 ```
 
-發佈檔位於 `dist/`：`fabui.js`、`fabui.min.js`、`fabui.esm.js`、`fabui.esm.min.js`、`fabui.css` 與主題 CSS。
+FabGrid core 發佈檔位於 `dist/`：`fabui.js`、`fabui.min.js`、`fabui.esm.js`、`fabui.esm.min.js`、`fabui.css` 與主題 CSS。EditBox 獨立輸出為 `editbox.js`、`editbox.min.js`、`editbox.esm.js`、`editbox.esm.min.js`、`editbox.css`、`editbox.min.css`。
 
 ## 本機開發
 

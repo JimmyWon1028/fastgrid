@@ -1,9 +1,12 @@
-export function createComboBoxFactory(TextBox) {
+export function createComboBoxFactory(TextBox, editorDefinitions) {
   'use strict';
 
   if (typeof TextBox !== 'function') {
     throw new Error('fabui.ComboBox requires fabui.TextBox.');
   }
+
+  editorDefinitions = editorDefinitions || {};
+  var editorDefinition = editorDefinitions.combobox || null;
 
   var localePacks = {
     en: { openListText: 'Open list' },
@@ -208,6 +211,14 @@ export function createComboBoxFactory(TextBox) {
     });
     this._textbox = new TextBox(this._textboxSource, textOptions);
     this._editor = this._textbox.textbox();
+    if (editorDefinition && editorDefinition.className) {
+      editorDefinition.className.split(/\s+/).forEach(function(className) {
+        if (className) this._editor.classList.add(className);
+      }, this);
+    }
+    if (editorDefinition && editorDefinition.inputMode) {
+      this._editor.inputMode = editorDefinition.inputMode;
+    }
     this._field = this._editor.closest('.fui-textbox-field');
     this._shell = this._editor.closest('.fui-textbox');
     this._buildPanel();
@@ -298,6 +309,11 @@ export function createComboBoxFactory(TextBox) {
     this._onDocumentMouseDown = function(event) {
       if (self._panelVisible && !self._panel.contains(event.target) && !self._field.contains(event.target)) self.hidePanel();
     };
+    this._onDocumentKeyDown = function(event) {
+      if (!self._panelVisible || event.key !== 'Escape') return;
+      event.preventDefault();
+      self.hidePanel();
+    };
     this._onWindowResize = function() { if (self._panelVisible) self._positionPanel(); };
     this._onWindowScroll = function() { if (self._panelVisible) self._positionPanel(); };
     this._onFormReset = function() {
@@ -310,6 +326,7 @@ export function createComboBoxFactory(TextBox) {
     this._panel.addEventListener('click', this._onPanelClick);
     this._panel.addEventListener('mouseover', this._onPanelMouseOver);
     document.addEventListener('mousedown', this._onDocumentMouseDown);
+    document.addEventListener('keydown', this._onDocumentKeyDown);
     window.addEventListener('resize', this._onWindowResize);
     window.addEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
@@ -663,6 +680,13 @@ export function createComboBoxFactory(TextBox) {
   };
 
   ComboBox.prototype.clear = function() { return this.setValues([]); };
+  ComboBox.prototype.initValue = function(value) {
+    this._initialValues = Array.isArray(value) ? uniqueStrings(value) : uniqueStrings([value]);
+    if (!this._options.multiple && this._initialValues.length > 1) {
+      this._initialValues = [this._initialValues[0]];
+    }
+    return this.setValues(this._initialValues, true);
+  };
   ComboBox.prototype.reset = function() { return this.setValues(this._initialValues); };
 
   ComboBox.prototype.loadData = function(data, silent) {
@@ -807,6 +831,7 @@ export function createComboBoxFactory(TextBox) {
     this._panel.removeEventListener('click', this._onPanelClick);
     this._panel.removeEventListener('mouseover', this._onPanelMouseOver);
     document.removeEventListener('mousedown', this._onDocumentMouseDown);
+    document.removeEventListener('keydown', this._onDocumentKeyDown);
     window.removeEventListener('resize', this._onWindowResize);
     window.removeEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);

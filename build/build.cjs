@@ -4,7 +4,9 @@ const esbuild = require('esbuild');
 
 const root = path.resolve(__dirname, '..');
 const srcDir = path.join(root, 'src');
-const distDir = path.join(root, 'dist');
+const distDir = process.env.FABUI_DIST_DIR ?
+  path.resolve(process.env.FABUI_DIST_DIR) :
+  path.join(root, 'dist');
 const buildDate = new Date();
 const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
@@ -20,7 +22,7 @@ const javascriptSources = [
   'grid/fabgrid-filter-ui.js',
   'grid/fabgrid-selection.js',
   'grid/fabgrid-editor-runtime.js',
-  'editor/editor-definitions.js',
+  'editbox/editbox-definitions.js',
   'grid/fabgrid.js',
   'pivot/pivot-utils.js',
   'pivot/pivot-engine.js',
@@ -244,7 +246,7 @@ function verifyBuildOutput() {
   if (/\.\.\/images\/clear\.png/.test(css)) {
     throw new Error('Filter clear icon uses an invalid parent-directory path.');
   }
-  if (/global\.fabui\.(?:TextBox|NumberBox|DateBox|ComboBox|Tabs)\s*=/.test(javascript)) {
+  if (/global\.fabui\.(?:EditBox|TextBox|NumberBox|DateBox|ComboBox|Tabs)\s*=/.test(javascript)) {
     throw new Error('Standalone components must not be published in the FabGrid bundle.');
   }
   if (javascript.indexOf('global.fabui.version = ' + JSON.stringify(buildVersion)) < 0) {

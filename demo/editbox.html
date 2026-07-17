@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EditBox 正式版 Demo</title>
+  <link rel="stylesheet" href="../dist/editbox.css">
+  <style>
+    body {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 28px 20px;
+      color: #222;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+
+    .intro {
+      margin: 0 0 24px;
+      color: #666;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 90px minmax(0, 1fr);
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .actions {
+      margin: 22px 0;
+    }
+
+    .actions button {
+      margin-right: 8px;
+      padding: 7px 14px;
+    }
+
+    pre {
+      min-height: 110px;
+      padding: 14px;
+      border-radius: 5px;
+      background: #f5f7f9;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <h1>EditBox 正式版 Demo</h1>
+  <p class="intro">單一 EditBox class，透過 editor 選項切換文字、數字、日期、年月與清單編輯。</p>
+
+  <div class="form-row"><label for="edit-name">文字</label><input id="edit-name" value="王小明"></div>
+  <div class="form-row"><label for="edit-amount">數字</label><input id="edit-amount" value="1280.5"></div>
+  <div class="form-row"><label for="edit-date">日期</label><input id="edit-date" value="2026/07/17"></div>
+  <div class="form-row"><label for="edit-month">年月</label><input id="edit-month" value="2026/07"></div>
+  <div class="form-row"><label for="edit-status">清單</label><input id="edit-status" value="active"></div>
+
+  <div class="actions">
+    <button id="clear-all" type="button">全部清除</button>
+    <button id="reset-all" type="button">還原初始值</button>
+  </div>
+
+  <pre id="editbox-output" aria-live="polite"></pre>
+
+  <script src="../dist/editbox.min.js"></script>
+  <script src="./js/editbox-demo.js"></script>
+  <script>
+    window.mountFabUIEditBoxDemo(window.fabui.EditBox);
+  </script>
+</body>
+</html>
