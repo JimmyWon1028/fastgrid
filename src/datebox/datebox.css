@@ -111,6 +111,8 @@
 
 .fui-calendar-prevmonth::before,
 .fui-calendar-nextmonth::before { left: 5px; }
+.fui-calendar-prevmonth::after,
+.fui-calendar-nextmonth::after { display: none; }
 .fui-calendar-prevyear::before { left: 3px; }
 .fui-calendar-prevyear::after { left: 8px; }
 .fui-calendar-nextyear::before { left: 1px; }
