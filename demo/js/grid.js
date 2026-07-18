@@ -534,7 +534,9 @@
         width: 113.5,
         minWidth: 92,
         dataType: "date",
-        editor: "date",
+        editor: {
+          type: "date",
+        },
         mask: "9999-99-99",
       },
       {

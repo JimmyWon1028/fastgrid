@@ -6,8 +6,12 @@ const root = path.resolve(__dirname, '..');
 const packageDir = path.join(root, 'packages', 'fabgrid-vue');
 const sourceFile = path.join(packageDir, 'src', 'fabgrid-vue.js');
 const vueRuntimeFile = path.join(root, 'node_modules', 'vue', 'dist', 'vue.min.js');
-const distDir = path.join(packageDir, 'dist');
-const wrapperDistDir = path.join(root, 'dist', 'wrapper');
+const distDir = process.env.FABUI_PACKAGE_DIST_DIR ?
+  path.resolve(process.env.FABUI_PACKAGE_DIST_DIR) :
+  path.join(packageDir, 'dist');
+const wrapperDistDir = process.env.FABUI_DIST_DIR ?
+  path.join(path.resolve(process.env.FABUI_DIST_DIR), 'wrapper') :
+  path.join(root, 'dist', 'wrapper');
 const source = fs.readFileSync(sourceFile, 'utf8');
 const browserSource = source
   .replace(/export function ([A-Za-z_$][\w$]*)/g, 'function $1');

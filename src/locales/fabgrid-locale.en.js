@@ -10,6 +10,7 @@
   return {
     emptyText: 'No data',
     chart: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
+    combobox: { emptyText: 'No matching items' },
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',
@@ -161,6 +162,9 @@
       comboBoxOptions: 'Combo box options',
       openColorPicker: 'Open color picker',
       colorPicker: 'Color picker',
+      colorSaturation: 'Saturation and brightness',
+      colorHue: 'Hue',
+      colorAlpha: 'Alpha',
       openColumnChooser: 'Open column chooser',
       columnChooser: 'Column chooser',
       selectAllRows: 'Select all rows',

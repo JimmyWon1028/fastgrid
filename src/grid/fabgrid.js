@@ -10,7 +10,7 @@ import {
   setByBinding
 } from './fabgrid-data.js';
 import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
-import { installFabGridDrag } from './fabgrid-drag.js';
+import { installFabGridDrag } from './fabgrid-drag.js?v=20260718-row-drop-width-v1';
 import { installFabGridTree } from './fabgrid-tree.js?v=20260717-tree-context-menu-v1';
 import {
   applyMask,
@@ -25,12 +25,16 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260717-scroll-linked-distance-v2';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260717-tree-context-menu-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260718-editor-icons-v1';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260718-editor-icons-v1';
 import { installFabGridSelection } from './fabgrid-selection.js?v=20260717-tree-context-menu-v1';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260717-popup-outside-v1';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260718-calendar-theme-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
+import { DatePopup } from '../editbox/date-popup.js?v=20260718-final-audit-v1';
+import { ColorPopup } from '../editbox/color-popup.js?v=20260718-final-audit-v1';
+import { ComboPopup } from '../editbox/combo-popup.js?v=20260718-final-audit-v1';
+import { normalizeEditorIconDescriptors } from '../editbox/editor-icons.js?v=20260718-editor-icons-v1';
 
 export function createFabGridFactory(editorDefinitions) {
   'use strict';
@@ -118,6 +122,7 @@ export function createFabGridFactory(editorDefinitions) {
   ];
 
   function FabGrid(element, options) {
+    var self = this;
     Control.call(this);
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
     if (!this.host) {
@@ -194,11 +199,8 @@ export function createFabGridFactory(editorDefinitions) {
     this.editing = null;
     this.editorConfig = null;
     this.editorIconConfigs = [];
-    this.dateboxState = null;
     this.dateboxTarget = null;
     this.comboboxTarget = null;
-    this.colorState = null;
-    this.colorDragState = null;
     this.colorTarget = null;
     this.headerSearchFocusRequest = null;
     this.headerSearchFocusRaf = 0;
@@ -277,12 +279,6 @@ export function createFabGridFactory(editorDefinitions) {
     this._boundHeaderSearchCompositionStart = bind(this, this.handleHeaderSearchCompositionStart);
     this._boundHeaderSearchCompositionEnd = bind(this, this.handleHeaderSearchCompositionEnd);
     this._boundEditorTriggerClick = bind(this, this.handleEditorTriggerClick);
-    this._boundDateboxClick = bind(this, this.handleDateboxClick);
-    this._boundDateboxChange = bind(this, this.handleDateboxChange);
-    this._boundComboboxMouseDown = bind(this, this.handleComboboxMouseDown);
-    this._boundColorPanelPointerDown = bind(this, this.handleColorPanelPointerDown);
-    this._boundColorPanelPointerMove = bind(this, this.handleColorPanelPointerMove);
-    this._boundColorPanelPointerUp = bind(this, this.handleColorPanelPointerUp);
     this._boundFilterMenuClick = bind(this, this.handleFilterMenuClick);
     this._boundExcelFilterMenuInput = bind(this, this.handleExcelFilterMenuInput);
     this._boundColumnChooserChange = bind(this, this.handleColumnChooserChange);
@@ -300,6 +296,67 @@ export function createFabGridFactory(editorDefinitions) {
     this.createWijmoEvents();
     this.bindOptionEvent('updatedView');
     this.createDom();
+    this.datePopup = new DatePopup({
+      className: 'fui-grid-date-popup',
+      theme: 'inherit',
+      themeSource: this.root,
+      containsTarget: function(target) {
+        return self.editor === target ||
+          (self.editorIconHost && self.editorIconHost.contains(target)) ||
+          Boolean(closest(target, 'fg-header-search-icons'));
+      },
+      onSelect: function(date) {
+        self.applyDateboxTargetDate(date);
+      },
+      onHide: function() {
+        self.dateboxTarget = null;
+      }
+    });
+    this.dateboxPanel = this.datePopup.panel;
+    this.comboPopup = new ComboPopup({
+      className: 'fui-grid-combo-popup',
+      containsTarget: function(target) {
+        return self.editor === target ||
+          (self.editorIconHost && self.editorIconHost.contains(target)) ||
+          Boolean(closest(target, 'fg-header-search-icons'));
+      },
+      onSelect: function(descriptor, index) {
+        self.selectComboboxOption(index);
+      },
+      onActiveChange: function(index) {
+        self.comboboxActiveIndex = index;
+      },
+      onHide: function() {
+        self.comboboxTarget = null;
+        self.comboboxActiveIndex = -1;
+      }
+    });
+    this.comboboxPanel = this.comboPopup.panel;
+    this.colorPopup = new ColorPopup({
+      className: 'fui-grid-color-popup',
+      normalize: normalizeColorValue,
+      containsTarget: function(target) {
+        return self.editor === target ||
+          (self.editorIconHost && self.editorIconHost.contains(target)) ||
+          Boolean(closest(target, 'fg-header-search-icons'));
+      },
+      onInput: function(value) {
+        self.applyColorValueToTarget(value);
+      },
+      onSelect: function(value) {
+        var target = self.getColorTarget();
+        self.applyColorValueToTarget(value);
+        if (target && target.type === 'search') {
+          self.colorPopup.hide();
+          target.input.focus();
+        }
+      },
+      onHide: function() {
+        self.colorTarget = null;
+      }
+    });
+    this.colorPanel = this.colorPopup.panel;
+    this.applyLocaleToDom();
     this.bindDomEvents();
     this.bindRowDragEvents();
     this.refresh();
@@ -620,9 +677,6 @@ export function createFabGridFactory(editorDefinitions) {
         '<div class="fg-frozen-pane-right"><div class="fg-frozen-layer-right"></div></div>' +
         '<input class="fg-editor textbox-f" type="text">' +
         '<div class="fg-editor-icons"><button class="fg-editor-trigger" type="button"></button></div>' +
-        '<div class="fg-datebox-panel" role="dialog"></div>' +
-        '<div class="fg-combobox-panel" role="listbox"></div>' +
-        '<div class="fg-color-panel" role="dialog"></div>' +
         '<div class="fg-invalid-tip" role="tooltip"></div>' +
         '<div class="fg-empty"></div>' +
         '<div class="fg-busy-overlay" aria-live="polite"><div class="fg-busy-panel"><span class="fg-busy-spinner"></span><span class="fg-busy-text"></span></div></div>' +
@@ -672,9 +726,6 @@ export function createFabGridFactory(editorDefinitions) {
     this.editor = root.querySelector('.fg-editor');
     this.editorIconHost = root.querySelector('.fg-editor-icons');
     this.editorTrigger = root.querySelector('.fg-editor-trigger');
-    this.dateboxPanel = root.querySelector('.fg-datebox-panel');
-    this.comboboxPanel = root.querySelector('.fg-combobox-panel');
-    this.colorPanel = root.querySelector('.fg-color-panel');
     this.filterMenu = root.querySelector('.fg-filter-menu');
     this.topLeftMenu = root.querySelector('.fg-top-left-menu');
     this.columnChooser = root.querySelector('.fg-column-chooser');
@@ -711,8 +762,22 @@ export function createFabGridFactory(editorDefinitions) {
     if (this.comboboxPanel) {
       this.comboboxPanel.setAttribute('aria-label', this.getText('aria.comboBoxOptions'));
     }
+    if (this.comboPopup) {
+      this.comboPopup.setOptions({
+        ariaLabel: this.getText('aria.comboBoxOptions'),
+        emptyText: this.getText('combobox.emptyText')
+      });
+    }
     if (this.colorPanel) {
       this.colorPanel.setAttribute('aria-label', this.getText('aria.colorPicker'));
+    }
+    if (this.colorPopup) {
+      this.colorPopup.setOptions({
+        ariaLabel: this.getText('aria.colorPicker'),
+        saturationText: this.getText('aria.colorSaturation'),
+        hueText: this.getText('aria.colorHue'),
+        alphaText: this.getText('aria.colorAlpha')
+      });
     }
     if (this.columnChooser) {
       this.columnChooser.setAttribute('aria-label', this.getText('aria.columnChooser'));
@@ -774,13 +839,6 @@ export function createFabGridFactory(editorDefinitions) {
     this.header.addEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
     this.header.addEventListener('compositionend', this._boundHeaderSearchCompositionEnd);
     this.editorIconHost.addEventListener('click', this._boundEditorTriggerClick);
-    this.dateboxPanel.addEventListener('click', this._boundDateboxClick);
-    this.dateboxPanel.addEventListener('change', this._boundDateboxChange);
-    this.comboboxPanel.addEventListener('mousedown', this._boundComboboxMouseDown);
-    this.colorPanel.addEventListener('pointerdown', this._boundColorPanelPointerDown);
-    this.colorPanel.addEventListener('pointermove', this._boundColorPanelPointerMove);
-    this.colorPanel.addEventListener('pointerup', this._boundColorPanelPointerUp);
-    this.colorPanel.addEventListener('pointercancel', this._boundColorPanelPointerUp);
     this.filterMenu.addEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('click', this._boundFilterMenuClick);
@@ -1332,13 +1390,6 @@ export function createFabGridFactory(editorDefinitions) {
     this.header.removeEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
     this.header.removeEventListener('compositionend', this._boundHeaderSearchCompositionEnd);
     this.editorIconHost.removeEventListener('click', this._boundEditorTriggerClick);
-    this.dateboxPanel.removeEventListener('click', this._boundDateboxClick);
-    this.dateboxPanel.removeEventListener('change', this._boundDateboxChange);
-    this.comboboxPanel.removeEventListener('mousedown', this._boundComboboxMouseDown);
-    this.colorPanel.removeEventListener('pointerdown', this._boundColorPanelPointerDown);
-    this.colorPanel.removeEventListener('pointermove', this._boundColorPanelPointerMove);
-    this.colorPanel.removeEventListener('pointerup', this._boundColorPanelPointerUp);
-    this.colorPanel.removeEventListener('pointercancel', this._boundColorPanelPointerUp);
     this.filterMenu.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('click', this._boundFilterMenuClick);
@@ -1357,6 +1408,15 @@ export function createFabGridFactory(editorDefinitions) {
     document.removeEventListener('webkitfullscreenchange', this._boundFullscreenChange);
     this.editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
     window.removeEventListener('resize', this._boundResize);
+    if (this.datePopup) {
+      this.datePopup.destroy();
+    }
+    if (this.comboPopup) {
+      this.comboPopup.destroy();
+    }
+    if (this.colorPopup) {
+      this.colorPopup.destroy();
+    }
     this._autoSizeCanvas = null;
     this._autoSizeContext = null;
     this.host.innerHTML = '';
@@ -1839,42 +1899,19 @@ export function createFabGridFactory(editorDefinitions) {
     }
     config = getColumnEditorConfig(column);
     if (config && isDateLikeEditorType(config.type)) {
-      return [{ iconCls: 'icon-datebox', builtin: 'date' }];
+      return normalizeIconConfigs([{ iconCls: 'icon-datebox', builtin: 'date' }]);
     }
     if (config && config.type === 'combo') {
-      return [{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combo' }];
+      return normalizeIconConfigs([{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combo' }]);
     }
     if (config && config.type === 'color') {
-      return [{ iconCls: 'fg-editor-trigger-color', builtin: 'color' }];
+      return normalizeIconConfigs([{ iconCls: 'fg-editor-trigger-color', builtin: 'color' }]);
     }
     return [];
   }
 
   function normalizeIconConfigs(icons) {
-    var result = [];
-    var i;
-    var icon;
-    if (!icons) {
-      return result;
-    }
-    if (!Array.isArray(icons)) {
-      icons = [icons];
-    }
-    for (i = 0; i < icons.length; i += 1) {
-      icon = icons[i];
-      if (icon === false || icon == null) {
-        continue;
-      }
-      if (typeof icon === 'function') {
-        icon = { onClick: icon };
-      } else if (typeof icon === 'string') {
-        icon = { iconCls: icon };
-      }
-      if (typeof icon === 'object') {
-        result.push(icon);
-      }
-    }
-    return result;
+    return normalizeEditorIconDescriptors(icons);
   }
 
   function getEditorIconConfigWidth(icons, type) {
@@ -2079,28 +2116,6 @@ export function createFabGridFactory(editorDefinitions) {
       return text == null ? '' : String(text);
     }
     return item == null ? '' : String(item);
-  }
-
-  function shouldShowComboboxValueInList(config) {
-    var options = config && config.options ? config.options : {};
-    return options.showValueInList === true || options.showValue === true || options.showCode === true;
-  }
-
-  function renderComboboxOptionContent(option, text, value, config) {
-    var textSpan;
-    var valueSpan;
-    option.textContent = '';
-    textSpan = document.createElement('span');
-    textSpan.className = 'fg-combobox-option-text';
-    textSpan.textContent = text;
-    option.appendChild(textSpan);
-    if (shouldShowComboboxValueInList(config) && value !== '' && value !== text) {
-      valueSpan = document.createElement('span');
-      valueSpan.className = 'fg-combobox-option-value';
-      valueSpan.textContent = '(' + value + ')';
-      option.appendChild(valueSpan);
-      option.setAttribute('aria-label', text + ' (' + value + ')');
-    }
   }
 
   function getComboboxTextByValue(value, config) {
@@ -3407,99 +3422,6 @@ export function createFabGridFactory(editorDefinitions) {
     return options.showAlpha !== false;
   }
 
-  function createColorState(value) {
-    var color = normalizeColorValue(value) || '#ff0000';
-    var hex = color.slice(1);
-    var rgb;
-    var hsv;
-    if (hex.length === 6) {
-      hex += 'ff';
-    }
-    rgb = {
-      r: parseInt(hex.slice(0, 2), 16),
-      g: parseInt(hex.slice(2, 4), 16),
-      b: parseInt(hex.slice(4, 6), 16)
-    };
-    hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
-    hsv.a = parseInt(hex.slice(6, 8), 16) / 255;
-    return hsv;
-  }
-
-  function rgbToHsv(red, green, blue) {
-    var r = red / 255;
-    var g = green / 255;
-    var b = blue / 255;
-    var max = Math.max(r, g, b);
-    var min = Math.min(r, g, b);
-    var delta = max - min;
-    var hue = 0;
-    if (delta) {
-      if (max === r) {
-        hue = ((g - b) / delta) % 6;
-      } else if (max === g) {
-        hue = (b - r) / delta + 2;
-      } else {
-        hue = (r - g) / delta + 4;
-      }
-      hue *= 60;
-      if (hue < 0) hue += 360;
-    }
-    return {
-      h: hue,
-      s: max === 0 ? 0 : delta / max,
-      v: max
-    };
-  }
-
-  function hsvToRgb(hue, saturation, value) {
-    var chroma = value * saturation;
-    var section = hue / 60;
-    var x = chroma * (1 - Math.abs(section % 2 - 1));
-    var m = value - chroma;
-    var r = 0;
-    var g = 0;
-    var b = 0;
-    if (section < 1) {
-      r = chroma;
-      g = x;
-    } else if (section < 2) {
-      r = x;
-      g = chroma;
-    } else if (section < 3) {
-      g = chroma;
-      b = x;
-    } else if (section < 4) {
-      g = x;
-      b = chroma;
-    } else if (section < 5) {
-      r = x;
-      b = chroma;
-    } else {
-      r = chroma;
-      b = x;
-    }
-    return {
-      r: Math.round((r + m) * 255),
-      g: Math.round((g + m) * 255),
-      b: Math.round((b + m) * 255)
-    };
-  }
-
-  function colorStateToHex(state, showAlpha) {
-    var rgb = hsvToRgb(state.h, state.s, state.v);
-    var alpha = clamp(state.a == null ? 1 : state.a, 0, 1);
-    var value = '#' + toHexColorPart(rgb.r) + toHexColorPart(rgb.g) + toHexColorPart(rgb.b);
-    if (showAlpha && alpha < 0.999) {
-      value += toHexColorPart(Math.round(alpha * 255));
-    }
-    return value;
-  }
-
-  function toHexColorPart(value) {
-    var text = clamp(Math.round(value), 0, 255).toString(16);
-    return text.length < 2 ? '0' + text : text;
-  }
-
   function findColumnByOffset(columns, start, end, offset) {
     var low = start;
     var high = end - 1;
@@ -3560,7 +3482,6 @@ export function createFabGridFactory(editorDefinitions) {
     applyMask: applyMask,
     closest: closest,
     countMaskCharactersBeforeCaret: countMaskCharactersBeforeCaret,
-    createColorState: createColorState,
     createDictionary: createDictionary,
     createFilterMenuItemHandler: createFilterMenuItemHandler,
     extractMaskCharacters: extractMaskCharacters,
@@ -3604,9 +3525,7 @@ export function createFabGridFactory(editorDefinitions) {
     applyMask: applyMask,
     clamp: clamp,
     closest: closest,
-    colorStateToHex: colorStateToHex,
     countMaskCharactersBeforeCaret: countMaskCharactersBeforeCaret,
-    createColorState: createColorState,
     editorDefinitions: editorDefinitions,
     escapeHtml: escapeHtml,
     extractMaskCharacters: extractMaskCharacters,
@@ -3639,7 +3558,6 @@ export function createFabGridFactory(editorDefinitions) {
     getNumberPrecision: getNumberPrecision,
     getValidationRowId: getValidationRowId,
     hasClass: hasClass,
-    hsvToRgb: hsvToRgb,
     isColorValueValid: isColorValueValid,
     isComboboxValueInList: isComboboxValueInList,
     isDateLikeEditorType: isDateLikeEditorType,
@@ -3659,7 +3577,6 @@ export function createFabGridFactory(editorDefinitions) {
     parseDateboxEditorValue: parseDateboxEditorValue,
     parseValue: parseValue,
     parseYearMonthValue: parseYearMonthValue,
-    renderComboboxOptionContent: renderComboboxOptionContent,
     roundNumberValue: roundNumberValue,
     sanitizeDateEditorText: sanitizeDateEditorText,
     sanitizeNumberEditorText: sanitizeNumberEditorText,

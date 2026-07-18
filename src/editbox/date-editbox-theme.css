@@ -1,0 +1,325 @@
+.fui-datebox-panel.fg-theme-default,
+.fui-calendar.fg-theme-default {
+  --fui-control-border: #95b8e7;
+  --fui-control-trigger-bg: #e0ecff;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #000;
+  --fui-calendar-header-text: #000;
+  --fui-calendar-week-bg: #f4f4f4;
+  --fui-calendar-week-text: #4d4d4d;
+  --fui-control-hover: #eaf2ff;
+  --fui-control-hover-text: #000;
+  --fui-control-hover-border: #b7d2ff;
+  --fui-control-selected: #ffe48d;
+  --fui-control-selected-text: #000;
+  --fui-control-selected-border: #ffab3f;
+  --fui-datebox-footer-bg: #e0ecff;
+  --fui-datebox-footer-text: #444;
+  --fui-control-icon: #555;
+}
+
+.fui-datebox-panel.fg-theme-bootstrap,
+.fui-calendar.fg-theme-bootstrap {
+  --fui-control-border: #d4d4d4;
+  --fui-control-trigger-bg: #f2f2f2;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #333;
+  --fui-calendar-header-text: #333;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #808080;
+  --fui-control-hover: #e6e6e6;
+  --fui-control-hover-text: #00438a;
+  --fui-control-hover-border: #ddd;
+  --fui-control-selected: #0081c2;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #0070a9;
+  --fui-datebox-footer-bg: #f2f2f2;
+  --fui-datebox-footer-text: #333;
+  --fui-control-icon: #555;
+}
+
+.fui-datebox-panel.fg-theme-cupertino,
+.fui-calendar.fg-theme-cupertino {
+  --fui-control-border: #aed0ea;
+  --fui-control-trigger-bg: #d7ebf9;
+  --fui-panel-bg: #f2f5f7;
+  --fui-panel-text: #000;
+  --fui-calendar-header-text: #2779aa;
+  --fui-calendar-week-bg: #f4f4f4;
+  --fui-calendar-week-text: #4d4d4d;
+  --fui-control-hover: #e4f1fb;
+  --fui-control-hover-text: #2779aa;
+  --fui-control-hover-border: #aed0ea;
+  --fui-control-selected: #3baae3;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #2694e8;
+  --fui-datebox-footer-bg: #d7ebf9;
+  --fui-datebox-footer-text: #2779aa;
+  --fui-control-icon: #2779aa;
+}
+
+.fui-datebox-panel.fg-theme-material,
+.fui-calendar.fg-theme-material {
+  --fui-control-border: #ddd;
+  --fui-control-trigger-bg: #f5f5f5;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #eee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #ccc;
+  --fui-control-selected: #00bbee;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #00bbee;
+  --fui-datebox-footer-bg: #f5f5f5;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #666;
+}
+
+.fui-datebox-panel.fg-theme-material-blue,
+.fui-calendar.fg-theme-material-blue {
+  --fui-control-border: #dfdfdf;
+  --fui-control-trigger-bg: #f5f5f5;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #eee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #ccc;
+  --fui-control-selected: #eee;
+  --fui-control-selected-text: #2196f3;
+  --fui-control-selected-border: #2196f3;
+  --fui-datebox-footer-bg: #f5f5f5;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #666;
+}
+
+.fui-datebox-panel.fg-theme-material-teal,
+.fui-calendar.fg-theme-material-teal {
+  --fui-control-border: #dfdfdf;
+  --fui-control-trigger-bg: #fafafa;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #eee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #ccc;
+  --fui-control-selected: #eee;
+  --fui-control-selected-text: #3399cc;
+  --fui-control-selected-border: #3399cc;
+  --fui-datebox-footer-bg: #fafafa;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #666;
+}
+
+.fui-datebox-panel.fg-theme-metro,
+.fui-calendar.fg-theme-metro {
+  --fui-control-border: #ddd;
+  --fui-control-trigger-bg: #fff;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #444;
+  --fui-calendar-header-text: #444;
+  --fui-calendar-week-bg: #fff;
+  --fui-calendar-week-text: #919191;
+  --fui-control-hover: #e6e6e6;
+  --fui-control-hover-text: #444;
+  --fui-control-hover-border: #ddd;
+  --fui-control-selected: #cce6ff;
+  --fui-control-selected-text: #000;
+  --fui-control-selected-border: #99cdff;
+  --fui-datebox-footer-bg: #fff;
+  --fui-datebox-footer-text: #444;
+  --fui-control-icon: #555;
+  --fui-control-radius: 0;
+}
+
+.fui-datebox-panel.fg-theme-metro-blue,
+.fui-calendar.fg-theme-metro-blue {
+  --fui-control-border: #c3d9e0;
+  --fui-control-trigger-bg: #daeef5;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #9cc8f7;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #9cc8f7;
+  --fui-control-selected: #6caef5;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #9cc8f7;
+  --fui-datebox-footer-bg: #daeef5;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #555;
+  --fui-control-radius: 0;
+}
+
+.fui-datebox-panel.fg-theme-metro-gray,
+.fui-calendar.fg-theme-metro-gray {
+  --fui-control-border: #abafb8;
+  --fui-control-trigger-bg: #c7ccd1;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #e6e6e6;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #e6e6e6;
+  --fui-control-selected: #84909c;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #84909c;
+  --fui-datebox-footer-bg: #c7ccd1;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #555;
+  --fui-control-radius: 0;
+}
+
+.fui-datebox-panel.fg-theme-metro-green,
+.fui-calendar.fg-theme-metro-green {
+  --fui-control-border: #b1c242;
+  --fui-control-trigger-bg: #e5f0c9;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #e0f892;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #e0f892;
+  --fui-control-selected: #c8d47b;
+  --fui-control-selected-text: #404040;
+  --fui-control-selected-border: #c8d47b;
+  --fui-datebox-footer-bg: #e5f0c9;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #555;
+  --fui-control-radius: 0;
+}
+
+.fui-datebox-panel.fg-theme-metro-orange,
+.fui-calendar.fg-theme-metro-orange {
+  --fui-control-border: #d4a375;
+  --fui-control-trigger-bg: #f0e3bf;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #fff7d6;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #fff7d6;
+  --fui-control-selected: #f7cc8f;
+  --fui-control-selected-text: #404040;
+  --fui-control-selected-border: #f7cc8f;
+  --fui-datebox-footer-bg: #f0e3bf;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #555;
+  --fui-control-radius: 0;
+}
+
+.fui-datebox-panel.fg-theme-metro-red,
+.fui-calendar.fg-theme-metro-red {
+  --fui-control-border: #f6c1bc;
+  --fui-control-trigger-bg: #f0e1e3;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #fff0e7;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #fff0e7;
+  --fui-control-selected: #f09090;
+  --fui-control-selected-text: #404040;
+  --fui-control-selected-border: #f09090;
+  --fui-datebox-footer-bg: #f0e1e3;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #555;
+  --fui-control-radius: 0;
+}
+
+.fui-datebox-panel.fg-theme-sunny,
+.fui-calendar.fg-theme-sunny {
+  --fui-control-border: #494437;
+  --fui-control-trigger-bg: #817865;
+  --fui-panel-bg: #feeebd;
+  --fui-panel-text: #000;
+  --fui-calendar-header-text: #fff;
+  --fui-calendar-week-bg: #efefef;
+  --fui-calendar-week-text: #4d4d4d;
+  --fui-control-hover: #ffdd57;
+  --fui-control-hover-text: #000;
+  --fui-control-hover-border: #a45b13;
+  --fui-control-selected: #fff;
+  --fui-control-selected-text: #0074c7;
+  --fui-control-selected-border: #655e4e;
+  --fui-datebox-footer-bg: #817865;
+  --fui-datebox-footer-text: #fff;
+  --fui-control-icon: #fff;
+}
+
+.fui-datebox-panel.fg-theme-pepper-grinder,
+.fui-calendar.fg-theme-pepper-grinder {
+  --fui-control-border: #cbc7bd;
+  --fui-control-trigger-bg: #f8f7f6;
+  --fui-panel-bg: #eceadf;
+  --fui-panel-text: #1f1f1f;
+  --fui-calendar-header-text: #1f1f1f;
+  --fui-calendar-week-bg: #f8f7f6;
+  --fui-calendar-week-text: #6c6c6c;
+  --fui-control-hover: #654b24;
+  --fui-control-hover-text: #fff;
+  --fui-control-hover-border: #654b24;
+  --fui-control-selected: #b83400;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #681818;
+  --fui-datebox-footer-bg: #f8f7f6;
+  --fui-datebox-footer-text: #1f1f1f;
+  --fui-control-icon: #654b24;
+}
+
+.fui-datebox-panel.fg-theme-dark-hive,
+.fui-calendar.fg-theme-dark-hive {
+  --fui-control-border: #444;
+  --fui-control-trigger-bg: #222;
+  --fui-panel-bg: #000;
+  --fui-panel-text: #fff;
+  --fui-calendar-header-text: #fff;
+  --fui-calendar-week-bg: #222;
+  --fui-calendar-week-text: #fff;
+  --fui-control-hover: #003147;
+  --fui-control-hover-text: #fff;
+  --fui-control-hover-border: #0b93d5;
+  --fui-control-selected: #0972a5;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #26b3f7;
+  --fui-datebox-footer-bg: #222;
+  --fui-datebox-footer-text: #fff;
+  --fui-control-icon: #fff;
+}
+
+.fui-datebox-panel.fg-theme-black,
+.fui-calendar.fg-theme-black {
+  --fui-control-border: #000;
+  --fui-control-trigger-bg: #3d3d3d;
+  --fui-panel-bg: #666;
+  --fui-panel-text: #fff;
+  --fui-calendar-header-text: #fff;
+  --fui-calendar-week-bg: #555;
+  --fui-calendar-week-text: #fff;
+  --fui-control-hover: #777;
+  --fui-control-hover-text: #fff;
+  --fui-control-hover-border: #555;
+  --fui-control-selected: #0052a3;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #00458a;
+  --fui-datebox-footer-bg: #3d3d3d;
+  --fui-datebox-footer-text: #fff;
+  --fui-control-icon: #fff;
+}

@@ -60,6 +60,7 @@ var chart = new fabui.pivot.PivotChart('#pivotChart', {
 | `maxSeries` | `12` | 最多顯示的 series 數量。 |
 | `selectedSeries` | `0` | Pie 使用的 series index。 |
 | `locale` | `en` | `en`、`zh-TW`、`zh-CN`。 |
+| `messages` | `null` | 覆寫 locale 文字。 |
 | `footer` | 空字串 | Chart footer；超過上限時會附加截斷訊息。 |
 | `tooltip` | `true` | 沿用 `fabui.Chart` tooltip 設定。 |
 | `palette` | `null` | 自訂顏色陣列。 |
@@ -73,8 +74,11 @@ var chart = new fabui.pivot.PivotChart('#pivotChart', {
 | `axisX`／`axisY` | `{}` | Cartesian 軸設定。 |
 | `formatValue` | `null` | 數值格式化 function。 |
 | `formatTooltip` | `null` | Tooltip 格式化 function。 |
+| `emptyText` | `null` | 沒有可繪製資料時顯示的文字；未設定時使用 locale。 |
 
 唯讀 `chart` property 是內部的 `fabui.Chart` instance；可用於進階 Chart 設定，但 Pivot view 的資料更新仍應由 PivotChart 管理。
+
+`fabui.pivot.PivotChart.ChartType` 直接沿用 `fabui.Chart.ChartType`，提供 `Column`、`Bar`、`Line`、`Pie` 常數。
 
 ## Methods
 

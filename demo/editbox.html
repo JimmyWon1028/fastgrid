@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EditBox 正式版 Demo</title>
-  <link rel="stylesheet" href="../dist/editbox.css">
+  <title>fabui.EditBox 正式版 Demo</title>
+  <link rel="stylesheet" href="../dist/fabui.css">
   <style>
     body {
       max-width: 720px;
@@ -49,9 +49,9 @@
     }
   </style>
 </head>
-<body>
-  <h1>EditBox 正式版 Demo</h1>
-  <p class="intro">單一 EditBox class，透過 editor 選項切換文字、數字、日期、年月、清單與顏色編輯。</p>
+<body class="fg-theme-default">
+  <h1>fabui.EditBox 正式版 Demo</h1>
+  <p class="intro">使用單一 <code>fabui.EditBox</code> class，透過 editor 選項切換文字、數字、日期、年月、清單與顏色編輯。</p>
 
   <div class="form-row"><label for="edit-name">文字</label><input id="edit-name" value="王小明"></div>
   <div class="form-row"><label for="edit-amount">數字</label><input id="edit-amount" value="1280.5"></div>
@@ -67,10 +67,10 @@
 
   <pre id="editbox-output" aria-live="polite"></pre>
 
-  <script src="../dist/editbox.min.js"></script>
+  <script src="../dist/fabui.min.js"></script>
   <script src="./js/editbox-demo.js"></script>
   <script>
-    window.mountFabUIEditBoxDemo(window.fabui.EditBox);
+    window.mountFabUIEditBoxDemo(window.fabui);
   </script>
 </body>
 </html>

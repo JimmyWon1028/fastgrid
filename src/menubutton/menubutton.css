@@ -1,0 +1,55 @@
+.fui-menu-button {
+  position: relative;
+}
+
+.fui-menu-button > .fui-button-inner {
+  flex: 1 1 auto;
+}
+
+.fui-menu-button-arrow {
+  position: relative;
+  display: flex;
+  width: 16px;
+  min-height: 28px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border-left: 0;
+  pointer-events: none;
+}
+
+.fui-menu-button-arrow::before {
+  width: 0;
+  height: 0;
+  border-top: 5px solid currentColor;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  content: "";
+}
+
+.fui-menu-button-arrow[hidden] {
+  display: none;
+}
+
+.fui-menu-button-no-arrow > .fui-button-inner {
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.fui-menu-button-open,
+.fui-menu-button-open:not(.fui-button-disabled):hover {
+  border-color: var(--fui-button-border-hover);
+  background: var(--fui-button-bg-hover);
+  color: var(--fui-button-text-hover);
+}
+
+.fui-menu-button.fui-button-size-large .fui-menu-button-arrow {
+  width: 20px;
+  min-height: 44px;
+  flex-basis: 20px;
+}
+
+.fui-menu-button.fui-button-disabled .fui-menu-button-arrow {
+  opacity: 0.6;
+}

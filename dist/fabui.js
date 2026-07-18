@@ -89,6 +89,913 @@ function unregisterControl(element, control) {
   }
 }
 
+var BUTTON_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function assignButtonOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveButtonElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function buttonBooleanAttribute(element, name) {
+  var value = element.getAttribute(name);
+  if (value == null) return undefined;
+  return value === '' || value === name || value === 'true' || value === '1';
+}
+
+function buttonSizeValue(value) {
+  if (value == null || value === '' || value === 'auto') return '';
+  return typeof value === 'number' ? Math.max(0, value) + 'px' : String(value);
+}
+
+function restoreButtonAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function normalizeButtonTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return BUTTON_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeButtonIconAlign(value) {
+  value = String(value || 'left').toLowerCase();
+  return ['left', 'right', 'top', 'bottom'].indexOf(value) >= 0 ? value : 'left';
+}
+
+function normalizeButtonSize(value) {
+  return String(value || 'small').toLowerCase() === 'large' ? 'large' : 'small';
+}
+
+function findButtonTheme(element) {
+  var current = resolveButtonElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < BUTTON_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + BUTTON_THEMES[index])) {
+        return BUTTON_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function createButtonFactory(Control, registerControl, unregisterControl) {
+  var groups = Object.create(null);
+
+  function FabButton(element, options) {
+    var host = resolveButtonElement(element);
+    var initiallySelected;
+    if (!(this instanceof FabButton)) return new FabButton(element, options);
+    if (!host) throw new Error('fabui.Button requires a host element.');
+    if (host.__fabuiButton) return host.__fabuiButton;
+    if (!/^(?:A|BUTTON)$/i.test(host.tagName)) {
+      throw new Error('fabui.Button host must be an anchor or button element.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._original = {
+      html: host.innerHTML,
+      className: host.getAttribute('class'),
+      style: host.getAttribute('style'),
+      id: host.getAttribute('id'),
+      role: host.getAttribute('role'),
+      tabIndex: host.getAttribute('tabindex'),
+      ariaDisabled: host.getAttribute('aria-disabled'),
+      ariaPressed: host.getAttribute('aria-pressed'),
+      disabled: Boolean(host.disabled)
+    };
+    this._themeSource = host.parentElement || document.body;
+    this.options = assignButtonOptions({}, FabButton.defaults, this._readElementOptions(), options || {});
+    this.options.iconAlign = normalizeButtonIconAlign(this.options.iconAlign);
+    this.options.size = normalizeButtonSize(this.options.size);
+    initiallySelected = this.options.selected === true;
+    this.options.selected = false;
+    this._build();
+    this._registerGroup();
+    this._bind();
+    host.__fabuiButton = this;
+    registerControl(host, this);
+    this.setTheme(this.options.theme);
+    this._render();
+    if (initiallySelected) this.select(true);
+  }
+
+  FabButton.prototype = Object.create(Control.prototype);
+  FabButton.prototype.constructor = FabButton;
+
+  FabButton.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var options = {};
+    var text = host.textContent == null ? '' : host.textContent.trim();
+    var iconCls = host.getAttribute('iconCls') ||
+      host.getAttribute('icon') ||
+      host.getAttribute('data-icon-cls');
+    var width = host.style.width;
+    var height = host.style.height;
+    var value;
+    if (host.id) options.id = host.id;
+    if (text) options.text = text;
+    if (iconCls) options.iconCls = iconCls;
+    if (width) options.width = width;
+    if (height) options.height = height;
+    if (host.disabled || host.hasAttribute('disabled')) options.disabled = true;
+    value = host.getAttribute('data-icon-align');
+    if (value) options.iconAlign = value;
+    value = host.getAttribute('data-size');
+    if (value) options.size = value;
+    value = host.getAttribute('data-group');
+    if (value) options.group = value;
+    ['plain', 'outline', 'toggle', 'selected'].forEach(function(name) {
+      var parsed = buttonBooleanAttribute(host, 'data-' + name);
+      if (parsed != null) options[name] = parsed;
+    });
+    return options;
+  };
+
+  FabButton.prototype._build = function() {
+    var host = this.hostElement;
+    var inner = document.createElement('span');
+    var text = document.createElement('span');
+    var icon = document.createElement('span');
+    host.textContent = '';
+    host.classList.add('fui-button');
+    if (this.options.cls) {
+      String(this.options.cls).split(/\s+/).forEach(function(className) {
+        if (className) host.classList.add(className);
+      });
+    }
+    inner.className = 'fui-button-inner';
+    text.className = 'fui-button-text';
+    icon.className = 'fui-button-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    inner.appendChild(icon);
+    inner.appendChild(text);
+    host.appendChild(inner);
+    if (host.tagName === 'A' && !host.hasAttribute('href')) {
+      host.setAttribute('role', 'button');
+      if (!host.hasAttribute('tabindex')) host.tabIndex = 0;
+    }
+    this.innerElement = inner;
+    this.textElement = text;
+    this.iconElement = icon;
+    this._enabledTabIndex = host.getAttribute('tabindex');
+  };
+
+  FabButton.prototype._bind = function() {
+    var self = this;
+    this._onClick = function(event) {
+      var allowed;
+      if (self.options.disabled) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (self.options.toggle) {
+        if (self.options.selected) self.unselect();
+        else self.select();
+      }
+      allowed = self._fire('Click', {
+        originalEvent: event,
+        selected: self.options.selected
+      });
+      if (allowed === false) event.preventDefault();
+    };
+    this._onKeyDown = function(event) {
+      var isAnchor = self.hostElement.tagName === 'A';
+      if (self.options.disabled) return;
+      if (
+        (event.key === ' ' && isAnchor) ||
+        (event.key === 'Enter' && isAnchor && !self.hostElement.hasAttribute('href'))
+      ) {
+        event.preventDefault();
+        self.hostElement.click();
+      }
+    };
+    this.addEventListener(this.hostElement, 'click', this._onClick, true);
+    this.addEventListener(this.hostElement, 'keydown', this._onKeyDown);
+  };
+
+  FabButton.prototype._registerGroup = function() {
+    var group = this.options.group;
+    if (!group) return;
+    if (!groups[group]) groups[group] = new Set();
+    groups[group].add(this);
+  };
+
+  FabButton.prototype._unregisterGroup = function() {
+    var group = this.options.group;
+    if (!group || !groups[group]) return;
+    groups[group].delete(this);
+    if (!groups[group].size) delete groups[group];
+  };
+
+  FabButton.prototype._render = function() {
+    var host = this.hostElement;
+    var hasText = this.options.text != null && String(this.options.text) !== '';
+    host.classList.toggle('fui-button-plain', this.options.plain === true);
+    host.classList.toggle('fui-button-outline', this.options.outline === true);
+    host.classList.toggle('fui-button-selected', this.options.selected === true);
+    host.classList.toggle('fui-button-disabled', this.options.disabled === true);
+    host.classList.remove(
+      'fui-button-size-small',
+      'fui-button-size-large',
+      'fui-button-icon-left',
+      'fui-button-icon-right',
+      'fui-button-icon-top',
+      'fui-button-icon-bottom'
+    );
+    host.classList.add('fui-button-size-' + this.options.size);
+    host.classList.add('fui-button-icon-' + this.options.iconAlign);
+    this.textElement.textContent = hasText ? String(this.options.text) : '\u00a0';
+    this.textElement.classList.toggle('fui-button-empty', !hasText);
+    this.iconElement.className = ('fui-button-icon ' + (this.options.iconCls || '')).trim();
+    this.iconElement.hidden = !this.options.iconCls;
+    host.classList.toggle('fui-button-has-icon', Boolean(this.options.iconCls));
+    host.classList.toggle('fui-button-icon-only', Boolean(this.options.iconCls) && !hasText);
+    if (this.options.id != null) host.id = String(this.options.id);
+    host.setAttribute('aria-disabled', this.options.disabled ? 'true' : 'false');
+    if (this.options.toggle) {
+      host.setAttribute('aria-pressed', this.options.selected ? 'true' : 'false');
+    } else {
+      host.removeAttribute('aria-pressed');
+    }
+    if ('disabled' in host) host.disabled = this.options.disabled === true;
+    if (this.options.disabled) {
+      host.tabIndex = -1;
+    } else if (this._enabledTabIndex == null) {
+      if (host.tagName === 'A' && !host.hasAttribute('href')) host.tabIndex = 0;
+      else host.removeAttribute('tabindex');
+    } else {
+      host.setAttribute('tabindex', this._enabledTabIndex);
+    }
+    this.resize({
+      width: this.options.width,
+      height: this.options.height
+    }, true);
+    return this;
+  };
+
+  FabButton.prototype._setSelected = function(selected, silent) {
+    if (this.options.selected === selected) return this;
+    this.options.selected = selected;
+    this.hostElement.classList.toggle('fui-button-selected', selected);
+    if (this.options.toggle) this.hostElement.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    if (!silent) this._fire(selected ? 'Select' : 'Unselect', { selected: selected });
+    return this;
+  };
+
+  FabButton.prototype._fire = function(name, detail) {
+    var callback = this.options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var args = assignButtonOptions({ button: this }, detail || {});
+    var allowed = true;
+    if (typeof callback === 'function' && callback.call(this.hostElement, this, args) === false) {
+      allowed = false;
+    }
+    listeners.forEach(function(listener) {
+      if (listener.call(this, args) === false) allowed = false;
+    }, this);
+    return allowed;
+  };
+
+  FabButton.prototype.resize = function(param, silent) {
+    param = param || {};
+    if (Object.prototype.hasOwnProperty.call(param, 'width')) this.options.width = param.width;
+    if (Object.prototype.hasOwnProperty.call(param, 'height')) this.options.height = param.height;
+    if (this.options.fit) {
+      this.hostElement.style.width = '100%';
+      this.hostElement.style.height = '100%';
+    } else {
+      this.hostElement.style.width = buttonSizeValue(this.options.width);
+      this.hostElement.style.height = buttonSizeValue(this.options.height);
+    }
+    if (!silent) {
+      this._fire('Resize', {
+        width: this.options.width,
+        height: this.options.height
+      });
+    }
+    return this;
+  };
+
+  FabButton.prototype.disable = function() {
+    if (this.options.disabled) return this;
+    this.options.disabled = true;
+    this._render();
+    return this;
+  };
+
+  FabButton.prototype.enable = function() {
+    if (!this.options.disabled) return this;
+    this.options.disabled = false;
+    this._render();
+    return this;
+  };
+
+  FabButton.prototype.select = function(silent) {
+    var self = this;
+    var group = this.options.group;
+    if (group && groups[group]) {
+      groups[group].forEach(function(button) {
+        if (button !== self && button.options.toggle) button._setSelected(false, silent);
+      });
+    }
+    return this._setSelected(true, silent);
+  };
+
+  FabButton.prototype.unselect = function(silent) {
+    if (this.options.group) return this;
+    return this._setSelected(false, silent);
+  };
+
+  FabButton.prototype.setText = function(text) {
+    this.options.text = text == null ? '' : String(text);
+    return this._render();
+  };
+
+  FabButton.prototype.setIcon = function(iconCls, iconAlign) {
+    this.options.iconCls = iconCls == null ? null : String(iconCls).trim();
+    if (iconAlign != null) this.options.iconAlign = normalizeButtonIconAlign(iconAlign);
+    return this._render();
+  };
+
+  FabButton.prototype.setTheme = function(theme) {
+    var index;
+    this.options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this.options.theme === 'inherit' ?
+      findButtonTheme(this._themeSource) :
+      normalizeButtonTheme(this.options.theme);
+    for (index = 0; index < BUTTON_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + BUTTON_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  FabButton.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabButton.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabButton.prototype.destroy = function() {
+    var host = this.hostElement;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._unregisterGroup();
+    this.removeEventListener();
+    unregisterControl(host, this);
+    delete host.__fabuiButton;
+    host.innerHTML = this._original.html;
+    restoreButtonAttribute(host, 'class', this._original.className);
+    restoreButtonAttribute(host, 'style', this._original.style);
+    restoreButtonAttribute(host, 'id', this._original.id);
+    restoreButtonAttribute(host, 'role', this._original.role);
+    restoreButtonAttribute(host, 'tabindex', this._original.tabIndex);
+    restoreButtonAttribute(host, 'aria-disabled', this._original.ariaDisabled);
+    restoreButtonAttribute(host, 'aria-pressed', this._original.ariaPressed);
+    if ('disabled' in host) host.disabled = this._original.disabled;
+    this._listeners = {};
+  };
+
+  FabButton.prototype.dispose = FabButton.prototype.destroy;
+
+  FabButton.defaults = {
+    width: null,
+    height: null,
+    id: null,
+    disabled: false,
+    toggle: false,
+    selected: false,
+    group: null,
+    plain: false,
+    outline: false,
+    text: '',
+    iconCls: null,
+    iconAlign: 'left',
+    size: 'small',
+    fit: false,
+    cls: '',
+    theme: 'inherit',
+    onClick: null,
+    onSelect: null,
+    onUnselect: null,
+    onResize: null
+  };
+  FabButton.getControl = function(element) {
+    element = resolveButtonElement(element);
+    return element && element.__fabuiButton ? element.__fabuiButton : null;
+  };
+  return FabButton;
+}
+
+
+
+var CALENDAR_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+var CALENDAR_LOCALES = {
+  en: {
+    ariaLabel: 'Calendar',
+    yearText: 'Year',
+    previousYearText: 'Previous year',
+    previousMonthText: 'Previous month',
+    nextMonthText: 'Next month',
+    nextYearText: 'Next year',
+    weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  },
+  'zh-TW': {
+    ariaLabel: '日曆',
+    yearText: '年份',
+    previousYearText: '上一年',
+    previousMonthText: '上個月',
+    nextMonthText: '下個月',
+    nextYearText: '下一年',
+    weeks: ['日', '一', '二', '三', '四', '五', '六'],
+    months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
+  },
+  'zh-CN': {
+    ariaLabel: '日历',
+    yearText: '年份',
+    previousYearText: '上一年',
+    previousMonthText: '上个月',
+    nextMonthText: '下个月',
+    nextYearText: '下一年',
+    weeks: ['日', '一', '二', '三', '四', '五', '六'],
+    months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
+  }
+};
+
+function assignCalendarOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveCalendarElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function cloneCalendarDate(date) {
+  return date instanceof Date && isFinite(date.getTime()) ? new Date(date.getTime()) : null;
+}
+
+function calendarDateOnly(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function normalizeCalendarLocale(locale) {
+  var value = String(locale || '').replace('_', '-');
+  if (CALENDAR_LOCALES[value]) return value;
+  if (/^zh-TW/i.test(value)) return 'zh-TW';
+  if (/^zh/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function calendarBooleanAttribute(element, name) {
+  var value = element.getAttribute(name);
+  if (value == null) return undefined;
+  return value === '' || value === name || value === 'true' || value === '1';
+}
+
+function calendarSizeValue(value) {
+  if (value == null || value === '' || value === 'auto') return '';
+  return typeof value === 'number' ? Math.max(0, value) + 'px' : String(value);
+}
+
+function restoreCalendarAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function createCalendarFactory(Control, registerControl, unregisterControl) {
+  function FabCalendar(element, options) {
+    var host = resolveCalendarElement(element);
+    var current;
+    var viewDate;
+    var suppliedOptions;
+    if (!(this instanceof FabCalendar)) return new FabCalendar(element, options);
+    if (!host) throw new Error('fabui.Calendar requires a host element.');
+    if (host.__fabuiCalendar) return host.__fabuiCalendar;
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._original = {
+      html: host.innerHTML,
+      className: host.getAttribute('class'),
+      style: host.getAttribute('style'),
+      role: host.getAttribute('role'),
+      ariaLabel: host.getAttribute('aria-label'),
+      tabIndex: host.getAttribute('tabindex')
+    };
+    suppliedOptions = assignCalendarOptions({}, this._readElementOptions(), options || {});
+    this.options = assignCalendarOptions({}, FabCalendar.defaults, suppliedOptions);
+    this._normalizeOptions(suppliedOptions);
+    current = cloneCalendarDate(this.options.current);
+    viewDate = current || calendarDateOnly(new Date());
+    if (
+      Object.prototype.hasOwnProperty.call(suppliedOptions, 'year') ||
+      Object.prototype.hasOwnProperty.call(suppliedOptions, 'month')
+    ) {
+      viewDate = new Date(
+        Object.prototype.hasOwnProperty.call(suppliedOptions, 'year') ?
+          this.options.year :
+          viewDate.getFullYear(),
+        Object.prototype.hasOwnProperty.call(suppliedOptions, 'month') ?
+          this.options.month - 1 :
+          viewDate.getMonth(),
+        1
+      );
+    }
+    host.textContent = '';
+    host.classList.add('fui-calendar-control');
+    host.classList.toggle('fui-calendar-noborder', !this.options.border);
+    host.__fabuiCalendar = this;
+    registerControl(host, this);
+    this._createPopup();
+    this._popup.setValue(current, viewDate);
+    this.resize(null, true);
+    this.setTheme(this.options.theme);
+  }
+
+  FabCalendar.prototype = Object.create(Control.prototype);
+  FabCalendar.prototype.constructor = FabCalendar;
+
+  FabCalendar.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var options = {};
+    var value;
+    value = host.getAttribute('width') || host.style.width;
+    if (value) options.width = isFinite(Number(value)) ? Number(value) : value;
+    value = host.getAttribute('height') || host.style.height;
+    if (value) options.height = isFinite(Number(value)) ? Number(value) : value;
+    value = host.getAttribute('firstDay');
+    if (value != null && value !== '') options.firstDay = Number(value);
+    value = host.getAttribute('weekNumberHeader');
+    if (value != null) options.weekNumberHeader = value;
+    value = host.getAttribute('locale');
+    if (value) options.locale = value;
+    value = host.getAttribute('theme');
+    if (value) options.theme = value;
+    ['fit', 'border', 'showWeek', 'showLunar'].forEach(function(name) {
+      var parsed = calendarBooleanAttribute(host, name);
+      if (parsed != null) options[name] = parsed;
+    });
+    return options;
+  };
+
+  FabCalendar.prototype._normalizeOptions = function(userOptions) {
+    var localeName = normalizeCalendarLocale(this.options.locale);
+    var locale = CALENDAR_LOCALES[localeName];
+    this.options.locale = localeName;
+    this.options.firstDay = Math.max(0, Math.min(6, parseInt(this.options.firstDay, 10) || 0));
+    this.options.year = Math.max(1, Math.min(9999, parseInt(this.options.year, 10) || new Date().getFullYear()));
+    this.options.month = Math.max(1, Math.min(12, parseInt(this.options.month, 10) || (new Date().getMonth() + 1)));
+    this.options.current = cloneCalendarDate(this.options.current);
+    this.options.showWeek = this.options.showWeek === true;
+    this.options.showLunar = this.options.showLunar === true;
+    this.options.fit = this.options.fit === true;
+    this.options.border = this.options.border !== false;
+    [
+      'ariaLabel', 'yearText', 'previousYearText', 'previousMonthText',
+      'nextMonthText', 'nextYearText', 'weeks', 'months'
+    ].forEach(function(name) {
+      if (!Object.prototype.hasOwnProperty.call(userOptions, name) ||
+        userOptions[name] == null) {
+        this.options[name] = Array.isArray(locale[name]) ? locale[name].slice() : locale[name];
+      }
+    }, this);
+    this.options.weeks = Array.isArray(this.options.weeks) && this.options.weeks.length === 7 ?
+      this.options.weeks.slice() :
+      locale.weeks.slice();
+    this.options.months = Array.isArray(this.options.months) && this.options.months.length === 12 ?
+      this.options.months.slice() :
+      locale.months.slice();
+  };
+
+  FabCalendar.prototype._createPopup = function() {
+    var self = this;
+    this._popup = new DatePopup({
+      embedded: true,
+      embeddedHost: this.hostElement,
+      className: this.options.cls,
+      theme: this.options.theme,
+      themeSource: this.hostElement,
+      panelWidth: '100%',
+      panelHeight: '100%',
+      ariaLabel: this.options.ariaLabel,
+      firstDay: this.options.firstDay,
+      showWeek: this.options.showWeek,
+      showLunar: this.options.showLunar,
+      weekNumberHeader: this.options.weekNumberHeader,
+      locale: this.options.locale,
+      yearText: this.options.yearText,
+      previousYearText: this.options.previousYearText,
+      previousMonthText: this.options.previousMonthText,
+      nextMonthText: this.options.nextMonthText,
+      nextYearText: this.options.nextYearText,
+      weeks: this.options.weeks,
+      months: this.options.months,
+      buttons: [],
+      formatter: this.options.formatter,
+      styler: this.options.styler,
+      validator: this.options.validator,
+      validatorContext: this.hostElement,
+      getWeekNumber: this.options.getWeekNumber,
+      owner: this,
+      onSelect: function(date) {
+        self.options.current = cloneCalendarDate(date);
+        self._fire('Select', { date: cloneCalendarDate(date) });
+      },
+      onChange: function(newDate, oldDate) {
+        self.options.current = cloneCalendarDate(newDate);
+        self._fire('Change', {
+          newDate: cloneCalendarDate(newDate),
+          oldDate: cloneCalendarDate(oldDate)
+        });
+      },
+      onNavigate: function(year, month) {
+        self.options.year = year;
+        self.options.month = month;
+        self._fire('Navigate', { year: year, month: month });
+      }
+    });
+    this.calendarElement = this._popup.calendar;
+    this.panelElement = this._popup.panel;
+    this.hostElement.setAttribute('role', 'application');
+    this.hostElement.setAttribute('aria-label', this.options.ariaLabel);
+    if (!this.hostElement.hasAttribute('tabindex')) this.hostElement.tabIndex = 0;
+    this._onKeyDown = function(event) {
+      self._popup.handleKeyDown(event);
+    };
+    this.addEventListener(this.hostElement, 'keydown', this._onKeyDown);
+  };
+
+  FabCalendar.prototype._syncPopupOptions = function() {
+    this._popup.setOptions({
+      className: this.options.cls,
+      theme: this.options.theme,
+      themeSource: this.hostElement,
+      ariaLabel: this.options.ariaLabel,
+      firstDay: this.options.firstDay,
+      showWeek: this.options.showWeek,
+      showLunar: this.options.showLunar,
+      weekNumberHeader: this.options.weekNumberHeader,
+      locale: this.options.locale,
+      yearText: this.options.yearText,
+      previousYearText: this.options.previousYearText,
+      previousMonthText: this.options.previousMonthText,
+      nextMonthText: this.options.nextMonthText,
+      nextYearText: this.options.nextYearText,
+      weeks: this.options.weeks,
+      months: this.options.months,
+      formatter: this.options.formatter,
+      styler: this.options.styler,
+      validator: this.options.validator,
+      validatorContext: this.hostElement,
+      getWeekNumber: this.options.getWeekNumber
+    });
+    this.hostElement.classList.toggle('fui-calendar-noborder', !this.options.border);
+    this.hostElement.setAttribute('aria-label', this.options.ariaLabel);
+    return this;
+  };
+
+  FabCalendar.prototype._fire = function(name, detail) {
+    var callback = this.options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var args = assignCalendarOptions({ calendar: this }, detail || {});
+    if (typeof callback === 'function') {
+      if (name === 'Select') callback.call(this.hostElement, args.date);
+      else if (name === 'Change') callback.call(this.hostElement, args.newDate, args.oldDate);
+      else if (name === 'Navigate') callback.call(this.hostElement, args.year, args.month);
+      else callback.call(this.hostElement, this, args);
+    }
+    listeners.forEach(function(listener) {
+      listener.call(this, args);
+    }, this);
+    return this;
+  };
+
+  FabCalendar.prototype.resize = function(param, silent) {
+    param = param || {};
+    if (Object.prototype.hasOwnProperty.call(param, 'width')) this.options.width = param.width;
+    if (Object.prototype.hasOwnProperty.call(param, 'height')) this.options.height = param.height;
+    if (this.options.fit) {
+      this.hostElement.style.width = '100%';
+      this.hostElement.style.height = '100%';
+    } else {
+      this.hostElement.style.width = calendarSizeValue(this.options.width);
+      this.hostElement.style.height = calendarSizeValue(this.options.height);
+    }
+    this._popup.resize({ width: '100%', height: '100%' });
+    if (!silent) {
+      this._fire('Resize', {
+        width: this.options.width,
+        height: this.options.height
+      });
+    }
+    return this;
+  };
+
+  FabCalendar.prototype.moveTo = function(date) {
+    this._popup.moveTo(date);
+    return this;
+  };
+
+  FabCalendar.prototype.select = function(date) {
+    this._popup.select(date);
+    return this;
+  };
+
+  FabCalendar.prototype.refresh = function() {
+    this._popup.render();
+    return this;
+  };
+
+  FabCalendar.prototype.setOptions = function(options) {
+    options = options || {};
+    assignCalendarOptions(this.options, options);
+    this._normalizeOptions(options);
+    this._syncPopupOptions();
+    if (Object.prototype.hasOwnProperty.call(options, 'current')) {
+      this.moveTo(this.options.current);
+    } else if (
+      Object.prototype.hasOwnProperty.call(options, 'year') ||
+      Object.prototype.hasOwnProperty.call(options, 'month')
+    ) {
+      this._popup.viewDate = new Date(this.options.year, this.options.month - 1, 1);
+      this._popup.render();
+    }
+    this.resize(null, true);
+    this.setTheme(this.options.theme);
+    return this;
+  };
+
+  FabCalendar.prototype.setTheme = function(theme) {
+    var index;
+    this.options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this.options.theme === 'inherit' ?
+      findDatePopupTheme(this.hostElement.parentElement || document.body) :
+      normalizeDatePopupTheme(this.options.theme);
+    for (index = 0; index < CALENDAR_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + CALENDAR_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    this._popup.setOptions({
+      theme: this.theme,
+      themeSource: this.hostElement
+    });
+    return this;
+  };
+
+  FabCalendar.prototype.setLocale = function(locale, messages) {
+    this.options.locale = normalizeCalendarLocale(locale);
+    return this.setOptions(assignCalendarOptions(
+      { locale: this.options.locale },
+      messages || {}
+    ));
+  };
+
+  FabCalendar.prototype.calendar = function() {
+    return this.calendarElement;
+  };
+
+  FabCalendar.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabCalendar.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabCalendar.prototype.destroy = function() {
+    var host = this.hostElement;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.removeEventListener();
+    this._popup.destroy();
+    unregisterControl(host, this);
+    delete host.__fabuiCalendar;
+    host.innerHTML = this._original.html;
+    restoreCalendarAttribute(host, 'class', this._original.className);
+    restoreCalendarAttribute(host, 'style', this._original.style);
+    restoreCalendarAttribute(host, 'role', this._original.role);
+    restoreCalendarAttribute(host, 'aria-label', this._original.ariaLabel);
+    restoreCalendarAttribute(host, 'tabindex', this._original.tabIndex);
+    this._listeners = {};
+  };
+
+  FabCalendar.prototype.dispose = FabCalendar.prototype.destroy;
+
+  FabCalendar.defaults = {
+    width: 180,
+    height: 180,
+    fit: false,
+    border: true,
+    showWeek: false,
+    showLunar: false,
+    weekNumberHeader: '',
+    firstDay: 0,
+    weeks: null,
+    months: null,
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+    current: calendarDateOnly(new Date()),
+    getWeekNumber: DatePopup.defaults.getWeekNumber,
+    formatter: DatePopup.defaults.formatter,
+    styler: DatePopup.defaults.styler,
+    validator: function() { return true; },
+    locale: 'en',
+    theme: 'inherit',
+    cls: '',
+    ariaLabel: null,
+    yearText: null,
+    previousYearText: null,
+    previousMonthText: null,
+    nextMonthText: null,
+    nextYearText: null,
+    onSelect: null,
+    onChange: null,
+    onNavigate: null,
+    onResize: null
+  };
+
+  FabCalendar.locales = CALENDAR_LOCALES;
+  FabCalendar.getControl = function(element) {
+    element = resolveCalendarElement(element);
+    return element && element.__fabuiCalendar ? element.__fabuiCalendar : null;
+  };
+  return FabCalendar;
+}
+
 function normalizeChartType(type) {
   type = String(type || 'column').toLowerCase();
   if (type === 'linesymbols') return 'line';
@@ -2641,6 +3548,14 @@ function installFabGridTree(FabGrid, context) {
 var activeRowDrag = null;
 var rowDragGrids = [];
 
+function calculateRowDropIndicatorWidth(bodyWidth, fixedLeftWidth, totalColumnWidth, verticalScrollbarGutterSize) {
+  var availableWidth = Math.max(0, Number(bodyWidth) || 0) -
+    Math.max(0, Number(verticalScrollbarGutterSize) || 0);
+  var columnAreaWidth = Math.max(0, Number(fixedLeftWidth) || 0) +
+    Math.max(0, Number(totalColumnWidth) || 0);
+  return Math.max(0, Math.min(availableWidth, columnAreaWidth));
+}
+
 function installFabGridDrag(FabGrid, context) {
   var bind = context.bind;
   var closest = context.closest;
@@ -3113,6 +4028,9 @@ function installFabGridDrag(FabGrid, context) {
     var rootRect;
     var bodyRect;
     var rowRect;
+    var fixedLeftWidth;
+    var verticalScrollbarGutterSize;
+    var indicatorWidth;
     var top;
     if (!this.rowDropIndicator) {
       this.rowDropIndicator = document.createElement('div');
@@ -3122,9 +4040,19 @@ function installFabGridDrag(FabGrid, context) {
     rootRect = this.root.getBoundingClientRect();
     bodyRect = this.body.getBoundingClientRect();
     rowRect = target.element ? target.element.getBoundingClientRect() : null;
+    fixedLeftWidth = typeof this.getFixedLeftWidth === 'function' ? this.getFixedLeftWidth() : 0;
+    verticalScrollbarGutterSize = typeof this.getVerticalScrollbarGutterSize === 'function' ?
+      this.getVerticalScrollbarGutterSize() :
+      0;
+    indicatorWidth = calculateRowDropIndicatorWidth(
+      bodyRect.width,
+      fixedLeftWidth,
+      this.totalWidth,
+      verticalScrollbarGutterSize
+    );
     this.rowDropIndicator.className = 'fg-row-drop-indicator fg-row-drop-' + target.position;
     this.rowDropIndicator.style.left = Math.max(0, bodyRect.left - rootRect.left) + 'px';
-    this.rowDropIndicator.style.width = Math.max(0, bodyRect.width) + 'px';
+    this.rowDropIndicator.style.width = indicatorWidth + 'px';
     if (target.position === 'inside' && rowRect) {
       this.rowDropIndicator.style.top = rowRect.top - rootRect.top + 'px';
       this.rowDropIndicator.style.height = rowRect.height + 'px';
@@ -5891,10 +6819,10 @@ function installFabGridView(FabGrid, context) {
       icon = iconConfigs[i];
       button = document.createElement('button');
       button.type = 'button';
-      button.className = trimText('fg-header-search-icon fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls || icon.className || icon.iconClass || icon.icon || ''));
+      button.className = trimText('fg-header-search-icon fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls));
       button.setAttribute('data-col', column._viewIndex);
       button.setAttribute('data-icon-index', i);
-      button.setAttribute('aria-label', icon.ariaLabel || icon.label || icon.title || this.getHeaderCellText(column));
+      button.setAttribute('aria-label', icon.ariaLabel || this.getHeaderCellText(column));
       button.title = icon.title || '';
       button.textContent = icon.text || '';
       button.style.width = Math.max(18, toNumber(icon.width, 22)) + 'px';
@@ -6421,7 +7349,6 @@ function installFabGridFilterUi(FabGrid, context) {
   var applyMask = context.applyMask;
   var closest = context.closest;
   var countMaskCharactersBeforeCaret = context.countMaskCharactersBeforeCaret;
-  var createColorState = context.createColorState;
   var createDictionary = context.createDictionary;
   var createFilterMenuItemHandler = context.createFilterMenuItemHandler;
   var extractMaskCharacters = context.extractMaskCharacters;
@@ -7475,9 +8402,8 @@ function installFabGridFilterUi(FabGrid, context) {
     }
     if (this.colorTarget && this.colorTarget.type === 'search' && this.colorTarget.input === input && this.isColorPanelOpen()) {
       color = normalizeColorValue(input.value);
-      if (color && !this.colorDragState) {
-        this.colorState = createColorState(color);
-        this.renderColorPanel();
+      if (color && this.colorPopup && !this.colorPopup.dragState) {
+        this.colorPopup.setValue(input.value);
         this.positionHeaderSearchColorPanel(input);
       }
     }
@@ -7523,7 +8449,7 @@ function installFabGridFilterUi(FabGrid, context) {
     icons = getColumnSearchIconConfigs(column);
     iconIndex = toNumber(button.getAttribute('data-icon-index'), -1);
     iconConfig = icons[iconIndex];
-    handler = iconConfig && (iconConfig.onClick || iconConfig.click || iconConfig.handler);
+    handler = iconConfig && iconConfig.onClick;
     input = this.header.querySelector('.fg-header-search-input[data-col="' + colIndex + '"]');
     if (iconConfig && iconConfig.builtin === 'date') {
       this.showHeaderSearchDateboxPanel(input, column);
@@ -7574,6 +8500,11 @@ function installFabGridFilterUi(FabGrid, context) {
     if (this.handleMaskedHeaderSearchDelete(event, input)) {
       return true;
     }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex];
+    if (this.handleDateboxKeyDown(event, input, column)) {
+      return true;
+    }
     if (this.handleHeaderSearchComboboxKeyDown(event, input)) {
       return true;
     }
@@ -7583,11 +8514,9 @@ function installFabGridFilterUi(FabGrid, context) {
     if (event.key !== 'Enter' && event.key !== 'Tab') {
       return false;
     }
-    colIndex = toNumber(input.getAttribute('data-col'), -1);
     if (colIndex < 0) {
       return false;
     }
-    column = this.visibleColumns[colIndex];
     event.preventDefault();
     event.stopPropagation();
     this.normalizeHeaderSearchComboboxText(input, column);
@@ -9004,6 +9933,9 @@ function installFabGridSelection(FabGrid, context) {
       if (event.target === this.editor && this.handleMaskedEditorDelete(event)) {
         return;
       }
+      if (event.target === this.editor && this.handleDateboxKeyDown(event, this.editor)) {
+        return;
+      }
       if (event.target === this.editor && this.handleComboboxKeyDown(event)) {
         return;
       }
@@ -9917,9 +10849,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
   var applyMask = context.applyMask;
   var clamp = context.clamp;
   var closest = context.closest;
-  var colorStateToHex = context.colorStateToHex;
   var countMaskCharactersBeforeCaret = context.countMaskCharactersBeforeCaret;
-  var createColorState = context.createColorState;
   var editorDefinitions = context.editorDefinitions;
   var escapeHtml = context.escapeHtml;
   var extractMaskCharacters = context.extractMaskCharacters;
@@ -9952,7 +10882,6 @@ function installFabGridEditorRuntime(FabGrid, context) {
   var getNumberPrecision = context.getNumberPrecision;
   var getValidationRowId = context.getValidationRowId;
   var hasClass = context.hasClass;
-  var hsvToRgb = context.hsvToRgb;
   var isColorValueValid = context.isColorValueValid;
   var isComboboxValueInList = context.isComboboxValueInList;
   var isDateLikeEditorType = context.isDateLikeEditorType;
@@ -9972,7 +10901,6 @@ function installFabGridEditorRuntime(FabGrid, context) {
   var parseDateboxEditorValue = context.parseDateboxEditorValue;
   var parseValue = context.parseValue;
   var parseYearMonthValue = context.parseYearMonthValue;
-  var renderComboboxOptionContent = context.renderComboboxOptionContent;
   var roundNumberValue = context.roundNumberValue;
   var sanitizeDateEditorText = context.sanitizeDateEditorText;
   var sanitizeNumberEditorText = context.sanitizeNumberEditorText;
@@ -10073,9 +11001,9 @@ function installFabGridEditorRuntime(FabGrid, context) {
         icon = iconConfigs[i];
         button = document.createElement('button');
         button.type = 'button';
-        button.className = trimText('fg-editor-trigger fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls || icon.className || icon.iconClass || icon.icon || ''));
+        button.className = trimText('fg-editor-trigger fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls));
         button.setAttribute('data-icon-index', i);
-        button.setAttribute('aria-label', icon.ariaLabel || icon.label || icon.title || this.getText('aria.cellEditor'));
+        button.setAttribute('aria-label', icon.ariaLabel || this.getText('aria.cellEditor'));
         button.title = icon.title || '';
         button.textContent = icon.text || '';
         button.style.width = Math.max(18, toNumber(icon.width, 22)) + 'px';
@@ -10250,8 +11178,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     if (config.type === 'color') {
       this.syncColorEditorAppearance();
       if (this.isColorPanelOpen() && normalizeColorValue(this.editor.value)) {
-        this.colorState = createColorState(this.editor.value);
-        this.renderColorPanel();
+        this.colorPopup.setValue(this.editor.value);
         this.positionEditor();
       }
       return;
@@ -10360,7 +11287,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     iconIndex = button.hasAttribute('data-icon-index') ? toNumber(button.getAttribute('data-icon-index'), -1) : -1;
     if (iconIndex >= 0) {
       iconConfig = this.editorIconConfigs[iconIndex];
-      handler = iconConfig && (iconConfig.onClick || iconConfig.click || iconConfig.handler);
+      handler = iconConfig && iconConfig.onClick;
       if (typeof handler === 'function') {
         result = handler.call(this, this.createEditorButtonArgs(event, button, iconConfig, iconIndex));
       }
@@ -10370,7 +11297,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
       return;
     }
     if (isDateLikeEditorType(this.editorConfig.type)) {
-      if (this.dateboxPanel.style.display === 'block') {
+      if (this.isDateboxPanelOpen()) {
         this.hideDateboxPanel();
       } else {
         this.showDateboxPanel();
@@ -10379,7 +11306,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
       return;
     }
     if (this.editorConfig.type === 'combo') {
-      if (this.comboboxPanel.style.display === 'block') {
+      if (this.isComboboxPanelOpen()) {
         this.hideComboboxPanel();
       } else {
         this.showComboboxPanel(true);
@@ -10419,89 +11346,6 @@ function installFabGridEditorRuntime(FabGrid, context) {
     };
   };
 
-  FabGrid.prototype.handleDateboxClick = function(event) {
-    var day = closest(event.target, 'fg-datebox-day');
-    var monthButton = closest(event.target, 'fg-datebox-month');
-    var control = closest(event.target, 'fg-datebox-control');
-    var target = this.dateboxTarget;
-    var action;
-    var date;
-    var month;
-    if (!target || !target.input || !target.config || !isDateLikeEditorType(target.config.type)) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    if (monthButton) {
-      month = toNumber(monthButton.getAttribute('data-month'), this.dateboxState ? this.dateboxState.month : 0);
-      if (isYearMonthDateboxTarget(target)) {
-        this.applyDateboxTargetDate(new Date(this.dateboxState ? this.dateboxState.year : new Date().getFullYear(), clamp(month, 0, 11), 1));
-        return;
-      }
-      this.dateboxState = {
-        year: this.dateboxState ? this.dateboxState.year : new Date().getFullYear(),
-        month: clamp(month, 0, 11),
-        selected: this.dateboxState ? this.dateboxState.selected : null,
-        mode: 'calendar'
-      };
-      this.renderDateboxPanel();
-      return;
-    }
-    if (day && !hasClass(day, 'fg-datebox-disabled')) {
-      date = parseDateValue(day.getAttribute('data-date'));
-      if (date) {
-        this.applyDateboxTargetDate(date);
-      }
-      return;
-    }
-    if (!control) {
-      return;
-    }
-    action = control.getAttribute('data-action');
-    if (action === 'months') {
-      this.dateboxState.mode = 'months';
-      this.renderDateboxPanel();
-      return;
-    }
-    if (action === 'close') {
-      this.hideDateboxPanel();
-      target.input.focus();
-      return;
-    }
-    if (action === 'today') {
-      date = new Date();
-      this.dateboxState = {
-        year: date.getFullYear(),
-        month: date.getMonth(),
-        selected: date,
-        mode: 'calendar'
-      };
-      this.renderDateboxPanel();
-      this.applyDateboxTargetDate(date);
-      return;
-    }
-    this.moveDateboxMonth(action);
-  };
-
-  FabGrid.prototype.handleDateboxChange = function(event) {
-    var input = closest(event.target, 'fg-datebox-year-input');
-    var target = this.dateboxTarget;
-    var year;
-    if (!input || !target || !target.config || !isDateLikeEditorType(target.config.type)) {
-      return;
-    }
-    year = clamp(toNumber(input.value, this.dateboxState ? this.dateboxState.year : new Date().getFullYear()), 1, 9999);
-    this.dateboxState = this.dateboxState || {
-      year: year,
-      month: new Date().getMonth(),
-      selected: null,
-      mode: 'months'
-    };
-    this.dateboxState.year = year;
-    this.dateboxState.mode = 'months';
-    this.renderDateboxPanel();
-  };
-
   FabGrid.prototype.handleDocumentMouseDown = function(event) {
     var filterMenuItem;
     if (this.isTopLeftMenuOpen() && !closest(event.target, 'fg-top-left-menu')) {
@@ -10521,39 +11365,29 @@ function installFabGridEditorRuntime(FabGrid, context) {
       !closest(event.target, 'fg-column-chooser-trigger')) {
       this.hideColumnChooser();
     }
-    if (this.dateboxPanel && this.dateboxPanel.style.display === 'block' &&
-      !(
-        (this.dateboxTarget && event.target === this.dateboxTarget.input) ||
-        event.target === this.editor ||
-        closest(event.target, 'fg-editor-icons') ||
-        closest(event.target, 'fg-header-search-icons') ||
-        closest(event.target, 'fg-datebox-panel')
-      )) {
-      this.hideDateboxPanel();
-    }
-    if (this.comboboxPanel && this.comboboxPanel.style.display === 'block' &&
-      !(
-        (this.comboboxTarget && event.target === this.comboboxTarget.input) ||
-        event.target === this.editor ||
-        closest(event.target, 'fg-editor-icons') ||
-        closest(event.target, 'fg-header-search-icons') ||
-        closest(event.target, 'fg-combobox-panel')
-      )) {
-      this.hideComboboxPanel();
-    }
-    if (this.isColorPanelOpen() &&
-      !(
-        (this.colorTarget && event.target === this.colorTarget.input) ||
-        event.target === this.editor ||
-        closest(event.target, 'fg-editor-icons') ||
-        closest(event.target, 'fg-header-search-icons') ||
-        closest(event.target, 'fg-color-panel')
-      )) {
-      this.hideColorPanel();
-    }
     if (!this.editing) {
       return;
     }
+  };
+
+  FabGrid.prototype.handleDateboxKeyDown = function(event, input, column) {
+    var config = column ? getColumnEditorConfig(column) : this.editorConfig;
+    var isOpenForInput = this.isDateboxPanelOpen() &&
+      this.dateboxTarget &&
+      this.dateboxTarget.input === input;
+    if (!input || !config || !isDateLikeEditorType(config.type)) {
+      return false;
+    }
+    if ((event.key === 'ArrowDown' && (event.altKey || event.metaKey)) || event.key === 'F4') {
+      event.preventDefault();
+      if (column) {
+        this.showHeaderSearchDateboxPanel(input, column);
+      } else {
+        this.showDateboxPanel();
+      }
+      return true;
+    }
+    return isOpenForInput ? this.datePopup.handleKeyDown(event) : false;
   };
 
   FabGrid.prototype.handleComboboxKeyDown = function(event) {
@@ -10800,11 +11634,11 @@ function installFabGridEditorRuntime(FabGrid, context) {
       column: this.visibleColumns[this.editing.col],
       config: this.editorConfig
     };
+    this.hideComboboxPanel();
     this.hideColorPanel();
     this.syncDateboxPanelToEditor();
-    this.renderDateboxPanel();
-    this.dateboxPanel.style.display = 'block';
-    this.positionEditor();
+    this.datePopup.show();
+    this.datePopup.position();
   };
 
   FabGrid.prototype.showHeaderSearchDateboxPanel = function(input, column) {
@@ -10821,9 +11655,8 @@ function installFabGridEditorRuntime(FabGrid, context) {
     this.hideComboboxPanel();
     this.hideColorPanel();
     this.syncDateboxPanelToTarget(this.dateboxTarget);
-    this.renderDateboxPanel();
-    this.dateboxPanel.style.display = 'block';
-    this.positionHeaderSearchDateboxPanel(input);
+    this.datePopup.show();
+    this.datePopup.position();
     input.focus();
   };
 
@@ -10840,7 +11673,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     this.hideDateboxPanel();
     this.hideColorPanel();
     this.renderComboboxPanel(showAll === true);
-    this.comboboxPanel.style.display = 'block';
+    this.comboPopup.show();
     this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
     this.positionEditor();
   };
@@ -10859,23 +11692,19 @@ function installFabGridEditorRuntime(FabGrid, context) {
     this.hideDateboxPanel();
     this.hideColorPanel();
     this.renderComboboxPanel(showAll === true);
-    this.comboboxPanel.style.display = 'block';
+    this.comboPopup.show();
     this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
     this.positionHeaderSearchComboboxPanel(input);
     input.focus();
   };
 
   FabGrid.prototype.hideDateboxPanel = function() {
-    if (this.dateboxPanel) {
-      this.dateboxPanel.style.display = 'none';
-    }
+    if (this.datePopup) this.datePopup.hide();
     this.dateboxTarget = null;
   };
 
   FabGrid.prototype.hideComboboxPanel = function() {
-    if (this.comboboxPanel) {
-      this.comboboxPanel.style.display = 'none';
-    }
+    if (this.comboPopup) this.comboPopup.hide();
     this.comboboxTarget = null;
     this.comboboxActiveIndex = -1;
   };
@@ -10888,56 +11717,32 @@ function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.isDateboxPanelOpen = function() {
-    return !!this.dateboxPanel && this.dateboxPanel.style.display === 'block';
+    return !!this.datePopup && this.datePopup.isOpen();
   };
 
   FabGrid.prototype.positionHeaderSearchDateboxPanel = function(input) {
-    var inputRect;
-    var bodyRect;
-    var left;
-    var top;
-    if (!input || !this.body) {
-      return;
-    }
-    inputRect = input.getBoundingClientRect();
-    bodyRect = this.body.getBoundingClientRect();
-    left = inputRect.left - bodyRect.left;
-    top = inputRect.bottom - bodyRect.top;
-    this.positionDateboxPanel(left, top, inputRect.width);
+    if (!input || !this.datePopup) return;
+    this.datePopup.setOptions({
+      anchor: input,
+      panelWidth: Math.max(250, input.getBoundingClientRect().width)
+    });
+    this.datePopup.position();
   };
 
   FabGrid.prototype.positionHeaderSearchComboboxPanel = function(input) {
-    var inputRect;
-    var bodyRect;
-    var left;
-    var top;
-    if (!input || !this.body) {
-      return;
-    }
-    inputRect = input.getBoundingClientRect();
-    bodyRect = this.body.getBoundingClientRect();
-    left = inputRect.left - bodyRect.left;
-    top = inputRect.bottom - bodyRect.top;
-    this.positionComboboxPanel(left, top, inputRect.width);
+    if (!input || !this.comboPopup) return;
+    this.comboPopup.setLayout({ anchor: input });
+    this.comboPopup.position();
   };
 
   FabGrid.prototype.positionHeaderSearchColorPanel = function(input) {
-    var inputRect;
-    var bodyRect;
-    var left;
-    var top;
-    if (!input || !this.body) {
-      return;
-    }
-    inputRect = input.getBoundingClientRect();
-    bodyRect = this.body.getBoundingClientRect();
-    left = inputRect.left - bodyRect.left;
-    top = inputRect.bottom - bodyRect.top;
-    this.positionColorPanel(left, top);
+    if (!input || !this.colorPopup) return;
+    this.colorPopup.setOptions({ anchor: input });
+    this.colorPopup.position();
   };
 
   FabGrid.prototype.isComboboxPanelOpen = function() {
-    return !!this.comboboxPanel && this.comboboxPanel.style.display === 'block';
+    return !!this.comboPopup && this.comboPopup.isOpen();
   };
 
   FabGrid.prototype.getColorTarget = function() {
@@ -10972,9 +11777,8 @@ function installFabGridEditorRuntime(FabGrid, context) {
     };
     this.hideDateboxPanel();
     this.hideComboboxPanel();
-    this.colorState = createColorState(this.editor.value || this.editing.original);
     this.renderColorPanel();
-    this.colorPanel.style.display = 'flex';
+    this.colorPopup.show();
     this.positionEditor();
   };
 
@@ -10991,208 +11795,37 @@ function installFabGridEditorRuntime(FabGrid, context) {
     };
     this.hideDateboxPanel();
     this.hideComboboxPanel();
-    this.colorState = createColorState(input.value || '#ff0000');
     this.renderColorPanel();
-    this.colorPanel.style.display = 'flex';
+    this.colorPopup.show();
     this.positionHeaderSearchColorPanel(input);
     input.focus();
   };
 
   FabGrid.prototype.hideColorPanel = function() {
-    if (this.colorPanel) {
-      this.colorPanel.style.display = 'none';
-    }
-    this.colorDragState = null;
+    if (this.colorPopup) this.colorPopup.hide();
     this.colorTarget = null;
   };
 
   FabGrid.prototype.isColorPanelOpen = function() {
-    return !!this.colorPanel && this.colorPanel.style.display === 'flex';
+    return !!this.colorPopup && this.colorPopup.isOpen();
   };
 
   FabGrid.prototype.renderColorPanel = function() {
+    var target = this.getColorTarget();
     var config = this.getColorPanelConfig();
-    var palette = getColorPalette(config);
-    var paletteElement = document.createElement('div');
-    var controls = document.createElement('div');
-    var sv = document.createElement('div');
-    var svMarker = document.createElement('span');
-    var hue = document.createElement('div');
-    var hueMarker = document.createElement('span');
-    var alpha = document.createElement('div');
-    var alphaFill = document.createElement('span');
-    var alphaMarker = document.createElement('span');
-    var swatch;
-    var color;
-    var i;
-    this.colorPanel.innerHTML = '';
-    paletteElement.className = 'fg-color-palette';
-    for (i = 0; i < palette.length; i += 1) {
-      color = normalizeColorValue(palette[i]);
-      if (!color) {
-        continue;
-      }
-      swatch = document.createElement('button');
-      swatch.type = 'button';
-      swatch.className = 'fg-color-palette-swatch';
-      swatch.setAttribute('data-color', color);
-      swatch.setAttribute('aria-label', color);
-      swatch.title = color;
-      swatch.style.backgroundColor = color;
-      paletteElement.appendChild(swatch);
-    }
-
-    controls.className = 'fg-color-controls';
-    sv.className = 'fg-color-sv';
-    svMarker.className = 'fg-color-marker fg-color-sv-marker';
-    sv.appendChild(svMarker);
-    hue.className = 'fg-color-hue';
-    hueMarker.className = 'fg-color-marker fg-color-hue-marker';
-    hue.appendChild(hueMarker);
-    alpha.className = 'fg-color-alpha';
-    alphaFill.className = 'fg-color-alpha-fill';
-    alphaMarker.className = 'fg-color-marker fg-color-alpha-marker';
-    alpha.appendChild(alphaFill);
-    alpha.appendChild(alphaMarker);
-    controls.appendChild(sv);
-    controls.appendChild(hue);
-    if (getColorShowAlpha(config)) {
-      controls.appendChild(alpha);
-    }
-    this.colorPanel.appendChild(paletteElement);
-    this.colorPanel.appendChild(controls);
-    this.updateColorPanelVisuals();
-  };
-
-  FabGrid.prototype.updateColorPanelVisuals = function() {
-    var state = this.colorState || createColorState('#ff0000');
-    var rgb = hsvToRgb(state.h, state.s, state.v);
-    var sv = this.colorPanel.querySelector('.fg-color-sv');
-    var svMarker = this.colorPanel.querySelector('.fg-color-sv-marker');
-    var hueMarker = this.colorPanel.querySelector('.fg-color-hue-marker');
-    var alphaFill = this.colorPanel.querySelector('.fg-color-alpha-fill');
-    var alphaMarker = this.colorPanel.querySelector('.fg-color-alpha-marker');
-    if (sv) {
-      sv.style.backgroundColor = 'hsl(' + Math.round(state.h) + ', 100%, 50%)';
-    }
-    if (svMarker) {
-      svMarker.style.left = (state.s * 100) + '%';
-      svMarker.style.top = ((1 - state.v) * 100) + '%';
-    }
-    if (hueMarker) {
-      hueMarker.style.top = (state.h / 360 * 100) + '%';
-    }
-    if (alphaFill) {
-      alphaFill.style.backgroundImage = 'linear-gradient(to right, rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0), rgb(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + '))';
-    }
-    if (alphaMarker) {
-      alphaMarker.style.left = (state.a * 100) + '%';
-    }
-  };
-
-  FabGrid.prototype.handleColorPanelPointerDown = function(event) {
-    var paletteSwatch = closest(event.target, 'fg-color-palette-swatch');
-    var area;
-    var mode;
-    var target = this.getColorTarget();
-    var value;
-    if (!this.isColorPanelOpen()) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    if (paletteSwatch) {
-      value = paletteSwatch.getAttribute('data-color') || '';
-      this.colorState = createColorState(value);
-      this.applyColorValueToTarget(value);
-      this.updateColorPanelVisuals();
-      if (target && target.type === 'search') {
-        this.hideColorPanel();
-        target.input.focus();
-      }
-      return;
-    }
-    area = closest(event.target, 'fg-color-sv');
-    mode = 'sv';
-    if (!area) {
-      area = closest(event.target, 'fg-color-hue');
-      mode = 'hue';
-    }
-    if (!area) {
-      area = closest(event.target, 'fg-color-alpha');
-      mode = 'alpha';
-    }
-    if (!area) {
-      return;
-    }
-    this.colorDragState = { mode: mode, element: area, pointerId: event.pointerId };
-    if (area.setPointerCapture && event.pointerId != null) {
-      area.setPointerCapture(event.pointerId);
-    }
-    this.updateColorFromPointer(event);
-  };
-
-  FabGrid.prototype.handleColorPanelPointerMove = function(event) {
-    if (!this.colorDragState) {
-      return;
-    }
-    event.preventDefault();
-    this.updateColorFromPointer(event);
-  };
-
-  FabGrid.prototype.handleColorPanelPointerUp = function(event) {
-    var drag = this.colorDragState;
-    var target = this.getColorTarget();
-    if (!drag) {
-      return;
-    }
-    if (drag.element.releasePointerCapture && drag.pointerId != null) {
-      try {
-        drag.element.releasePointerCapture(drag.pointerId);
-      } catch (error) {
-        // The pointer capture may already be released by the browser.
-      }
-    }
-    this.colorDragState = null;
-    if (target && target.type === 'search') {
-      this.hideColorPanel();
-      target.input.focus();
-    }
-    event.preventDefault();
-  };
-
-  FabGrid.prototype.updateColorFromPointer = function(event) {
-    var drag = this.colorDragState;
-    var rect;
-    var x;
-    var y;
-    if (!drag || !drag.element) {
-      return;
-    }
-    rect = drag.element.getBoundingClientRect();
-    x = clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
-    y = clamp((event.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
-    this.colorState = this.colorState || createColorState('#ff0000');
-    if (drag.mode === 'sv') {
-      this.colorState.s = x;
-      this.colorState.v = 1 - y;
-    } else if (drag.mode === 'hue') {
-      this.colorState.h = Math.min(359.999, y * 360);
-    } else if (drag.mode === 'alpha') {
-      this.colorState.a = x;
-    }
-    this.applyColorStateToEditor();
-    this.updateColorPanelVisuals();
-  };
-
-  FabGrid.prototype.applyColorStateToEditor = function() {
-    var target = this.getColorTarget();
-    var config;
-    if (!this.colorState || !target || !target.input) {
-      return;
-    }
-    config = target.config || this.editorConfig;
-    this.applyColorValueToTarget(colorStateToHex(this.colorState, getColorShowAlpha(config)));
+    var input = target && target.input;
+    if (!this.colorPopup || !input) return;
+    this.colorPopup.setOptions({
+      anchor: input,
+      ariaLabel: this.getText('aria.colorPicker'),
+      saturationText: this.getText('aria.colorSaturation'),
+      hueText: this.getText('aria.colorHue'),
+      alphaText: this.getText('aria.colorAlpha'),
+      palette: getColorPalette(config),
+      showAlpha: getColorShowAlpha(config),
+      closeOnDragEnd: target.type === 'search'
+    });
+    this.colorPopup.setValue(input.value || '#ff0000');
   };
 
   FabGrid.prototype.applyColorValueToTarget = function(value) {
@@ -11225,16 +11858,20 @@ function installFabGridEditorRuntime(FabGrid, context) {
     var config = target && target.config ? target.config : {};
     var items = getComboboxData(config);
     var query = showAll === true || !target || !target.input ? '' : String(target.input.value || '').toLowerCase();
-    var fragment = document.createDocumentFragment();
+    var descriptors = [];
+    var options = config && config.options ? config.options : {};
+    var showValue = options.showValueInList === true ||
+      options.showValue === true ||
+      options.showCode === true;
     var item;
     var text;
     var value;
-    var option;
-    var matched = 0;
+    var selectedText = target && target.input ?
+      String(target.input.value || '') :
+      '';
     var i;
     this.comboboxItems = [];
     this.comboboxActiveIndex = -1;
-    this.comboboxPanel.innerHTML = '';
     for (i = 0; i < items.length; i += 1) {
       item = items[i];
       text = getComboboxItemText(item, config);
@@ -11242,35 +11879,34 @@ function installFabGridEditorRuntime(FabGrid, context) {
       if (query && text.toLowerCase().indexOf(query) < 0 && value.toLowerCase().indexOf(query) < 0) {
         continue;
       }
-      option = document.createElement('button');
-      option.type = 'button';
-      option.className = 'fg-combobox-option';
-      option.setAttribute('role', 'option');
-      option.setAttribute('data-index', this.comboboxItems.length);
-      renderComboboxOptionContent(option, text, value, config);
-      fragment.appendChild(option);
+      descriptors.push({
+        value: value,
+        text: text,
+        secondaryText: showValue && value !== '' && value !== text ?
+          '(' + value + ')' :
+          '',
+        data: item,
+        disabled: Boolean(item && typeof item === 'object' && item.disabled),
+        selected: selectedText === text || selectedText === value
+      });
       this.comboboxItems.push(item);
-      matched += 1;
     }
-    if (!matched) {
-      option = document.createElement('div');
-      option.className = 'fg-combobox-empty';
-      option.textContent = '沒有符合項目';
-      fragment.appendChild(option);
-    }
-    this.comboboxPanel.appendChild(fragment);
-  };
-
-  FabGrid.prototype.handleComboboxMouseDown = function(event) {
-    var option = closest(event.target, 'fg-combobox-option');
-    var index;
-    if (!option || !this.comboboxTarget || !this.comboboxTarget.config || this.comboboxTarget.config.type !== 'combo') {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    index = toNumber(option.getAttribute('data-index'), -1);
-    this.selectComboboxOption(index);
+    this.comboPopup.setOptions({
+      anchor: target && target.input ? target.input : this.editor,
+      className: 'fui-grid-combo-popup',
+      ariaLabel: this.getText('aria.comboBoxOptions'),
+      panelWidth: target && target.input ?
+        target.input.getBoundingClientRect().width :
+        120,
+      panelHeight: 'auto',
+      panelMinWidth: 120,
+      panelMaxWidth: Math.max(120, this.root.clientWidth - 4),
+      panelMaxHeight: 180,
+      fitContent: true,
+      closeOnSelect: true,
+      emptyText: this.getText('combobox.emptyText'),
+      items: descriptors
+    });
   };
 
   FabGrid.prototype.getComboboxInitialActiveIndex = function() {
@@ -11293,29 +11929,13 @@ function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.setComboboxActiveIndex = function(index) {
-    var options;
-    var i;
-    var option;
     if (!this.comboboxItems.length) {
       this.comboboxActiveIndex = -1;
       return;
     }
     index = clamp(index, 0, this.comboboxItems.length - 1);
-    this.comboboxActiveIndex = index;
-    options = this.comboboxPanel.querySelectorAll('.fg-combobox-option');
-    for (i = 0; i < options.length; i += 1) {
-      option = options[i];
-      if (i === index) {
-        option.className = 'fg-combobox-option fg-combobox-active';
-        option.setAttribute('aria-selected', 'true');
-        if (option.scrollIntoView) {
-          option.scrollIntoView({ block: 'nearest' });
-        }
-      } else {
-        option.className = 'fg-combobox-option';
-        option.setAttribute('aria-selected', 'false');
-      }
-    }
+    this.comboPopup.setActiveIndex(index);
+    this.comboboxActiveIndex = this.comboPopup.activeIndex;
   };
 
   FabGrid.prototype.selectComboboxActiveOption = function() {
@@ -11361,6 +11981,9 @@ function installFabGridEditorRuntime(FabGrid, context) {
 
   FabGrid.prototype.syncDateboxPanelToTarget = function(target) {
     var date;
+    var dateOptions = target && target.config && target.config.options ?
+      target.config.options :
+      {};
     if (!target || !target.input || !target.config) {
       date = null;
     } else {
@@ -11374,12 +11997,34 @@ function installFabGridEditorRuntime(FabGrid, context) {
     if (!date) {
       date = new Date();
     }
-    this.dateboxState = {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      selected: date,
-      mode: isYearMonthDateboxTarget(target) ? 'months' : 'calendar'
-    };
+    this.datePopup.setOptions({
+      anchor: target && target.input ? target.input : this.editor,
+      className: 'fui-grid-date-popup',
+      theme: 'inherit',
+      themeSource: this.root,
+      panelWidth: Math.max(
+        250,
+        target && target.input ? target.input.getBoundingClientRect().width : 0
+      ),
+      panelHeight: 'auto',
+      ariaLabel: this.getText('aria.datePicker'),
+      firstDay: 0,
+      showWeek: false,
+      showLunar: dateOptions.showLunar === true ||
+        Boolean(target && target.column && target.column.showLunar === true),
+      locale: this.locale,
+      currentText: this.getText('datebox.today'),
+      closeText: this.getText('datebox.close'),
+      yearText: this.getText('aria.year'),
+      weeks: this.getText('datebox.weekdays'),
+      months: this.getText('datebox.months'),
+      buttons: isYearMonthDateboxTarget(target) ? [] : null,
+      calendarMode: isYearMonthDateboxTarget(target) ? 'months' : 'days',
+      validator: function() { return true; },
+      validatorContext: this,
+      owner: this
+    });
+    this.datePopup.setValue(date, date);
   };
 
   FabGrid.prototype.applyDateboxTargetDate = function(date) {
@@ -11407,191 +12052,61 @@ function installFabGridEditorRuntime(FabGrid, context) {
     target.input.focus();
   };
 
-  FabGrid.prototype.moveDateboxMonth = function(action) {
-    var state = this.dateboxState || {
-      year: new Date().getFullYear(),
-      month: new Date().getMonth(),
-      selected: null,
-      mode: 'calendar'
-    };
-    var date = new Date(state.year, state.month, 1);
-    if (action === 'prev-year') {
-      date.setFullYear(date.getFullYear() - 1);
-    } else if (action === 'next-year') {
-      date.setFullYear(date.getFullYear() + 1);
-    } else if (action === 'prev-month') {
-      date.setMonth(date.getMonth() - 1);
-    } else if (action === 'next-month') {
-      date.setMonth(date.getMonth() + 1);
-    }
-    this.dateboxState = {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      selected: state.selected,
-      mode: state.mode || 'calendar'
-    };
-    this.renderDateboxPanel();
-  };
-
   FabGrid.prototype.renderDateboxPanel = function() {
-    var state = this.dateboxState || {};
-    var year = state.year || new Date().getFullYear();
-    var month = state.month == null ? new Date().getMonth() : state.month;
-    var mode = state.mode || 'calendar';
-    var selectedIso = state.selected ? formatDateIso(state.selected) : '';
-    var todayIso = formatDateIso(new Date());
-    var first = new Date(year, month, 1);
-    var start = new Date(year, month, 1 - first.getDay());
-    var labels = this.getWeekdayNames();
-    var html = [];
-    var i;
-    var d;
-    var iso;
-    var className;
-    html.push('<div class="fg-datebox-header">');
-    html.push('<button type="button" class="fg-datebox-control" data-action="prev-year">«</button>');
-    html.push('<button type="button" class="fg-datebox-control" data-action="prev-month">‹</button>');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-title fg-datebox-title-button" data-action="months">' + this.getMonthTitle(year, month) + '</button>');
-    html.push('<button type="button" class="fg-datebox-control" data-action="next-month">›</button>');
-    html.push('<button type="button" class="fg-datebox-control" data-action="next-year">»</button>');
-    html.push('</div>');
-    if (mode === 'months') {
-      this.renderDateboxMonthView(html, year, month);
-      if (!isYearMonthDateboxTarget(this.dateboxTarget)) {
-        this.renderDateboxFooter(html);
-      }
-      this.dateboxPanel.innerHTML = html.join('');
-      return;
+    if (!this.datePopup) return;
+    if (this.dateboxTarget) {
+      this.syncDateboxPanelToTarget(this.dateboxTarget);
+    } else {
+      this.datePopup.render();
     }
-    html.push('<div class="fg-datebox-weekdays">');
-    for (i = 0; i < labels.length; i += 1) {
-      html.push('<span>' + escapeHtml(labels[i]) + '</span>');
-    }
-    html.push('</div>');
-    html.push('<div class="fg-datebox-days">');
-    for (i = 0; i < 42; i += 1) {
-      d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-      iso = formatDateIso(d);
-      className = 'fg-datebox-day';
-      if (d.getMonth() !== month) {
-        className += ' fg-datebox-other-month';
-      }
-      if (d.getDay() === 0) {
-        className += ' fg-datebox-sunday';
-      } else if (d.getDay() === 6) {
-        className += ' fg-datebox-saturday';
-      }
-      if (iso === todayIso) {
-        className += ' fg-datebox-today';
-      }
-      if (iso === selectedIso) {
-        className += ' fg-datebox-selected';
-      }
-      html.push('<button type="button" class="' + className + '" data-date="' + iso + '">' + d.getDate() + '</button>');
-    }
-    html.push('</div>');
-    this.renderDateboxFooter(html);
-    this.dateboxPanel.innerHTML = html.join('');
-  };
-
-  FabGrid.prototype.renderDateboxMonthView = function(html, year, month) {
-    var labels = this.getMonthNames();
-    var i;
-    var className;
-    html.push('<div class="fg-datebox-month-view">');
-    html.push('<div class="fg-datebox-year-row">');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="prev-year">«</button>');
-    html.push('<input class="fg-datebox-year-input" type="number" min="1" max="9999" value="' + year + '" aria-label="' + escapeHtml(this.getText('aria.year')) + '">');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="next-year">»</button>');
-    html.push('</div>');
-    html.push('<div class="fg-datebox-months">');
-    for (i = 0; i < labels.length; i += 1) {
-      className = 'fg-datebox-month';
-      if (i === month) {
-        className += ' fg-datebox-month-selected';
-      }
-      html.push('<button type="button" class="' + className + '" data-month="' + i + '">' + escapeHtml(labels[i]) + '</button>');
-    }
-    html.push('</div>');
-    html.push('</div>');
-  };
-
-  FabGrid.prototype.renderDateboxFooter = function(html) {
-    html.push('<div class="fg-datebox-footer">');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="today">' + escapeHtml(this.getText('datebox.today')) + '</button>');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="close">' + escapeHtml(this.getText('datebox.close')) + '</button>');
-    html.push('</div>');
-  };
-
-  FabGrid.prototype.getMonthNames = function() {
-    var names = this.getText('datebox.months');
-    return names && names.length ? names : [];
-  };
-
-  FabGrid.prototype.getWeekdayNames = function() {
-    var names = this.getText('datebox.weekdays');
-    return names && names.length ? names : [];
-  };
-
-  FabGrid.prototype.getMonthTitle = function(year, month) {
-    var names = this.getMonthNames();
-    return escapeHtml(formatLocaleText(this.getText('datebox.monthTitle'), {
-      month: names[month] || String(month + 1),
-      year: year
-    }));
   };
 
   FabGrid.prototype.positionDateboxPanel = function(left, top, width) {
-    var panelWidth = Math.max(250, width);
-    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
-    var maxTop = Math.max(0, this.root.clientHeight - 282);
-    this.dateboxPanel.style.left = clamp(left, 0, maxLeft) + 'px';
-    this.dateboxPanel.style.top = clamp(top, 0, maxTop) + 'px';
-    this.dateboxPanel.style.width = panelWidth + 'px';
+    if (!this.datePopup) return;
+    this.datePopup.setOptions({
+      anchor: this.dateboxTarget && this.dateboxTarget.input ?
+        this.dateboxTarget.input :
+        this.editor,
+      panelWidth: Math.max(250, width)
+    });
+    this.datePopup.position();
   };
 
   FabGrid.prototype.positionComboboxPanel = function(left, top, width) {
     var maxWidth = Math.max(120, this.root.clientWidth - 4);
-    var contentWidth = this.measureComboboxPanelWidth();
-    var panelWidth = Math.min(maxWidth, Math.max(120, width, contentWidth));
-    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
-    var maxTop = Math.max(0, this.root.clientHeight - 180);
-    this.comboboxPanel.style.left = clamp(left, 0, maxLeft) + 'px';
-    this.comboboxPanel.style.top = clamp(top, 0, maxTop) + 'px';
-    this.comboboxPanel.style.width = panelWidth + 'px';
+    if (!this.comboPopup) return;
+    this.comboPopup.setLayout({
+      anchor: this.comboboxTarget && this.comboboxTarget.input ?
+        this.comboboxTarget.input :
+        this.editor,
+      panelWidth: Math.max(120, width),
+      panelMaxWidth: maxWidth,
+      fitContent: true
+    });
+    this.comboPopup.position();
   };
 
   FabGrid.prototype.positionColorPanel = function(left, top) {
     var panelWidth = Math.min(420, Math.max(260, this.root.clientWidth - 4));
-    var panelHeight = Math.max(190, this.colorPanel.offsetHeight || 210);
-    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
-    var maxTop = Math.max(0, this.root.clientHeight - panelHeight - 2);
-    this.colorPanel.style.left = clamp(left, 0, maxLeft) + 'px';
-    this.colorPanel.style.top = clamp(top, 0, maxTop) + 'px';
-    this.colorPanel.style.width = panelWidth + 'px';
+    if (!this.colorPopup) return;
+    this.colorPopup.setOptions({
+      anchor: this.colorTarget && this.colorTarget.input ?
+        this.colorTarget.input :
+        this.editor,
+      panelWidth: panelWidth
+    });
+    this.colorPopup.position();
   };
 
   FabGrid.prototype.measureComboboxPanelWidth = function() {
-    var previousWidth;
-    var width;
-    if (!this.comboboxPanel) {
-      return 0;
-    }
-    previousWidth = this.comboboxPanel.style.width;
-    this.comboboxPanel.style.width = 'auto';
-    width = Math.ceil(this.comboboxPanel.scrollWidth || this.comboboxPanel.offsetWidth || 0);
-    this.comboboxPanel.style.width = previousWidth;
-    return width + 2;
+    return this.comboPopup ? this.comboPopup.measureContentWidth() : 0;
   };
 
   FabGrid.prototype.clearEditingState = function() {
     this.editing = null;
     this.editorConfig = null;
     this.editorIconConfigs = [];
-    this.dateboxState = null;
     this.comboboxItems = [];
-    this.colorState = null;
-    this.colorDragState = null;
     if (this.editor) {
       this.editor.style.display = 'none';
     }
@@ -12554,6 +13069,13874 @@ function createEditorDefinitions() {
   return definitions;
 }
 
+function copyEditorIconProperties(target, source) {
+  var key;
+  for (key in source) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function normalizeEditorIconDescriptor(icon) {
+  var normalized;
+  if (icon === false || icon == null) {
+    return null;
+  }
+  if (typeof icon === 'function') {
+    icon = { onClick: icon };
+  } else if (typeof icon === 'string') {
+    icon = { iconCls: icon };
+  }
+  if (typeof icon !== 'object') {
+    return null;
+  }
+  normalized = copyEditorIconProperties({}, icon);
+  normalized.iconCls = icon.iconCls || icon.className || icon.iconClass || icon.icon || '';
+  normalized.ariaLabel = icon.ariaLabel || icon.label || icon.title || '';
+  normalized.onClick = icon.onClick || icon.click || icon.handler || null;
+  normalized.align = String(icon.align || '').toLowerCase() === 'left' ? 'left' : 'right';
+  return normalized;
+}
+
+function normalizeEditorIconDescriptors(icons) {
+  var normalized = [];
+  var descriptor;
+  var index;
+  if (!icons) {
+    return normalized;
+  }
+  if (!Array.isArray(icons)) {
+    icons = [icons];
+  }
+  for (index = 0; index < icons.length; index += 1) {
+    descriptor = normalizeEditorIconDescriptor(icons[index]);
+    if (descriptor) {
+      normalized.push(descriptor);
+    }
+  }
+  return normalized;
+}
+
+
+
+function createTextBoxFactory(editorDefinitions) {
+  'use strict';
+
+  editorDefinitions = editorDefinitions || {};
+  var editorDefinition = editorDefinitions.text || editorDefinitions.textbox || null;
+
+  var defaults = {
+    width: 200,
+    height: 30,
+    cls: '',
+    prompt: '',
+    value: '',
+    autoUnmask: true,
+    type: 'text',
+    label: '',
+    labelWidth: 80,
+    labelPosition: 'before',
+    labelAlign: 'left',
+    multiline: false,
+    editable: true,
+    disabled: false,
+    readonly: false,
+    required: false,
+    icons: [],
+    iconWidth: 18,
+    buttonText: '',
+    buttonIcon: '',
+    buttonAlign: 'right',
+    clearButton: false,
+    onChange: null,
+    onResize: null,
+    onClickButton: null,
+    onClickIcon: null
+  };
+
+  function assign(target) {
+    var index;
+    var source;
+    var key;
+    for (index = 1; index < arguments.length; index += 1) {
+      source = arguments[index] || {};
+      for (key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+    return target;
+  }
+
+  function resolveElement(element) {
+    if (typeof element === 'string') {
+      return document.querySelector(element);
+    }
+    return element;
+  }
+
+  function cssSize(value, fallback) {
+    if (value == null || value === '') {
+      return fallback + 'px';
+    }
+    return typeof value === 'number' ? value + 'px' : String(value);
+  }
+
+  function normalizePosition(value, allowed, fallback) {
+    return allowed.indexOf(value) >= 0 ? value : fallback;
+  }
+
+  function TextBox(element, options) {
+    if (!(this instanceof TextBox)) {
+      return new TextBox(element, options);
+    }
+    this._source = resolveElement(element);
+    if (!this._source || !/^(INPUT|TEXTAREA)$/.test(this._source.tagName)) {
+      throw new Error('fabui.TextBox requires an input or textarea element.');
+    }
+    if (this._source.__fabuiTextBox) {
+      return this._source.__fabuiTextBox;
+    }
+
+    this._listeners = {};
+    this._iconElements = [];
+    this._destroyed = false;
+    this._originalDisplay = this._source.style.display;
+    this._initialValue = this._source.value || '';
+    this._options = assign({}, defaults, this._readElementOptions(), options || {});
+    if (options && Object.prototype.hasOwnProperty.call(options, 'value')) {
+      this._initialValue = options.value == null ? '' : String(options.value);
+    } else {
+      this._options.value = this._initialValue;
+    }
+    this._build();
+    this._bind();
+    this._source.__fabuiTextBox = this;
+    this.setValue(this._options.value, true);
+    this._applyState();
+    this.resize(this._options.width, this._options.height, true);
+  }
+
+  TextBox.prototype._readElementOptions = function() {
+    var source = this._source;
+    return {
+      prompt: source.getAttribute('placeholder') || '',
+      type: source.getAttribute('type') || 'text',
+      multiline: source.tagName === 'TEXTAREA',
+      editable: !source.hasAttribute('readonly'),
+      disabled: source.disabled,
+      readonly: source.readOnly,
+      required: source.required,
+      value: source.value || ''
+    };
+  };
+
+  TextBox.prototype._build = function() {
+    var options = this._options;
+    var parent = this._source.parentNode;
+    var field = document.createElement('span');
+    var label = null;
+    var shell = document.createElement('span');
+    var editor = document.createElement(options.multiline ? 'textarea' : 'input');
+    var before = document.createElement('span');
+    var after = document.createElement('span');
+
+    field.className = 'fui-textbox-field';
+    if (options.cls) {
+      field.className += ' ' + options.cls;
+    }
+    shell.className = 'fui-textbox';
+    before.className = 'fui-textbox-addon fui-textbox-addon-left';
+    after.className = 'fui-textbox-addon fui-textbox-addon-right';
+    editor.className = 'fui-textbox-text' + (editorDefinition && editorDefinition.className ? ' ' + editorDefinition.className : ' textbox-f fg-editor-textbox');
+    editor.setAttribute('autocomplete', this._source.getAttribute('autocomplete') || 'off');
+    editor.setAttribute('placeholder', options.prompt || '');
+    editor.setAttribute('aria-label', options.label || this._source.getAttribute('aria-label') || options.prompt || 'TextBox');
+    if (!options.multiline) {
+      editor.type = options.type || 'text';
+    }
+    editor.inputMode = editorDefinition && editorDefinition.inputMode ? editorDefinition.inputMode : 'text';
+
+    if (options.label) {
+      label = document.createElement('label');
+      label.className = 'fui-textbox-label fui-textbox-label-' + normalizePosition(options.labelPosition, ['before', 'after', 'top'], 'before');
+      label.textContent = options.label;
+      label.style.textAlign = normalizePosition(options.labelAlign, ['left', 'center', 'right'], 'left');
+      label.style.width = cssSize(options.labelWidth, 80);
+      label.addEventListener('click', function() {
+        editor.focus();
+      });
+    }
+
+    shell.appendChild(before);
+    shell.appendChild(editor);
+    shell.appendChild(after);
+    if (options.labelPosition === 'after') {
+      field.appendChild(shell);
+      if (label) field.appendChild(label);
+    } else {
+      if (label) field.appendChild(label);
+      field.appendChild(shell);
+    }
+    parent.insertBefore(field, this._source);
+    field.appendChild(this._source);
+    this._source.style.display = 'none';
+    this._source.setAttribute('aria-hidden', 'true');
+
+    this._field = field;
+    this._label = label;
+    this._shell = shell;
+    this._editor = editor;
+    this._beforeAddon = before;
+    this._afterAddon = after;
+    this._renderAddons();
+  };
+
+  TextBox.prototype._renderAddons = function() {
+    var options = this._options;
+    var icons = normalizeEditorIconDescriptors(options.icons);
+    var index;
+    var descriptor;
+    var icon;
+    var addon;
+    this._iconElements = [];
+    this._beforeAddon.textContent = '';
+    this._afterAddon.textContent = '';
+
+    if (options.clearButton) {
+      icons.push(normalizeEditorIconDescriptor({
+        iconCls: 'fui-textbox-clear-icon',
+        align: 'right',
+        clear: true,
+        title: 'Clear'
+      }));
+    }
+
+    for (index = 0; index < icons.length; index += 1) {
+      descriptor = icons[index];
+      addon = descriptor.align === 'left' ? this._beforeAddon : this._afterAddon;
+      icon = document.createElement('button');
+      icon.type = 'button';
+      icon.className = 'fui-textbox-icon' + (descriptor.iconCls ? ' ' + descriptor.iconCls : '');
+      icon.style.width = cssSize(descriptor.width || options.iconWidth, 18);
+      icon.setAttribute(
+        'aria-label',
+        descriptor.ariaLabel || 'TextBox icon ' + (index + 1)
+      );
+      icon.title = descriptor.title || '';
+      icon.textContent = descriptor.text || '';
+      icon.disabled = Boolean(descriptor.disabled);
+      icon.__fabuiIcon = descriptor;
+      icon.__fabuiIconIndex = index;
+      addon.appendChild(icon);
+      this._iconElements.push(icon);
+    }
+
+    if (options.buttonText || options.buttonIcon) {
+      this._button = document.createElement('button');
+      this._button.type = 'button';
+      this._button.className = 'fui-textbox-button' + (options.buttonIcon ? ' ' + options.buttonIcon : '');
+      this._button.classList.add(options.buttonText && options.buttonIcon ? 'fui-textbox-button-with-icon' : 'fui-textbox-button-icon-only');
+      this._button.textContent = options.buttonText || '';
+      this._button.setAttribute('aria-label', options.buttonText || 'TextBox button');
+      if (options.buttonAlign === 'left') {
+        this._beforeAddon.insertBefore(this._button, this._beforeAddon.firstChild);
+      } else {
+        this._afterAddon.appendChild(this._button);
+      }
+    } else {
+      this._button = null;
+    }
+    this._updateClearButton();
+  };
+
+  TextBox.prototype._bind = function() {
+    var self = this;
+    this._onInput = function() {
+      self._commitEditorValue();
+    };
+    this._onFocus = function() {
+      self._shell.classList.add('fui-textbox-focused');
+    };
+    this._onBlur = function() {
+      self._shell.classList.remove('fui-textbox-focused');
+    };
+    this._onAddonClick = function(event) {
+      var target = event.target.closest('.fui-textbox-icon');
+      var descriptor;
+      var callback;
+      var result;
+      if (!target || target.disabled || self._options.disabled || self._options.readonly) return;
+      descriptor = target.__fabuiIcon || {};
+      event.data = assign({}, event.data || {}, {
+        target: self._source,
+        textbox: self,
+        icon: target,
+        index: target.__fabuiIconIndex
+      });
+      if (descriptor.clear) {
+        self.clear();
+        self.focus();
+      }
+      callback = descriptor.onClick;
+      if (typeof callback === 'function') {
+        result = callback.call(self, event);
+      }
+      self._invoke('onClickIcon', target.__fabuiIconIndex);
+      self._emit('iconClick', { index: target.__fabuiIconIndex, icon: target });
+      if (result !== false && descriptor.keepFocus !== false) {
+        self.focus();
+      }
+    };
+    this._onButtonClick = function() {
+      if (self._options.disabled) return;
+      self._invoke('onClickButton');
+      self._emit('buttonClick', { button: self._button });
+    };
+    this._onFormReset = function() {
+      window.setTimeout(function() {
+        if (!self._destroyed) self.reset();
+      }, 0);
+    };
+    this._editor.addEventListener('input', this._onInput);
+    this._editor.addEventListener('focus', this._onFocus);
+    this._editor.addEventListener('blur', this._onBlur);
+    this._beforeAddon.addEventListener('click', this._onAddonClick);
+    this._afterAddon.addEventListener('click', this._onAddonClick);
+    if (this._button) this._button.addEventListener('click', this._onButtonClick);
+    if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
+  };
+
+  TextBox.prototype._commitEditorValue = function() {
+    var oldValue = this._source.value;
+    var newValue = this._editor.value;
+    this._source.value = newValue;
+    this._options.value = newValue;
+    this._updateClearButton();
+    if (newValue !== oldValue) {
+      this._invoke('onChange', newValue, oldValue);
+      this._emit('change', { value: newValue, oldValue: oldValue });
+    }
+  };
+
+  TextBox.prototype._applyState = function() {
+    var disabled = Boolean(this._options.disabled);
+    var readonly = Boolean(this._options.readonly);
+    this._editor.disabled = disabled;
+    this._editor.readOnly = readonly || !this._options.editable;
+    this._editor.required = Boolean(this._options.required);
+    this._source.disabled = disabled;
+    this._source.readOnly = readonly;
+    this._field.classList.toggle('fui-textbox-disabled', disabled);
+    this._field.classList.toggle('fui-textbox-readonly', readonly);
+    if (this._label) this._label.classList.toggle('fui-textbox-label-disabled', disabled);
+    this._iconElements.forEach(function(icon) {
+      icon.classList.toggle('fui-textbox-icon-readonly', readonly);
+    });
+    if (this._button) this._button.disabled = disabled;
+  };
+
+  TextBox.prototype._updateClearButton = function() {
+    var hasValue = Boolean(this._editor && this._editor.value);
+    this._iconElements.forEach(function(icon) {
+      if (icon.__fabuiIcon && icon.__fabuiIcon.clear) {
+        icon.classList.toggle('fui-textbox-icon-hidden', !hasValue);
+      }
+    });
+  };
+
+  TextBox.prototype._invoke = function(name) {
+    var callback = this._options[name];
+    if (typeof callback === 'function') {
+      return callback.apply(this, Array.prototype.slice.call(arguments, 1));
+    }
+    return undefined;
+  };
+
+  TextBox.prototype._emit = function(name, detail) {
+    var listeners = (this._listeners[name] || []).slice();
+    listeners.forEach(function(listener) {
+      listener(detail);
+    });
+  };
+
+  TextBox.prototype.options = function() {
+    return this._options;
+  };
+
+  TextBox.prototype.textbox = function() {
+    return this._editor;
+  };
+
+  TextBox.prototype.button = function() {
+    return this._button;
+  };
+
+  TextBox.prototype.getIcon = function(index) {
+    return this._iconElements[index] || null;
+  };
+
+  TextBox.prototype.getText = function() {
+    return this._editor.value;
+  };
+
+  TextBox.prototype.setText = function(value) {
+    return this.setValue(value);
+  };
+
+  TextBox.prototype.getValue = function() {
+    return this._source.value;
+  };
+
+  TextBox.prototype.setValue = function(value, silent) {
+    var oldValue = this._source.value;
+    var newValue = editorDefinition && typeof editorDefinition.normalize === 'function' ? editorDefinition.normalize(value) : (value == null ? '' : String(value));
+    this._editor.value = newValue;
+    this._source.value = newValue;
+    this._options.value = newValue;
+    this._updateClearButton();
+    if (!silent && newValue !== oldValue) {
+      this._invoke('onChange', newValue, oldValue);
+      this._emit('change', { value: newValue, oldValue: oldValue });
+    }
+    return this;
+  };
+
+  TextBox.prototype.initValue = function(value) {
+    this._initialValue = value == null ? '' : String(value);
+    return this.setValue(this._initialValue, true);
+  };
+
+  TextBox.prototype.clear = function() {
+    return this.setValue('');
+  };
+
+  TextBox.prototype.reset = function() {
+    return this.setValue(this._initialValue);
+  };
+
+  TextBox.prototype.focus = function() {
+    this._editor.focus();
+    return this;
+  };
+
+  TextBox.prototype.disable = function() {
+    this._options.disabled = true;
+    this._applyState();
+    return this;
+  };
+
+  TextBox.prototype.enable = function() {
+    this._options.disabled = false;
+    this._applyState();
+    return this;
+  };
+
+  TextBox.prototype.readonly = function(mode) {
+    this._options.readonly = mode !== false;
+    this._applyState();
+    return this;
+  };
+
+  TextBox.prototype.setEditable = function(mode) {
+    this._options.editable = mode !== false;
+    this._applyState();
+    return this;
+  };
+
+  TextBox.prototype.resize = function(width, height, silent) {
+    this._options.width = width == null ? this._options.width : width;
+    this._options.height = height == null ? this._options.height : height;
+    this._shell.style.width = cssSize(this._options.width, 200);
+    this._shell.style.height = cssSize(this._options.height, 30);
+    this._field.classList.toggle('fui-textbox-label-top-field', this._options.labelPosition === 'top');
+    if (!silent) {
+      this._invoke('onResize', this._options.width, this._options.height);
+      this._emit('resize', { width: this._options.width, height: this._options.height });
+    }
+    return this;
+  };
+
+  TextBox.prototype.on = function(name, listener) {
+    if (typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  TextBox.prototype.off = function(name, listener) {
+    var listeners = this._listeners[name];
+    if (!listeners) return this;
+    this._listeners[name] = listener ? listeners.filter(function(item) {
+      return item !== listener;
+    }) : [];
+    return this;
+  };
+
+  TextBox.prototype.destroy = function() {
+    var parent;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._editor.removeEventListener('input', this._onInput);
+    this._editor.removeEventListener('focus', this._onFocus);
+    this._editor.removeEventListener('blur', this._onBlur);
+    this._beforeAddon.removeEventListener('click', this._onAddonClick);
+    this._afterAddon.removeEventListener('click', this._onAddonClick);
+    if (this._button) this._button.removeEventListener('click', this._onButtonClick);
+    if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);
+    parent = this._field.parentNode;
+    this._source.style.display = this._originalDisplay;
+    this._source.removeAttribute('aria-hidden');
+    delete this._source.__fabuiTextBox;
+    parent.insertBefore(this._source, this._field);
+    parent.removeChild(this._field);
+    this._listeners = {};
+  };
+
+  TextBox.defaults = defaults;
+  TextBox.editorDefinition = editorDefinition;
+  return TextBox;
+}
+
+function createNumberBoxFactory(TextBox, editorDefinitions) {
+  'use strict';
+
+  if (typeof TextBox !== 'function') {
+    throw new Error('fabui.NumberBox requires fabui.TextBox.');
+  }
+
+  editorDefinitions = editorDefinitions || {};
+  var editorDefinition = editorDefinitions.number || editorDefinitions.numberbox || null;
+
+  var numberDefaults = {
+    min: null,
+    max: null,
+    precision: null,
+    thousandsSeparator: false,
+    decimalSeparator: '.',
+    groupSeparator: '',
+    prefix: '',
+    suffix: '',
+    parser: null,
+    formatter: null,
+    filter: null,
+    onChange: null
+  };
+
+  function assign(target) {
+    var index;
+    var source;
+    var key;
+    for (index = 1; index < arguments.length; index += 1) {
+      source = arguments[index] || {};
+      for (key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+    return target;
+  }
+
+  function resolveElement(element) {
+    return typeof element === 'string' ? document.querySelector(element) : element;
+  }
+
+  function readNumberAttribute(element, name) {
+    var value = element.getAttribute(name);
+    return value == null || value === '' || !isFinite(Number(value)) ? undefined : Number(value);
+  }
+
+  function readElementOptions(element) {
+    var options = {};
+    var names = ['decimalSeparator', 'groupSeparator', 'prefix', 'suffix'];
+    var index;
+    var value;
+    value = readNumberAttribute(element, 'min');
+    if (value !== undefined) options.min = value;
+    value = readNumberAttribute(element, 'max');
+    if (value !== undefined) options.max = value;
+    value = readNumberAttribute(element, 'precision');
+    if (value !== undefined) options.precision = value;
+    for (index = 0; index < names.length; index += 1) {
+      value = element.getAttribute(names[index]);
+      if (value != null) options[names[index]] = value;
+    }
+    return options;
+  }
+
+  function removeAll(text, token) {
+    return token ? text.split(token).join('') : text;
+  }
+
+  function normalizePrecision(value) {
+    if (editorDefinition && typeof editorDefinition.normalizePrecision === 'function') {
+      return editorDefinition.normalizePrecision(value);
+    }
+    if (value == null || value === false || value === '') return null;
+    value = Math.floor(Number(value));
+    return isFinite(value) && value >= 0 ? Math.min(20, value) : null;
+  }
+
+  function NumberBox(element, options) {
+    var sourceValue;
+    var textBoxOptions;
+    if (!(this instanceof NumberBox)) {
+      return new NumberBox(element, options);
+    }
+    this._source = resolveElement(element);
+    if (!this._source || this._source.tagName !== 'INPUT') {
+      throw new Error('fabui.NumberBox requires an input element.');
+    }
+    if (this._source.__fabuiNumberBox) {
+      return this._source.__fabuiNumberBox;
+    }
+
+    options = options || {};
+    sourceValue = Object.prototype.hasOwnProperty.call(options, 'value') ? options.value : this._source.value;
+    this._options = assign({}, TextBox.defaults || {}, numberDefaults, readElementOptions(this._source), options);
+    this._options.precision = normalizePrecision(this._options.precision);
+    if (!this._options.groupSeparator && (
+      this._options.thousandsSeparator === true ||
+      this._options.useThousandsSeparator === true ||
+      this._options.showThousandsSeparator === true
+    )) {
+      this._options.groupSeparator = ',';
+    }
+    this._listeners = {};
+    this._destroyed = false;
+    textBoxOptions = assign({}, options, {
+      cls: 'fui-numberbox' + (options.cls ? ' ' + options.cls : ''),
+      value: '',
+      type: 'text',
+      multiline: false,
+      onChange: null
+    });
+    this._textbox = new TextBox(this._source, textBoxOptions);
+    this._editor = this._textbox.textbox();
+    if (editorDefinition && editorDefinition.className) {
+      editorDefinition.className.split(/\s+/).forEach(function(className) {
+        if (className) this._editor.classList.add(className);
+      }, this);
+    } else {
+      this._editor.classList.add('textbox-f', 'numberbox-f', 'fg-editor-numberbox');
+    }
+    this._editor.inputMode = editorDefinition && editorDefinition.inputMode ? editorDefinition.inputMode : 'decimal';
+    this._initialValue = this._normalizeValue(sourceValue);
+    this._lastCommittedValue = '';
+    this._bind();
+    this._source.__fabuiNumberBox = this;
+    this.setValue(sourceValue, true);
+  }
+
+  NumberBox.prototype._bind = function() {
+    var self = this;
+    this._onFocus = function() {
+      self._editor.value = self._getEditingText(self.getValue());
+      self._editor.select();
+    };
+    this._onBlur = function() {
+      self.fix();
+    };
+    this._onKeyDown = function(event) {
+      self._handleKeyDown(event);
+    };
+    this._onInput = function() {
+      self._syncLiveValue();
+    };
+    this._onCopy = function(event) {
+      self._handleCopy(event);
+    };
+    this._onFormReset = function() {
+      window.setTimeout(function() {
+        if (!self._destroyed) self.reset();
+      }, 0);
+    };
+    this._editor.addEventListener('focus', this._onFocus);
+    this._editor.addEventListener('blur', this._onBlur);
+    this._editor.addEventListener('keydown', this._onKeyDown);
+    this._editor.addEventListener('input', this._onInput);
+    this._editor.addEventListener('copy', this._onCopy);
+    if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
+  };
+
+  NumberBox.prototype._handleKeyDown = function(event) {
+    var key = event.key;
+    var text = this._editor.value;
+    var selectionStart = this._editor.selectionStart == null ? text.length : this._editor.selectionStart;
+    var selectionEnd = this._editor.selectionEnd == null ? selectionStart : this._editor.selectionEnd;
+    var selectedText = text.slice(selectionStart, selectionEnd);
+    if (key === 'Enter') {
+      event.preventDefault();
+      this.fix();
+      this._editor.select();
+      return;
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || key.length !== 1) {
+      return;
+    }
+    if (typeof this._options.filter === 'function') {
+      if (this._options.filter.call(this._source, event) === false) {
+        event.preventDefault();
+      }
+      return;
+    }
+    if (editorDefinition && typeof editorDefinition.isTextAllowed === 'function') {
+      if (!editorDefinition.isTextAllowed(this._editor, key, this._options)) event.preventDefault();
+      return;
+    }
+    if (key >= '0' && key <= '9') {
+      return;
+    }
+    if (key === '-' && !(this._options.min != null && Number(this._options.min) >= 0)) {
+      if (text.indexOf('-') < 0 || selectedText.indexOf('-') >= 0) {
+        return;
+      }
+    }
+    if (key === this._options.decimalSeparator && this._options.precision > 0) {
+      if (text.indexOf(key) < 0 || selectedText.indexOf(key) >= 0) {
+        return;
+      }
+    }
+    if (this._options.groupSeparator && key === this._options.groupSeparator) {
+      return;
+    }
+    event.preventDefault();
+  };
+
+  NumberBox.prototype._syncLiveValue = function() {
+    var text;
+    var number;
+    this._sanitizeEditingText();
+    text = this._stripFormatting(this._editor.value);
+    number = editorDefinition && typeof editorDefinition.parse === 'function' ? editorDefinition.parse(text, this._options) : parseFloat(text);
+    this._source.value = number != null && isFinite(number) ? String(number) : '';
+  };
+
+  NumberBox.prototype._sanitizeEditingText = function() {
+    var text;
+    var result = '';
+    var sign = '';
+    var hasDecimal = false;
+    var decimalSeparator = String(this._options.decimalSeparator || '.');
+    var groupSeparator = String(this._options.groupSeparator || '');
+    var selectionStart;
+    var index;
+    var character;
+    if (typeof this._options.filter === 'function') {
+      return;
+    }
+    text = this._editor.value;
+    selectionStart = this._editor.selectionStart == null ? text.length : this._editor.selectionStart;
+    if (editorDefinition && typeof editorDefinition.sanitize === 'function') {
+      result = editorDefinition.sanitize(text, this._options);
+      result = editorDefinition.format(result, assign({}, this._options, { precision: null }));
+      if (result !== text) {
+        this._editor.value = result;
+        if (this._editor.setSelectionRange) {
+          selectionStart = Math.min(selectionStart, result.length);
+          this._editor.setSelectionRange(selectionStart, selectionStart);
+        }
+      }
+      return;
+    }
+    for (index = 0; index < text.length; index += 1) {
+      character = text.charAt(index);
+      if (character >= '0' && character <= '9') {
+        result += character;
+      } else if (character === '-' && !sign && !(this._options.min != null && Number(this._options.min) >= 0)) {
+        sign = '-';
+      } else if (character === decimalSeparator && this._options.precision > 0 && !hasDecimal) {
+        result += character;
+        hasDecimal = true;
+      } else if (groupSeparator && character === groupSeparator) {
+        result += character;
+      }
+    }
+    result = sign + result;
+    if (result !== text) {
+      this._editor.value = result;
+      if (this._editor.setSelectionRange) {
+        selectionStart = Math.min(selectionStart, result.length);
+        this._editor.setSelectionRange(selectionStart, selectionStart);
+      }
+    }
+  };
+
+  NumberBox.prototype._stripFormatting = function(value) {
+    var text = value == null ? '' : String(value).trim();
+    text = removeAll(text, String(this._options.prefix || '').trim());
+    text = removeAll(text, String(this._options.suffix || '').trim());
+    if (editorDefinition && typeof editorDefinition.stripFormatting === 'function') {
+      return editorDefinition.stripFormatting(text, this._options);
+    }
+    text = removeAll(text, this._options.groupSeparator);
+    if (this._options.decimalSeparator && this._options.decimalSeparator !== '.') {
+      text = text.replace(this._options.decimalSeparator, '.');
+    }
+    return text.replace(/\s/g, '');
+  };
+
+  NumberBox.prototype._normalizeValue = function(value) {
+    var parsed = value;
+    var number;
+    var precision = this._options.precision;
+    if (value == null || value === '') {
+      return '';
+    }
+    if (typeof this._options.parser === 'function') {
+      parsed = this._options.parser.call(this._source, value);
+    } else if (editorDefinition && typeof editorDefinition.parse === 'function') {
+      parsed = this._stripFormatting(value);
+      number = editorDefinition.parse(parsed, this._options);
+      parsed = number;
+    } else {
+      parsed = this._stripFormatting(value);
+    }
+    if (number == null) number = parseFloat(parsed);
+    if (!isFinite(number)) {
+      return '';
+    }
+    if (this._options.min != null) {
+      number = Math.max(Number(this._options.min), number);
+    }
+    if (this._options.max != null) {
+      number = Math.min(Number(this._options.max), number);
+    }
+    if (number === 0) {
+      number = 0;
+    }
+    return precision == null ? String(number) : number.toFixed(precision);
+  };
+
+  NumberBox.prototype._formatValue = function(value) {
+    var parts;
+    var integer;
+    var fraction;
+    var sign = '';
+    if (value == null || value === '') {
+      return '';
+    }
+    if (typeof this._options.formatter === 'function') {
+      return String(this._options.formatter.call(this._source, value));
+    }
+    if (editorDefinition && typeof editorDefinition.format === 'function') {
+      return String(this._options.prefix || '') + editorDefinition.format(value, this._options) + String(this._options.suffix || '');
+    }
+    parts = String(value).split('.');
+    integer = parts[0];
+    fraction = parts[1] || '';
+    if (integer.charAt(0) === '-') {
+      sign = '-';
+      integer = integer.slice(1);
+    }
+    if (this._options.groupSeparator) {
+      integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, this._options.groupSeparator);
+    }
+    return String(this._options.prefix || '') + sign + integer +
+      (fraction ? String(this._options.decimalSeparator || '.') + fraction : '') +
+      String(this._options.suffix || '');
+  };
+
+  NumberBox.prototype._getEditingText = function(value) {
+    if (value == null || value === '') {
+      return '';
+    }
+    return this._options.decimalSeparator === '.' ? String(value) : String(value).replace('.', this._options.decimalSeparator);
+  };
+
+  NumberBox.prototype._handleCopy = function(event) {
+    var start = this._editor.selectionStart;
+    var end = this._editor.selectionEnd;
+    var text;
+    var clipboardData;
+    if (!editorDefinition || typeof editorDefinition.getCopyText !== 'function' || start == null || end == null || start === end) return;
+    text = this._stripFormatting(this._editor.value.slice(Math.min(start, end), Math.max(start, end)));
+    clipboardData = event.clipboardData || window.clipboardData;
+    if (!clipboardData || !clipboardData.setData) return;
+    clipboardData.setData('text/plain', text);
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  NumberBox.prototype._emit = function(name, detail) {
+    var listeners = (this._listeners[name] || []).slice();
+    listeners.forEach(function(listener) {
+      listener(detail);
+    });
+  };
+
+  NumberBox.prototype.options = function() {
+    return this._options;
+  };
+
+  NumberBox.prototype.textbox = function() {
+    return this._editor;
+  };
+
+  NumberBox.prototype.button = function() {
+    return this._textbox.button();
+  };
+
+  NumberBox.prototype.getIcon = function(index) {
+    return this._textbox.getIcon(index);
+  };
+
+  NumberBox.prototype.getText = function() {
+    return this._editor.value;
+  };
+
+  NumberBox.prototype.setText = function(value) {
+    this._editor.value = value == null ? '' : String(value);
+    this._syncLiveValue();
+    return this;
+  };
+
+  NumberBox.prototype.getValue = function() {
+    return this._source.value;
+  };
+
+  NumberBox.prototype.getNumber = function() {
+    return this.getValue() === '' ? null : Number(this.getValue());
+  };
+
+  NumberBox.prototype.setValue = function(value, silent) {
+    var oldValue = this._lastCommittedValue;
+    var normalized = this._normalizeValue(value);
+    var text = this._formatValue(normalized);
+    this._textbox.setValue(text, true);
+    this._source.value = normalized;
+    this._options.value = normalized;
+    this._lastCommittedValue = normalized;
+    if (!silent && normalized !== oldValue) {
+      if (typeof this._options.onChange === 'function') {
+        this._options.onChange.call(this, normalized, oldValue);
+      }
+      this._emit('change', { value: normalized, oldValue: oldValue });
+    }
+    return this;
+  };
+
+  NumberBox.prototype.fix = function() {
+    return this.setValue(this._editor.value);
+  };
+
+  NumberBox.prototype.initValue = function(value) {
+    this._initialValue = this._normalizeValue(value);
+    return this.setValue(this._initialValue, true);
+  };
+
+  NumberBox.prototype.clear = function() {
+    return this.setValue('');
+  };
+
+  NumberBox.prototype.reset = function() {
+    return this.setValue(this._initialValue);
+  };
+
+  NumberBox.prototype.focus = function() {
+    this._textbox.focus();
+    return this;
+  };
+
+  NumberBox.prototype.resize = function(width, height) {
+    this._textbox.resize(width, height);
+    this._options.width = this._textbox.options().width;
+    this._options.height = this._textbox.options().height;
+    return this;
+  };
+
+  NumberBox.prototype.disable = function() {
+    this._textbox.disable();
+    this._options.disabled = true;
+    return this;
+  };
+
+  NumberBox.prototype.enable = function() {
+    this._textbox.enable();
+    this._options.disabled = false;
+    return this;
+  };
+
+  NumberBox.prototype.readonly = function(mode) {
+    this._textbox.readonly(mode);
+    this._options.readonly = mode !== false;
+    return this;
+  };
+
+  NumberBox.prototype.setEditable = function(mode) {
+    this._textbox.setEditable(mode);
+    this._options.editable = mode !== false;
+    return this;
+  };
+
+  NumberBox.prototype.on = function(name, listener) {
+    if (typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  NumberBox.prototype.off = function(name, listener) {
+    var listeners = this._listeners[name];
+    if (!listeners) return this;
+    this._listeners[name] = listener ? listeners.filter(function(item) {
+      return item !== listener;
+    }) : [];
+    return this;
+  };
+
+  NumberBox.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._editor.removeEventListener('focus', this._onFocus);
+    this._editor.removeEventListener('blur', this._onBlur);
+    this._editor.removeEventListener('keydown', this._onKeyDown);
+    this._editor.removeEventListener('input', this._onInput);
+    this._editor.removeEventListener('copy', this._onCopy);
+    if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);
+    delete this._source.__fabuiNumberBox;
+    this._textbox.destroy();
+    this._listeners = {};
+  };
+
+  NumberBox.defaults = assign({}, TextBox.defaults || {}, numberDefaults);
+  NumberBox.editorDefinition = editorDefinition;
+  return NumberBox;
+}
+
+var activeDatePopup = null;
+var datePopupLunarFormatters = {};
+var DATE_POPUP_THEMES = [
+  'default',
+  'bootstrap',
+  'cupertino',
+  'material',
+  'material-blue',
+  'material-teal',
+  'metro',
+  'metro-blue',
+  'metro-gray',
+  'metro-green',
+  'metro-orange',
+  'metro-red',
+  'sunny',
+  'pepper-grinder',
+  'dark-hive',
+  'black'
+];
+var DATE_POPUP_LUNAR_DAYS = [
+  '',
+  '初一', '初二', '初三', '初四', '初五',
+  '初六', '初七', '初八', '初九', '初十',
+  '十一', '十二', '十三', '十四', '十五',
+  '十六', '十七', '十八', '十九', '二十',
+  '廿一', '廿二', '廿三', '廿四', '廿五',
+  '廿六', '廿七', '廿八', '廿九', '三十'
+];
+
+function assignDatePopupOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+}
+
+function resolveDatePopupElement(element) {
+  return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function cloneDatePopupDate(date) {
+  return date instanceof Date && isFinite(date.getTime()) ? new Date(date.getTime()) : null;
+}
+
+function toDatePopupDateOnly(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function isSameDatePopupDate(left, right) {
+  return Boolean(left && right) &&
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate();
+}
+
+function padDatePopupNumber(value) {
+  return value < 10 ? '0' + value : String(value);
+}
+
+function formatDatePopupIso(date) {
+  return date.getFullYear() + '-' +
+    padDatePopupNumber(date.getMonth() + 1) + '-' +
+    padDatePopupNumber(date.getDate());
+}
+
+function parseDatePopupIso(value) {
+  var parts = String(value || '').split('-');
+  var date;
+  if (parts.length !== 3) return null;
+  date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return isFinite(date.getTime()) ? date : null;
+}
+
+function getDatePopupWeekNumber(date) {
+  var current = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  var day = current.getUTCDay() || 7;
+  var yearStart;
+  current.setUTCDate(current.getUTCDate() + 4 - day);
+  yearStart = new Date(Date.UTC(current.getUTCFullYear(), 0, 1));
+  return Math.ceil((((current - yearStart) / 86400000) + 1) / 7);
+}
+
+function normalizeDatePopupTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return DATE_POPUP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findDatePopupTheme(element) {
+  var current = resolveDatePopupElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < DATE_POPUP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + DATE_POPUP_THEMES[index])) {
+        return DATE_POPUP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function getDatePopupLunarFormatter(locale) {
+  var name = /^zh(?:-|_)?cn/i.test(locale || '') ? 'zh-CN' : 'zh-TW';
+  if (Object.prototype.hasOwnProperty.call(datePopupLunarFormatters, name)) {
+    return datePopupLunarFormatters[name];
+  }
+  try {
+    datePopupLunarFormatters[name] = new Intl.DateTimeFormat(
+      name + '-u-ca-chinese-nu-latn',
+      {
+        month: 'long',
+        day: 'numeric'
+      }
+    );
+  } catch (error) {
+    datePopupLunarFormatters[name] = null;
+  }
+  return datePopupLunarFormatters[name];
+}
+
+function formatDatePopupLunarText(date, locale) {
+  var formatter = getDatePopupLunarFormatter(locale);
+  var parts;
+  var month = '';
+  var day = 0;
+  var index;
+  if (!formatter || !(date instanceof Date) || !isFinite(date.getTime())) {
+    return '';
+  }
+  try {
+    parts = formatter.formatToParts(date);
+    for (index = 0; index < parts.length; index += 1) {
+      if (parts[index].type === 'month') month = parts[index].value;
+      if (parts[index].type === 'day') day = parseInt(parts[index].value, 10) || 0;
+    }
+  } catch (error) {
+    return '';
+  }
+  if (!DATE_POPUP_LUNAR_DAYS[day]) {
+    return '';
+  }
+  return day === 1 ?
+    month + ' ' + DATE_POPUP_LUNAR_DAYS[day] :
+    DATE_POPUP_LUNAR_DAYS[day];
+}
+
+function DatePopupController(popup) {
+  this.popup = popup;
+  this.element = popup.calendar;
+}
+
+DatePopupController.prototype.options = function(options) {
+  var shouldApply;
+  if (!options) {
+    return {
+      current: cloneDatePopupDate(this.popup.viewDate),
+      selected: cloneDatePopupDate(this.popup.selectedDate),
+      firstDay: this.popup.options.firstDay,
+      weeks: this.popup.options.weeks.slice(),
+      months: this.popup.options.months.slice(),
+      showWeek: this.popup.options.showWeek,
+      showLunar: this.popup.options.showLunar,
+      theme: this.popup.themeName,
+      formatter: this.popup.options.formatter,
+      styler: this.popup.options.styler,
+      validator: this.popup.options.validator,
+      getWeekNumber: this.popup.options.getWeekNumber
+    };
+  }
+  if (typeof this.popup.options.onOptionsChange === 'function') {
+    shouldApply = this.popup.options.onOptionsChange(options, this.popup);
+    if (shouldApply === false) return this;
+  }
+  this.popup.setOptions(options);
+  return this;
+};
+
+DatePopupController.prototype.moveTo = function(date) {
+  this.popup.moveTo(date);
+  return this;
+};
+
+DatePopupController.prototype.select = function(date) {
+  this.popup.select(date);
+  return this;
+};
+
+DatePopupController.prototype.resize = function() {
+  this.popup.resize.apply(this.popup, arguments);
+  return this;
+};
+
+function DatePopup(options) {
+  if (!(this instanceof DatePopup)) return new DatePopup(options);
+  this.options = assignDatePopupOptions({}, DatePopup.defaults, options || {});
+  this.destroyed = false;
+  this.visible = false;
+  this.menuVisible = false;
+  this._openEventsBound = false;
+  this.selectedDate = null;
+  this.viewDate = toDatePopupDateOnly(new Date());
+  this.sharedCalendarState = null;
+  this._normalizeOptions();
+  this._build();
+  this._configureSharedCalendar();
+  this._applyThemeClasses();
+  this._bind();
+  this.controller = new DatePopupController(this);
+  this.render();
+}
+
+DatePopup.defaults = {
+  anchor: null,
+  className: '',
+  theme: 'default',
+  themeSource: null,
+  panelWidth: 250,
+  panelHeight: 'auto',
+  ariaLabel: 'Date picker',
+  firstDay: 0,
+  showWeek: false,
+  showLunar: false,
+  weekNumberHeader: '',
+  locale: 'zh-TW',
+  currentText: 'Today',
+  closeText: 'Close',
+  yearText: 'Year',
+  previousYearText: 'Previous year',
+  previousMonthText: 'Previous month',
+  nextMonthText: 'Next month',
+  nextYearText: 'Next year',
+  weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+  months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  buttons: null,
+  calendarMode: 'days',
+  sharedCalendar: null,
+  validator: null,
+  validatorContext: null,
+  owner: null,
+  containsTarget: null,
+  openClassHost: null,
+  onSelect: null,
+  onOptionsChange: null,
+  onShow: null,
+  onHide: null,
+  onChange: null,
+  onNavigate: null,
+  formatter: function(date) { return date.getDate(); },
+  styler: function() { return ''; },
+  getWeekNumber: getDatePopupWeekNumber,
+  embeddedHost: null,
+  embedded: false
+};
+
+DatePopup.prototype._normalizeOptions = function() {
+  this.options.firstDay = Math.max(0, Math.min(6, parseInt(this.options.firstDay, 10) || 0));
+  this.options.weeks = Array.isArray(this.options.weeks) && this.options.weeks.length === 7 ?
+    this.options.weeks.slice() :
+    DatePopup.defaults.weeks.slice();
+  this.options.months = Array.isArray(this.options.months) && this.options.months.length === 12 ?
+    this.options.months.slice() :
+    DatePopup.defaults.months.slice();
+  this.options.calendarMode = this.options.calendarMode === 'months' ? 'months' : 'days';
+  this.options.showLunar = this.options.showLunar === true;
+  this.themeName = this.options.theme === 'inherit' ?
+    findDatePopupTheme(this.options.themeSource || this.options.anchor) :
+    normalizeDatePopupTheme(this.options.theme);
+  this.options.validator = typeof this.options.validator === 'function' ?
+    this.options.validator :
+    function() { return true; };
+  this.options.formatter = typeof this.options.formatter === 'function' ?
+    this.options.formatter :
+    DatePopup.defaults.formatter;
+  this.options.styler = typeof this.options.styler === 'function' ?
+    this.options.styler :
+    DatePopup.defaults.styler;
+  this.options.getWeekNumber = typeof this.options.getWeekNumber === 'function' ?
+    this.options.getWeekNumber :
+    DatePopup.defaults.getWeekNumber;
+  this.options.embedded = this.options.embedded === true;
+};
+
+DatePopup.prototype._applyThemeClasses = function() {
+  var index;
+  var themeClass = 'fg-theme-' + this.themeName;
+  for (index = 0; index < DATE_POPUP_THEMES.length; index += 1) {
+    this.panel.classList.remove('fg-theme-' + DATE_POPUP_THEMES[index]);
+    this.calendar.classList.remove('fg-theme-' + DATE_POPUP_THEMES[index]);
+  }
+  this.panel.classList.add(themeClass);
+  this.calendar.classList.add(themeClass);
+};
+
+DatePopup.prototype._startThemeObserver = function() {
+  var self = this;
+  var source = resolveDatePopupElement(this.options.themeSource || this.options.anchor);
+  var observeRoot;
+  this._stopThemeObserver();
+  if (
+    this.options.theme !== 'inherit' ||
+    !source ||
+    typeof MutationObserver !== 'function'
+  ) {
+    return;
+  }
+  this._themeObserver = new MutationObserver(function() {
+    var themeName = findDatePopupTheme(source);
+    if (themeName === self.themeName) return;
+    self.themeName = themeName;
+    self._applyThemeClasses();
+  });
+  observeRoot = source.ownerDocument && source.ownerDocument.documentElement ?
+    source.ownerDocument.documentElement :
+    source;
+  this._themeObserver.observe(observeRoot, {
+    attributes: true,
+    attributeFilter: ['class'],
+    subtree: observeRoot !== source
+  });
+};
+
+DatePopup.prototype._stopThemeObserver = function() {
+  if (!this._themeObserver) return;
+  this._themeObserver.disconnect();
+  this._themeObserver = null;
+};
+
+DatePopup.prototype._build = function() {
+  var embeddedHost = resolveDatePopupElement(this.options.embeddedHost);
+  var panel = document.createElement('div');
+  var calendar = document.createElement('div');
+  var header = document.createElement('div');
+  var title = document.createElement('button');
+  var body = document.createElement('div');
+  var menu = document.createElement('div');
+  var footer = document.createElement('div');
+  var nav = [
+    ['fui-calendar-prevyear', this.options.previousYearText, -12],
+    ['fui-calendar-prevmonth', this.options.previousMonthText, -1],
+    ['fui-calendar-nextmonth', this.options.nextMonthText, 1],
+    ['fui-calendar-nextyear', this.options.nextYearText, 12]
+  ];
+  var index;
+  var button;
+  panel.className = (
+    (this.options.embedded ? 'fui-calendar-embedded-panel ' : 'fui-datebox-panel ') +
+    (this.options.className || '')
+  ).trim();
+  panel.hidden = !this.options.embedded;
+  panel.setAttribute('role', this.options.embedded ? 'group' : 'dialog');
+  if (!this.options.embedded) panel.setAttribute('aria-modal', 'false');
+  panel.setAttribute('aria-label', this.options.ariaLabel);
+  calendar.className = 'fui-calendar';
+  header.className = 'fui-calendar-header';
+  title.className = 'fui-calendar-title';
+  title.type = 'button';
+  body.className = 'fui-calendar-body';
+  menu.className = 'fui-calendar-menu';
+  menu.hidden = true;
+  footer.className = 'fui-datebox-buttons';
+  for (index = 0; index < nav.length; index += 1) {
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fui-calendar-nav ' + nav[index][0];
+    button.setAttribute('aria-label', nav[index][1]);
+    button.setAttribute('data-month-offset', nav[index][2]);
+    header.appendChild(button);
+  }
+  header.appendChild(title);
+  calendar.appendChild(header);
+  calendar.appendChild(body);
+  calendar.appendChild(menu);
+  panel.appendChild(calendar);
+  panel.appendChild(footer);
+  (this.options.embedded && embeddedHost ? embeddedHost : document.body).appendChild(panel);
+  this.panel = panel;
+  this.calendar = calendar;
+  this.calendarHeader = header;
+  this.calendarTitle = title;
+  this.calendarBody = body;
+  this.calendarMenu = menu;
+  this.buttonBar = footer;
+  if (this.options.embedded) {
+    footer.hidden = true;
+    calendar.__fabuiDatePopupOwner = this;
+  }
+};
+
+DatePopup.prototype._configureSharedCalendar = function() {
+  var host = resolveDatePopupElement(this.options.sharedCalendar);
+  var state;
+  if (!host) return;
+  state = host.__fabuiDatePopupSharedCalendar;
+  if (state) {
+    if (this.calendar.parentNode) this.calendar.parentNode.removeChild(this.calendar);
+    this.calendar = state.calendar;
+    this.calendarHeader = this.calendar.querySelector('.fui-calendar-header');
+    this.calendarTitle = this.calendar.querySelector('.fui-calendar-title');
+    this.calendarBody = this.calendar.querySelector('.fui-calendar-body');
+    this.calendarMenu = this.calendar.querySelector('.fui-calendar-menu');
+  } else {
+    state = { calendar: this.calendar, host: host };
+    host.__fabuiDatePopupSharedCalendar = state;
+    host.classList.add('fui-datebox-shared-calendar');
+    host.appendChild(this.calendar);
+  }
+  this.sharedCalendarState = state;
+};
+
+DatePopup.prototype._bind = function() {
+  var self = this;
+  this._onCalendarClick = function(event) {
+    var owner = self.calendar.__fabuiDatePopupOwner;
+    if (owner && !owner.destroyed) owner._handleClick(event);
+  };
+  this._onPanelClick = function(event) {
+    if (event.target.closest('[data-button-index]')) self._handleClick(event);
+  };
+  this._onPanelMouseDown = function(event) {
+    if (!event.target.closest('input')) event.preventDefault();
+  };
+  this._onPanelChange = function(event) {
+    var input = event.target.closest('.fui-calendar-menu-year');
+    if (!input) return;
+    self.viewDate = new Date(
+      Math.max(1, Math.min(9999, parseInt(input.value, 10) || self.viewDate.getFullYear())),
+      self.viewDate.getMonth(),
+      1
+    );
+    self.render();
+  };
+  this._onDocumentMouseDown = function(event) {
+    if (!self.visible || self.panel.contains(event.target) || self._containsTarget(event.target)) return;
+    self.hide();
+  };
+  this._onDocumentKeyDown = function(event) {
+    if (!self.visible || event.key !== 'Escape') return;
+    event.preventDefault();
+    self.hide();
+  };
+  this._onWindowChange = function() {
+    if (self.visible) self.position();
+  };
+  if (!this.calendar.__fabuiDatePopupClickBound) {
+    this.calendar.addEventListener('click', this._onCalendarClick);
+    this.calendar.__fabuiDatePopupClickBound = true;
+  }
+  this.panel.addEventListener('click', this._onPanelClick);
+  this.panel.addEventListener('mousedown', this._onPanelMouseDown);
+  this.panel.addEventListener('change', this._onPanelChange);
+};
+
+DatePopup.prototype._bindOpenEvents = function() {
+  if (this.options.embedded || this._openEventsBound) return;
+  this._openEventsBound = true;
+  document.addEventListener('mousedown', this._onDocumentMouseDown);
+  document.addEventListener('keydown', this._onDocumentKeyDown);
+  window.addEventListener('resize', this._onWindowChange);
+  window.addEventListener('scroll', this._onWindowChange, true);
+};
+
+DatePopup.prototype._unbindOpenEvents = function() {
+  if (!this._openEventsBound) return;
+  this._openEventsBound = false;
+  document.removeEventListener('mousedown', this._onDocumentMouseDown);
+  document.removeEventListener('keydown', this._onDocumentKeyDown);
+  window.removeEventListener('resize', this._onWindowChange);
+  window.removeEventListener('scroll', this._onWindowChange, true);
+};
+
+DatePopup.prototype._containsTarget = function(target) {
+  var anchor = resolveDatePopupElement(this.options.anchor);
+  var containsTarget = this.options.containsTarget;
+  if (anchor && (anchor === target || anchor.contains(target))) return true;
+  return typeof containsTarget === 'function' && containsTarget(target) === true;
+};
+
+DatePopup.prototype.setOptions = function(options) {
+  var hasCalendarMode = options &&
+    Object.prototype.hasOwnProperty.call(options, 'calendarMode');
+  assignDatePopupOptions(this.options, options || {});
+  this._normalizeOptions();
+  if (hasCalendarMode) {
+    this.menuVisible = this.options.calendarMode === 'months';
+  }
+  this.panel.className = (
+    (this.options.embedded ? 'fui-calendar-embedded-panel ' : 'fui-datebox-panel ') +
+    (this.options.className || '')
+  ).trim();
+  this._applyThemeClasses();
+  if (this.visible) this._startThemeObserver();
+  this.panel.setAttribute('aria-label', this.options.ariaLabel);
+  this.calendar.querySelector('.fui-calendar-prevyear')
+    .setAttribute('aria-label', this.options.previousYearText);
+  this.calendar.querySelector('.fui-calendar-prevmonth')
+    .setAttribute('aria-label', this.options.previousMonthText);
+  this.calendar.querySelector('.fui-calendar-nextmonth')
+    .setAttribute('aria-label', this.options.nextMonthText);
+  this.calendar.querySelector('.fui-calendar-nextyear')
+    .setAttribute('aria-label', this.options.nextYearText);
+  this.calendar.classList.toggle('fui-calendar-month-mode', this.options.calendarMode === 'months');
+  this.calendar.classList.toggle(
+    'fui-calendar-show-lunar',
+    this.options.showLunar && this.options.calendarMode === 'days'
+  );
+  this.render();
+  return this;
+};
+
+DatePopup.prototype.setValue = function(selectedDate, viewDate) {
+  this.selectedDate = cloneDatePopupDate(selectedDate);
+  this.viewDate = cloneDatePopupDate(viewDate) ||
+    cloneDatePopupDate(this.selectedDate) ||
+    toDatePopupDateOnly(new Date());
+  this.render();
+  return this;
+};
+
+DatePopup.prototype.render = function() {
+  var year = this.viewDate.getFullYear();
+  var month = this.viewDate.getMonth();
+  var first = new Date(year, month, 1);
+  var offset = (first.getDay() - this.options.firstDay + 7) % 7;
+  var cursor = new Date(year, month, 1 - offset);
+  var today = toDatePopupDateOnly(new Date());
+  var table = document.createElement('table');
+  var head = document.createElement('thead');
+  var row = document.createElement('tr');
+  var body = document.createElement('tbody');
+  var index;
+  var dayIndex;
+  var cell;
+  var button;
+  var date;
+  var valid;
+  var solar;
+  var lunar;
+  var lunarText;
+  var ariaLabel;
+  var formatted;
+  var styleValue;
+  var classValue;
+  var styleKey;
+  this.calendar.classList.toggle(
+    'fui-calendar-show-lunar',
+    this.options.showLunar && this.options.calendarMode === 'days'
+  );
+  this.calendarTitle.textContent = this.options.months[month] + ' ' + year;
+  table.setAttribute('role', 'grid');
+  if (this.options.showWeek) {
+    cell = document.createElement('th');
+    cell.className = 'fui-calendar-week-number';
+    cell.textContent = this.options.weekNumberHeader || '';
+    row.appendChild(cell);
+  }
+  for (index = 0; index < 7; index += 1) {
+    cell = document.createElement('th');
+    cell.scope = 'col';
+    cell.textContent = this.options.weeks[(this.options.firstDay + index) % 7];
+    row.appendChild(cell);
+  }
+  head.appendChild(row);
+  table.appendChild(head);
+  for (index = 0; index < 6; index += 1) {
+    row = document.createElement('tr');
+    if (this.options.showWeek) {
+      cell = document.createElement('td');
+      cell.className = 'fui-calendar-week-number';
+      cell.textContent = this.options.getWeekNumber.call(
+        this.options.validatorContext || this.options.owner || this.calendar,
+        new Date(cursor.getTime())
+      );
+      row.appendChild(cell);
+    }
+    for (dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+      date = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+      valid = this.options.validator.call(this.options.validatorContext, date);
+      cell = document.createElement('td');
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'fui-calendar-day';
+      formatted = this.options.formatter.call(
+        this.options.validatorContext || this.options.owner || this.calendar,
+        new Date(date.getTime())
+      );
+      styleValue = this.options.styler.call(
+        this.options.validatorContext || this.options.owner || this.calendar,
+        new Date(date.getTime())
+      );
+      classValue = '';
+      if (typeof styleValue === 'string') {
+        cell.style.cssText = styleValue;
+      } else if (styleValue && typeof styleValue === 'object') {
+        classValue = styleValue.class || styleValue.className || '';
+        if (typeof styleValue.style === 'string') {
+          cell.style.cssText = styleValue.style;
+        } else if (styleValue.style && typeof styleValue.style === 'object') {
+          for (styleKey in styleValue.style) {
+            if (Object.prototype.hasOwnProperty.call(styleValue.style, styleKey)) {
+              cell.style[styleKey] = styleValue.style[styleKey];
+            }
+          }
+        }
+      }
+      if (classValue) {
+        String(classValue).split(/\s+/).forEach(function(name) {
+          if (name) cell.classList.add(name);
+        });
+      }
+      if (this.options.showLunar) {
+        solar = document.createElement('span');
+        lunar = document.createElement('span');
+        lunarText = formatDatePopupLunarText(date, this.options.locale);
+        solar.className = 'fui-calendar-solar';
+        solar.textContent = formatted == null ? '' : String(formatted);
+        lunar.className = 'fui-calendar-lunar';
+        lunar.textContent = lunarText;
+        button.appendChild(solar);
+        button.appendChild(lunar);
+      } else {
+        button.textContent = formatted == null ? '' : String(formatted);
+        lunarText = '';
+      }
+      button.setAttribute('data-date', formatDatePopupIso(date));
+      ariaLabel = formatDatePopupIso(date);
+      if (lunarText) ariaLabel += ' ' + lunarText;
+      button.setAttribute('aria-label', ariaLabel);
+      if (date.getMonth() !== month) button.classList.add('fui-calendar-other-month');
+      if (date.getDay() === 0) button.classList.add('fui-calendar-sunday');
+      if (date.getDay() === 6) button.classList.add('fui-calendar-saturday');
+      if (isSameDatePopupDate(date, today)) button.classList.add('fui-calendar-today');
+      if (isSameDatePopupDate(date, this.selectedDate)) {
+        button.classList.add('fui-calendar-selected');
+        button.setAttribute('aria-selected', 'true');
+      }
+      if (!valid) {
+        button.disabled = true;
+        button.classList.add('fui-calendar-disabled');
+      }
+      cell.appendChild(button);
+      row.appendChild(cell);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    body.appendChild(row);
+  }
+  table.appendChild(body);
+  this.calendarBody.textContent = '';
+  this.calendarBody.appendChild(table);
+  this._renderMonthMenu();
+  this.menuVisible = this.options.calendarMode === 'months' || this.menuVisible;
+  this.calendarMenu.hidden = !this.menuVisible;
+  this.calendarBody.hidden = this.menuVisible;
+  this._renderButtons();
+  if (typeof this.options.onNavigate === 'function') {
+    this.options.onNavigate.call(
+      this.options.owner || this.calendar,
+      year,
+      month + 1,
+      this
+    );
+  }
+  return this;
+};
+
+DatePopup.prototype._renderMonthMenu = function() {
+  var yearRow = document.createElement('div');
+  var yearInput = document.createElement('input');
+  var previousYear = document.createElement('button');
+  var nextYear = document.createElement('button');
+  var grid = document.createElement('div');
+  var index;
+  var button;
+  yearRow.className = 'fui-calendar-menu-year-row';
+  yearInput.className = 'fui-calendar-menu-year';
+  yearInput.type = 'number';
+  yearInput.min = '1';
+  yearInput.max = '9999';
+  yearInput.value = this.viewDate.getFullYear();
+  yearInput.setAttribute('aria-label', this.options.yearText);
+  previousYear.type = 'button';
+  previousYear.className = 'fui-calendar-menu-year-nav fui-calendar-menu-prevyear';
+  previousYear.setAttribute('aria-label', this.options.previousYearText);
+  previousYear.setAttribute('data-year-offset', '-1');
+  nextYear.type = 'button';
+  nextYear.className = 'fui-calendar-menu-year-nav fui-calendar-menu-nextyear';
+  nextYear.setAttribute('aria-label', this.options.nextYearText);
+  nextYear.setAttribute('data-year-offset', '1');
+  yearRow.appendChild(previousYear);
+  yearRow.appendChild(yearInput);
+  yearRow.appendChild(nextYear);
+  grid.className = 'fui-calendar-menu-months';
+  for (index = 0; index < 12; index += 1) {
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fui-calendar-menu-month';
+    button.textContent = this.options.months[index];
+    button.setAttribute('data-month', index);
+    if (this.selectedDate &&
+      this.selectedDate.getFullYear() === this.viewDate.getFullYear() &&
+      this.selectedDate.getMonth() === index) {
+      button.classList.add('fui-calendar-menu-month-selected');
+      button.setAttribute('aria-selected', 'true');
+    }
+    if (!this.options.validator.call(
+      this.options.validatorContext,
+      new Date(this.viewDate.getFullYear(), index, 1)
+    )) {
+      button.disabled = true;
+      button.classList.add('fui-calendar-menu-month-disabled');
+    }
+    grid.appendChild(button);
+  }
+  this.calendarMenu.textContent = '';
+  this.calendarMenu.appendChild(yearRow);
+  this.calendarMenu.appendChild(grid);
+};
+
+DatePopup.prototype._renderButtons = function() {
+  var buttons = Array.isArray(this.options.buttons) ? this.options.buttons : [
+    { text: this.options.currentText, action: 'today' },
+    { text: this.options.closeText, action: 'close' }
+  ];
+  var index;
+  var button;
+  var descriptor;
+  this.buttonDescriptors = buttons.slice();
+  this.buttonBar.textContent = '';
+  this.buttonBar.hidden = buttons.length === 0;
+  for (index = 0; index < buttons.length; index += 1) {
+    descriptor = buttons[index] || {};
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fui-datebox-button';
+    button.textContent = typeof descriptor.text === 'function' ?
+      descriptor.text(this.options.validatorContext) :
+      String(descriptor.text || '');
+    button.setAttribute('data-button-index', index);
+    this.buttonBar.appendChild(button);
+  }
+};
+
+DatePopup.prototype._handleClick = function(event) {
+  var nav = event.target.closest('[data-month-offset]');
+  var yearNav = event.target.closest('[data-year-offset]');
+  var day = event.target.closest('[data-date]');
+  var month = event.target.closest('[data-month]');
+  var footer = event.target.closest('[data-button-index]');
+  var yearInput;
+  var descriptor;
+  if (yearNav) {
+    yearInput = this.calendarMenu.querySelector('.fui-calendar-menu-year');
+    this.viewDate = new Date(
+      (parseInt(yearInput.value, 10) || this.viewDate.getFullYear()) +
+        Number(yearNav.getAttribute('data-year-offset')),
+      this.viewDate.getMonth(),
+      1
+    );
+    this.render();
+    return;
+  }
+  if (nav) {
+    this.viewDate = new Date(
+      this.viewDate.getFullYear(),
+      this.viewDate.getMonth() + Number(nav.getAttribute('data-month-offset')),
+      1
+    );
+    this.render();
+    return;
+  }
+  if (event.target === this.calendarTitle) {
+    if (this.options.calendarMode === 'months') return;
+    this.menuVisible = !this.menuVisible;
+    this.calendarMenu.hidden = !this.menuVisible;
+    this.calendarBody.hidden = this.menuVisible;
+    return;
+  }
+  if (month) {
+    yearInput = this.calendarMenu.querySelector('.fui-calendar-menu-year');
+    this.viewDate = new Date(
+      parseInt(yearInput.value, 10) || this.viewDate.getFullYear(),
+      Number(month.getAttribute('data-month')),
+      1
+    );
+    if (this.options.calendarMode === 'months' && !month.disabled) {
+      this.select(this.viewDate);
+      return;
+    }
+    this.menuVisible = false;
+    this.calendarMenu.hidden = true;
+    this.calendarBody.hidden = false;
+    this.render();
+    return;
+  }
+  if (day && !day.disabled) {
+    this.select(parseDatePopupIso(day.getAttribute('data-date')));
+    return;
+  }
+  if (!footer) return;
+  descriptor = this.buttonDescriptors[Number(footer.getAttribute('data-button-index'))] || {};
+  if (typeof descriptor.handler === 'function') {
+    descriptor.handler.call(
+      footer,
+      this.options.validatorContext,
+      this.options.owner || this
+    );
+  } else if (descriptor.action === 'today') {
+    this.select(toDatePopupDateOnly(new Date()));
+  } else if (descriptor.action === 'close') {
+    this.hide();
+  }
+};
+
+DatePopup.prototype.select = function(date) {
+  var value = cloneDatePopupDate(date);
+  var oldValue = cloneDatePopupDate(this.selectedDate);
+  if (!value || !this.options.validator.call(this.options.validatorContext, value)) return this;
+  this.selectedDate = toDatePopupDateOnly(value);
+  this.viewDate = cloneDatePopupDate(this.selectedDate);
+  this.render();
+  if (typeof this.options.onSelect === 'function') {
+    this.options.onSelect(cloneDatePopupDate(this.selectedDate), this);
+  }
+  if (!isSameDatePopupDate(oldValue, this.selectedDate) &&
+    typeof this.options.onChange === 'function') {
+    this.options.onChange(
+      cloneDatePopupDate(this.selectedDate),
+      oldValue,
+      this
+    );
+  }
+  if (this.visible && !this.options.embedded) this.hide();
+  return this;
+};
+
+DatePopup.prototype.moveTo = function(date) {
+  var value = cloneDatePopupDate(date);
+  var oldValue = cloneDatePopupDate(this.selectedDate);
+  if (!value) {
+    this.selectedDate = null;
+    this.viewDate = toDatePopupDateOnly(new Date());
+  } else {
+    value = toDatePopupDateOnly(value);
+    if (!this.options.validator.call(this.options.validatorContext, value)) return this;
+    this.selectedDate = value;
+    this.viewDate = cloneDatePopupDate(value);
+  }
+  this.render();
+  if (!isSameDatePopupDate(oldValue, this.selectedDate) &&
+    typeof this.options.onChange === 'function') {
+    this.options.onChange(
+      cloneDatePopupDate(this.selectedDate),
+      oldValue,
+      this
+    );
+  }
+  return this;
+};
+
+DatePopup.prototype.resize = function(param) {
+  var width;
+  var height;
+  param = param || {};
+  if (Object.prototype.hasOwnProperty.call(param, 'width')) this.options.panelWidth = param.width;
+  if (Object.prototype.hasOwnProperty.call(param, 'height')) this.options.panelHeight = param.height;
+  if (!this.options.embedded) return this.position();
+  width = this.options.panelWidth;
+  height = this.options.panelHeight;
+  this.panel.style.width = width === 'auto' || width == null ?
+    '' :
+    (typeof width === 'number' ? Math.max(0, width) + 'px' : String(width));
+  this.panel.style.height = height === 'auto' || height == null ?
+    '' :
+    (typeof height === 'number' ? Math.max(0, height) + 'px' : String(height));
+  return this;
+};
+
+DatePopup.prototype.handleKeyDown = function(event) {
+  var key = event.key;
+  var current;
+  if ((key === 'ArrowDown' && (event.altKey || event.metaKey)) || key === 'F4') {
+    event.preventDefault();
+    this.show();
+    return true;
+  }
+  if (!this.visible && !this.options.embedded) return false;
+  if (key === 'Escape') {
+    if (this.options.embedded && this.menuVisible) {
+      event.preventDefault();
+      this.menuVisible = false;
+      this.calendarMenu.hidden = true;
+      this.calendarBody.hidden = false;
+      return true;
+    }
+    if (this.options.embedded) return false;
+    event.preventDefault();
+    this.hide();
+    return true;
+  }
+  if (key === 'Enter') {
+    event.preventDefault();
+    this.select(this.viewDate);
+    return true;
+  }
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].indexOf(key) < 0) {
+    return false;
+  }
+  event.preventDefault();
+  current = cloneDatePopupDate(this.viewDate) || toDatePopupDateOnly(new Date());
+  if (this.options.calendarMode === 'months') {
+    if (key === 'ArrowLeft') current.setMonth(current.getMonth() - 1);
+    if (key === 'ArrowRight') current.setMonth(current.getMonth() + 1);
+    if (key === 'ArrowUp') current.setMonth(current.getMonth() - 4);
+    if (key === 'ArrowDown') current.setMonth(current.getMonth() + 4);
+    if (key === 'PageUp') current.setFullYear(current.getFullYear() - 1);
+    if (key === 'PageDown') current.setFullYear(current.getFullYear() + 1);
+  } else {
+    if (key === 'ArrowLeft') current.setDate(current.getDate() - 1);
+    if (key === 'ArrowRight') current.setDate(current.getDate() + 1);
+    if (key === 'ArrowUp') current.setDate(current.getDate() - 7);
+    if (key === 'ArrowDown') current.setDate(current.getDate() + 7);
+    if (key === 'PageUp') current.setMonth(current.getMonth() - 1);
+    if (key === 'PageDown') current.setMonth(current.getMonth() + 1);
+  }
+  this.viewDate = current;
+  this.render();
+  return true;
+};
+
+DatePopup.prototype.show = function() {
+  var openClassHost;
+  if (this.options.embedded) return this;
+  if (this.destroyed || this.visible) return this;
+  if (activeDatePopup && activeDatePopup !== this) activeDatePopup.hide();
+  this._normalizeOptions();
+  this._applyThemeClasses();
+  if (this.sharedCalendarState) this.panel.insertBefore(this.calendar, this.buttonBar);
+  this.calendar.__fabuiDatePopupOwner = this;
+  this.menuVisible = this.options.calendarMode === 'months';
+  this.render();
+  this.visible = true;
+  this.panel.hidden = false;
+  this._bindOpenEvents();
+  this._startThemeObserver();
+  activeDatePopup = this;
+  openClassHost = resolveDatePopupElement(this.options.openClassHost);
+  if (openClassHost) openClassHost.classList.add('fui-datebox-open');
+  this.position();
+  if (typeof this.options.onShow === 'function') this.options.onShow(this);
+  return this;
+};
+
+DatePopup.prototype.hide = function() {
+  var openClassHost;
+  if (this.options.embedded) return this;
+  if (!this.visible) return this;
+  this.visible = false;
+  this.panel.hidden = true;
+  this._unbindOpenEvents();
+  this._stopThemeObserver();
+  if (activeDatePopup === this) activeDatePopup = null;
+  openClassHost = resolveDatePopupElement(this.options.openClassHost);
+  if (openClassHost) openClassHost.classList.remove('fui-datebox-open');
+  if (this.sharedCalendarState && this.sharedCalendarState.host) {
+    this.sharedCalendarState.host.appendChild(this.calendar);
+  }
+  if (typeof this.options.onHide === 'function') this.options.onHide(this);
+  return this;
+};
+
+DatePopup.prototype.toggle = function() {
+  return this.visible ? this.hide() : this.show();
+};
+
+DatePopup.prototype.isOpen = function() {
+  return this.options.embedded ? !this.destroyed : this.visible;
+};
+
+DatePopup.prototype.position = function() {
+  var anchor = resolveDatePopupElement(this.options.anchor);
+  var rect;
+  var width;
+  var height;
+  var top;
+  var left;
+  var availableWidth;
+  if (!this.visible || !anchor) return this;
+  rect = anchor.getBoundingClientRect();
+  width = this.options.panelWidth === 'auto' ?
+    rect.width :
+    parseFloat(this.options.panelWidth) || 250;
+  if (this.options.showLunar && this.options.calendarMode === 'days') {
+    availableWidth = Math.max(250, document.documentElement.clientWidth - 12);
+    width = Math.min(Math.max(420, width), availableWidth);
+  }
+  this.panel.style.width = Math.round(width) + 'px';
+  this.panel.style.height = this.options.panelHeight === 'auto' ?
+    'auto' :
+    (typeof this.options.panelHeight === 'number' ?
+      this.options.panelHeight + 'px' :
+      String(this.options.panelHeight));
+  height = this.panel.offsetHeight;
+  top = rect.bottom + window.pageYOffset;
+  left = rect.left + window.pageXOffset;
+  if (rect.bottom + height > document.documentElement.clientHeight && rect.top > height) {
+    top = rect.top + window.pageYOffset - height;
+  }
+  if (left + width > window.pageXOffset + document.documentElement.clientWidth) {
+    left = Math.max(
+      window.pageXOffset,
+      window.pageXOffset + document.documentElement.clientWidth - width
+    );
+  }
+  this.panel.style.left = Math.round(left) + 'px';
+  this.panel.style.top = Math.round(top) + 'px';
+  return this;
+};
+
+DatePopup.prototype.destroy = function() {
+  if (this.destroyed) return;
+  this.hide();
+  this._stopThemeObserver();
+  this.destroyed = true;
+  this.panel.removeEventListener('click', this._onPanelClick);
+  this.panel.removeEventListener('mousedown', this._onPanelMouseDown);
+  this.panel.removeEventListener('change', this._onPanelChange);
+  this._unbindOpenEvents();
+  if (this.sharedCalendarState && this.sharedCalendarState.host &&
+    this.calendar.parentNode !== this.sharedCalendarState.host) {
+    this.sharedCalendarState.host.appendChild(this.calendar);
+  }
+  if (!this.sharedCalendarState && this.calendar.__fabuiDatePopupOwner === this) {
+    this.calendar.__fabuiDatePopupOwner = null;
+  }
+  if (this.panel.parentNode) this.panel.parentNode.removeChild(this.panel);
+};
+
+
+
+
+function createDateBoxFactory(TextBox, editorDefinitions) {
+  'use strict';
+
+  if (typeof TextBox !== 'function') {
+    throw new Error('fabui.DateBox requires fabui.TextBox.');
+  }
+
+  editorDefinitions = editorDefinitions || {};
+  var editorDefinition = editorDefinitions.date || editorDefinitions.datebox || null;
+
+  var localePacks = {
+    en: {
+      currentText: 'Today',
+      closeText: 'Close',
+      okText: 'Ok',
+      yearText: 'Year',
+      previousYearText: 'Previous year',
+      nextYearText: 'Next year',
+      weeks: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+      months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    },
+    'zh-TW': {
+      currentText: '今天',
+      closeText: '關閉',
+      okText: '確定',
+      yearText: '年份',
+      previousYearText: '上一年',
+      nextYearText: '下一年',
+      weeks: ['日', '一', '二', '三', '四', '五', '六'],
+      months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
+    },
+    'zh-CN': {
+      currentText: '今天',
+      closeText: '关闭',
+      okText: '确定',
+      yearText: '年份',
+      previousYearText: '上一年',
+      nextYearText: '下一年',
+      weeks: ['日', '一', '二', '三', '四', '五', '六'],
+      months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
+    }
+  };
+
+  var dateDefaults = {
+    iconWidth: 28,
+    panelWidth: 250,
+    panelHeight: 'auto',
+    theme: 'inherit',
+    locale: 'en',
+    firstDay: 0,
+    showWeek: false,
+    showLunar: false,
+    weekNumberHeader: '',
+    currentText: null,
+    closeText: null,
+    okText: null,
+    yearText: null,
+    previousYearText: null,
+    nextYearText: null,
+    weeks: null,
+    months: null,
+    buttons: null,
+    sharedCalendar: null,
+    validator: null,
+    formatter: null,
+    parser: null,
+    mask: '9999/99/99',
+    autoUnmask: true,
+    maskValueIncludesLiterals: null,
+    onSelect: null,
+    onChange: null,
+    onShowPanel: null,
+    onHidePanel: null,
+    editorType: 'datebox',
+    calendarMode: 'days'
+  };
+
+  function assign(target) {
+    var index;
+    var source;
+    var key;
+    for (index = 1; index < arguments.length; index += 1) {
+      source = arguments[index] || {};
+      for (key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+    return target;
+  }
+
+  function resolveElement(element) {
+    return typeof element === 'string' ? document.querySelector(element) : element;
+  }
+
+  function cloneDate(date) {
+    return date instanceof Date && isFinite(date.getTime()) ? new Date(date.getTime()) : null;
+  }
+
+  function dateOnly(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  function pad(value) {
+    return value < 10 ? '0' + value : String(value);
+  }
+
+  function defaultFormatter(date) {
+    return pad(date.getMonth() + 1) + '/' + pad(date.getDate()) + '/' + date.getFullYear();
+  }
+
+  function defaultParser(value) {
+    var text = value == null ? '' : String(value).trim();
+    var parts;
+    var year;
+    var month;
+    var day;
+    var parsed;
+    if (!text) return dateOnly(new Date());
+    parts = text.split('/');
+    month = parseInt(parts[0], 10);
+    day = parseInt(parts[1], 10);
+    year = parseInt(parts[2], 10);
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      parsed = new Date(year, month - 1, day);
+      if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) {
+        return parsed;
+      }
+    }
+    return dateOnly(new Date());
+  }
+
+  function readElementOptions(element) {
+    var options = {};
+    var panelWidth = element.getAttribute('panelWidth');
+    var panelHeight = element.getAttribute('panelHeight');
+    var firstDay = element.getAttribute('firstDay');
+    var showLunar = element.getAttribute('showLunar');
+    var theme = element.getAttribute('theme');
+    var locale = element.getAttribute('locale');
+    if (panelWidth != null && panelWidth !== '') options.panelWidth = isFinite(Number(panelWidth)) ? Number(panelWidth) : panelWidth;
+    if (panelHeight != null && panelHeight !== '') options.panelHeight = isFinite(Number(panelHeight)) ? Number(panelHeight) : panelHeight;
+    if (firstDay != null && firstDay !== '') options.firstDay = Number(firstDay);
+    if (showLunar != null) options.showLunar = showLunar !== 'false';
+    if (theme) options.theme = theme;
+    if (locale) options.locale = locale;
+    return options;
+  }
+
+  function normalizeLocale(name) {
+    if (localePacks[name]) return name;
+    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
+    if (/^zh/i.test(name || '')) return 'zh-CN';
+    return 'en';
+  }
+
+  function isYearMonthMask(mask) {
+    return /^9999[\/-]99$/.test(String(mask || ''));
+  }
+
+  function DateBox(element, options) {
+    var source;
+    var userOptions = options || {};
+    var textOptions;
+    var icons;
+    var locale;
+    var self = this;
+    if (!(this instanceof DateBox)) return new DateBox(element, options);
+    source = resolveElement(element);
+    if (!source || !/^(INPUT|TEXTAREA)$/.test(source.tagName)) {
+      throw new Error('fabui.DateBox requires an input or textarea element.');
+    }
+    if (source.__fabuiDateBox) return source.__fabuiDateBox;
+
+    this._source = source;
+    this._listeners = {};
+    this._destroyed = false;
+    this._panelVisible = false;
+    this._hasCustomFormatter = typeof userOptions.formatter === 'function';
+    this._hasCustomParser = typeof userOptions.parser === 'function';
+    this._explicitMask = Object.prototype.hasOwnProperty.call(userOptions, 'mask');
+    this._initialValue = Object.prototype.hasOwnProperty.call(userOptions, 'value') ? userOptions.value : source.value;
+    this._options = assign({}, DateBox.defaults, readElementOptions(source), userOptions);
+    this._editorDefinition = editorDefinitions[this._options.editorType] || editorDefinition;
+    locale = localePacks[normalizeLocale(this._options.locale)];
+    this._options.locale = normalizeLocale(this._options.locale);
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'currentText')) this._options.currentText = locale.currentText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'closeText')) this._options.closeText = locale.closeText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'okText')) this._options.okText = locale.okText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'yearText')) this._options.yearText = locale.yearText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'previousYearText')) this._options.previousYearText = locale.previousYearText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'nextYearText')) this._options.nextYearText = locale.nextYearText;
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'weeks')) this._options.weeks = locale.weeks.slice();
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'months')) this._options.months = locale.months.slice();
+    this._normalizeCalendarOptions();
+
+    icons = normalizeEditorIconDescriptors(userOptions.icons);
+    icons.push({
+      iconCls: 'icon-datebox fui-datebox-trigger',
+      align: 'right',
+      width: this._options.iconWidth,
+      title: 'Calendar',
+      onClick: function() {
+        self.togglePanel();
+      }
+    });
+    textOptions = assign({}, userOptions, {
+      cls: ((userOptions.cls || '') + ' fui-datebox').trim(),
+      icons: icons,
+      onChange: null
+    });
+    this._textbox = new TextBox(source, textOptions);
+    this._editor = this._textbox.textbox();
+    if (this._editorDefinition && this._editorDefinition.className) {
+      this._editorDefinition.className.split(/\s+/).forEach(function(className) {
+        if (className) this._editor.classList.add(className);
+      }, this);
+    } else {
+      this._editor.classList.add('textbox-f', 'datebox-f', 'fg-editor-datebox');
+    }
+    this._editor.inputMode = this._editorDefinition && this._editorDefinition.inputMode ? this._editorDefinition.inputMode : 'numeric';
+    this._field = this._editor.closest('.fui-textbox-field');
+    this._shell = this._editor.closest('.fui-textbox');
+    this._buildPanel();
+    this._bind();
+    source.__fabuiDateBox = this;
+    this.initValue(this._initialValue);
+  }
+
+  DateBox.prototype._normalizeCalendarOptions = function() {
+    var self = this;
+    var definition = this._editorDefinition;
+    this._options.calendarMode = isYearMonthMask(this._options.mask) ?
+      'months' :
+      (this._options.calendarMode === 'months' ? 'months' : 'days');
+    this._options.firstDay = Math.max(0, Math.min(6, parseInt(this._options.firstDay, 10) || 0));
+    this._options.theme = this._options.theme === 'inherit' ?
+      'inherit' :
+      normalizeDatePopupTheme(this._options.theme);
+    this._options.weeks = Array.isArray(this._options.weeks) && this._options.weeks.length === 7 ? this._options.weeks.slice() : localePacks.en.weeks.slice();
+    this._options.months = Array.isArray(this._options.months) && this._options.months.length === 12 ? this._options.months.slice() : localePacks.en.months.slice();
+    this._options.formatter = typeof this._options.formatter === 'function' ? this._options.formatter : (definition && typeof definition.format === 'function' ? function(date) {
+      return definition.format(date, self._options || {});
+    } : defaultFormatter);
+    this._options.parser = typeof this._options.parser === 'function' ? this._options.parser : (definition && typeof definition.parse === 'function' ? function(value) {
+      return definition.parse(value, self._options || {});
+    } : defaultParser);
+    this._options.validator = typeof this._options.validator === 'function' ? this._options.validator : function() { return true; };
+  };
+
+  DateBox.prototype._buildPanel = function() {
+    var self = this;
+    this._viewDate = dateOnly(new Date());
+    this._selectedDate = null;
+    this._datePopup = new DatePopup({
+      anchor: this._shell,
+      className: 'fui-' + this._options.editorType + '-panel',
+      theme: this._options.theme,
+      themeSource: this._shell,
+      openClassHost: this._shell,
+      sharedCalendar: this._options.sharedCalendar,
+      owner: this,
+      containsTarget: function(target) {
+        return self._field === target || self._field.contains(target);
+      },
+      onSelect: function(date) {
+        self._selectDate(date);
+      },
+      onOptionsChange: function(options) {
+        assign(self._options, options);
+        self._normalizeCalendarOptions();
+        self._syncDatePopup();
+        return false;
+      },
+      onShow: function() {
+        self._panelVisible = true;
+        if (typeof self._options.onShowPanel === 'function') self._options.onShowPanel.call(self);
+        self._emit('showPanel', { panel: self._panel });
+      },
+      onHide: function() {
+        self._panelVisible = false;
+        if (typeof self._options.onHidePanel === 'function') self._options.onHidePanel.call(self);
+        self._emit('hidePanel', { panel: self._panel });
+      }
+    });
+    this._panel = this._datePopup.panel;
+    this._calendar = this._datePopup.calendar;
+    this._calendarController = this._datePopup.controller;
+    this._syncDatePopup();
+  };
+
+  DateBox.prototype._bind = function() {
+    var self = this;
+    this._onInputKeyDown = function(event) { self._handleKeyDown(event); };
+    this._onInput = function() { self._handleInput(); };
+    this._onCopy = function(event) { self._handleCopy(event); };
+    this._onInputBlur = function() {
+      window.setTimeout(function() {
+        if (!self._destroyed && !self._panel.contains(document.activeElement)) self.fix();
+      }, 0);
+    };
+    this._onFormReset = function() {
+      window.setTimeout(function() { if (!self._destroyed) self.reset(); }, 0);
+    };
+    this._editor.addEventListener('keydown', this._onInputKeyDown);
+    this._editor.addEventListener('input', this._onInput);
+    this._editor.addEventListener('copy', this._onCopy);
+    this._editor.addEventListener('blur', this._onInputBlur);
+    if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
+  };
+
+  DateBox.prototype._syncDatePopup = function() {
+    this._datePopup.setOptions({
+      anchor: this._shell,
+      className: 'fui-' + this._options.editorType + '-panel',
+      theme: this._options.theme,
+      themeSource: this._shell,
+      panelWidth: this._options.panelWidth,
+      panelHeight: this._options.panelHeight,
+      firstDay: this._options.firstDay,
+      showWeek: this._options.showWeek,
+      showLunar: this._options.showLunar,
+      weekNumberHeader: this._options.weekNumberHeader,
+      locale: this._options.locale,
+      currentText: this._options.currentText,
+      closeText: this._options.closeText,
+      yearText: this._options.yearText,
+      previousYearText: this._options.previousYearText,
+      nextYearText: this._options.nextYearText,
+      weeks: this._options.weeks,
+      months: this._options.months,
+      buttons: this._options.buttons,
+      calendarMode: this._options.calendarMode,
+      validator: this._options.validator,
+      validatorContext: this._source
+    });
+    this._datePopup.setValue(this._selectedDate, this._viewDate);
+    this._calendar = this._datePopup.calendar;
+    this._calendarController = this._datePopup.controller;
+  };
+
+  DateBox.prototype._renderCalendar = function() {
+    this._syncDatePopup();
+  };
+
+  DateBox.prototype._renderButtons = function() {
+    this._syncDatePopup();
+  };
+
+  DateBox.prototype._handleKeyDown = function(event) {
+    var key = event.key;
+    var definition = this._editorDefinition;
+    if ((key === 'Backspace' || key === 'Delete') && definition && typeof definition.handleDelete === 'function' && !this._hasCustomFormatter && !this._hasCustomParser) {
+      event.preventDefault();
+      definition.handleDelete(this._editor, key, this._options);
+      this._handleInput();
+      return;
+    }
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing && key.length === 1 && definition && typeof definition.isTextAllowed === 'function') {
+      if (!definition.isTextAllowed(this._editor, key, this._options)) event.preventDefault();
+      return;
+    }
+    if ((key === 'ArrowDown' && (event.altKey || event.metaKey)) || key === 'F4') {
+      event.preventDefault();
+      this.showPanel();
+      return;
+    }
+    if (this._datePopup.handleKeyDown(event)) return;
+    if (key === 'Enter') {
+      event.preventDefault();
+      this.fix();
+      return;
+    }
+  };
+
+  DateBox.prototype._handleInput = function() {
+    var text;
+    var dataValue;
+    var definition = this._editorDefinition;
+    if (!definition || typeof definition.sanitize !== 'function' || this._hasCustomFormatter || this._hasCustomParser) return;
+    text = definition.sanitize(this._editor.value, this._options);
+    if (text !== this._editor.value) {
+      this._editor.value = text;
+      if (this._editor.setSelectionRange) this._editor.setSelectionRange(text.length, text.length);
+    }
+    dataValue = definition.getDataValue(text, this._options);
+    this._source.value = definition.parse(text, this._options) ? dataValue : text;
+  };
+
+  DateBox.prototype._handleCopy = function(event) {
+    var start = this._editor.selectionStart;
+    var end = this._editor.selectionEnd;
+    var clipboardData;
+    var text;
+    var definition = this._editorDefinition;
+    if (!definition || typeof definition.getCopyText !== 'function' || start == null || end == null || start === end) return;
+    text = definition.getCopyText(this._editor.value.slice(Math.min(start, end), Math.max(start, end)), this._options);
+    clipboardData = event.clipboardData || window.clipboardData;
+    if (!clipboardData || !clipboardData.setData) return;
+    clipboardData.setData('text/plain', text);
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  DateBox.prototype._selectDate = function(date) {
+    var value = cloneDate(date);
+    if (!value || !this._options.validator.call(this._source, value)) return this;
+    this.setDate(value);
+    if (typeof this._options.onSelect === 'function') this._options.onSelect.call(this._source, cloneDate(value));
+    this._emit('select', { date: cloneDate(value) });
+    this.hidePanel();
+    return this;
+  };
+
+  DateBox.prototype._positionPanel = function() {
+    this._datePopup.position();
+  };
+
+  DateBox.prototype._emit = function(name, detail) {
+    var listeners = (this._listeners[name] || []).slice();
+    listeners.forEach(function(listener) { listener(detail); });
+  };
+
+  DateBox.prototype.options = function() { return this._options; };
+  DateBox.prototype.calendar = function() { return this._calendarController; };
+  DateBox.prototype.panel = function() { return this._panel; };
+  DateBox.prototype.textbox = function() { return this._editor; };
+  DateBox.prototype.getIcon = function(index) { return this._textbox.getIcon(index); };
+  DateBox.prototype.getText = function() { return this._editor.value; };
+  DateBox.prototype.getValue = function() { return this._source.value; };
+  DateBox.prototype.getDate = function() { return cloneDate(this._selectedDate); };
+
+  DateBox.prototype.setText = function(value) {
+    this._textbox.setValue(value == null ? '' : String(value), true);
+    this._source.value = value == null ? '' : String(value);
+    return this;
+  };
+
+  DateBox.prototype.setValue = function(value, silent) {
+    var oldValue = this._lastCommittedValue || '';
+    var text = value == null ? '' : String(value).trim();
+    var date = null;
+    var dataValue = '';
+    if (text) date = cloneDate(this._options.parser.call(this._source, text));
+    if (date) {
+      date = dateOnly(date);
+      text = String(this._options.formatter.call(this._source, date));
+      dataValue = this._editorDefinition && typeof this._editorDefinition.getDataValue === 'function' ? this._editorDefinition.getDataValue(date, this._options) : text;
+    } else {
+      text = '';
+    }
+    this._selectedDate = date;
+    if (date) this._viewDate = cloneDate(date);
+    this._textbox.setValue(text, true);
+    this._source.value = dataValue;
+    this._options.value = dataValue;
+    this._lastCommittedValue = dataValue;
+    this._renderCalendar();
+    if (!silent && dataValue !== oldValue) {
+      if (typeof this._options.onChange === 'function') this._options.onChange.call(this, dataValue, oldValue);
+      this._emit('change', { value: dataValue, oldValue: oldValue });
+    }
+    return this;
+  };
+
+  DateBox.prototype.setDate = function(date, silent) {
+    var value = cloneDate(date);
+    return this.setValue(value ? this._options.formatter.call(this._source, value) : '', silent);
+  };
+
+  DateBox.prototype.fix = function() { return this.setValue(this._editor.value); };
+
+  DateBox.prototype.initValue = function(value) {
+    this._initialValue = value == null ? '' : String(value);
+    return this.setValue(this._initialValue, true);
+  };
+
+  DateBox.prototype.clear = function() { return this.setValue(''); };
+  DateBox.prototype.reset = function() { return this.setValue(this._initialValue); };
+  DateBox.prototype.focus = function() { this._textbox.focus(); return this; };
+
+  DateBox.prototype.setTheme = function(theme) {
+    this._options.theme = theme === 'inherit' ? 'inherit' : normalizeDatePopupTheme(theme);
+    this._syncDatePopup();
+    return this;
+  };
+
+  DateBox.prototype.showPanel = function() {
+    if (this._options.disabled || this._panelVisible) return this;
+    if (this._editor.value) this.setValue(this._editor.value, true);
+    this._renderCalendar();
+    this._datePopup.show();
+    return this;
+  };
+
+  DateBox.prototype.hidePanel = function() {
+    this._datePopup.hide();
+    return this;
+  };
+
+  DateBox.prototype.togglePanel = function() {
+    return this._panelVisible ? this.hidePanel() : this.showPanel();
+  };
+
+  DateBox.prototype.resize = function(width, height) {
+    this._textbox.resize(width, height);
+    this._options.width = this._textbox.options().width;
+    this._options.height = this._textbox.options().height;
+    this._positionPanel();
+    return this;
+  };
+
+  DateBox.prototype.disable = function() { this.hidePanel(); this._textbox.disable(); this._options.disabled = true; return this; };
+  DateBox.prototype.enable = function() { this._textbox.enable(); this._options.disabled = false; return this; };
+  DateBox.prototype.readonly = function(mode) { this._textbox.readonly(mode); this._options.readonly = mode !== false; return this; };
+  DateBox.prototype.setEditable = function(mode) { this._textbox.setEditable(mode); this._options.editable = mode !== false; return this; };
+
+  DateBox.prototype.cloneFrom = function(from) {
+    var source = from instanceof DateBox ? from : resolveElement(from);
+    var instance = source instanceof DateBox ? source : source && source.__fabuiDateBox;
+    if (!instance) throw new Error('fabui.DateBox cloneFrom requires another DateBox.');
+    assign(this._options, instance.options());
+    this._normalizeCalendarOptions();
+    this._renderButtons();
+    this.resize(this._options.width, this._options.height);
+    return this.setValue(instance.getValue(), true);
+  };
+
+  DateBox.prototype.on = function(name, listener) {
+    if (typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  DateBox.prototype.off = function(name, listener) {
+    var listeners = this._listeners[name];
+    if (!listeners) return this;
+    this._listeners[name] = listener ? listeners.filter(function(item) { return item !== listener; }) : [];
+    return this;
+  };
+
+  DateBox.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._editor.removeEventListener('keydown', this._onInputKeyDown);
+    this._editor.removeEventListener('input', this._onInput);
+    this._editor.removeEventListener('copy', this._onCopy);
+    this._editor.removeEventListener('blur', this._onInputBlur);
+    if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);
+    this._datePopup.destroy();
+    delete this._source.__fabuiDateBox;
+    this._textbox.destroy();
+    this._listeners = {};
+  };
+
+  DateBox.defaults = assign({}, TextBox.defaults || {}, dateDefaults, localePacks.en, {
+    formatter: editorDefinition ? null : defaultFormatter,
+    parser: editorDefinition ? null : defaultParser
+  });
+  DateBox.editorDefinition = editorDefinition;
+  DateBox.locales = localePacks;
+  DateBox.addLocale = function(name, pack) {
+    if (name && pack) localePacks[name] = assign({}, localePacks.en, pack);
+    return DateBox;
+  };
+  return DateBox;
+}
+
+var activeComboPopup = null;
+
+function assignComboPopupOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+}
+
+function resolveComboPopupElement(element) {
+  return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function comboPopupCssSize(value, fallback) {
+  if (value == null || value === '') return fallback == null ? '' : fallback + 'px';
+  return typeof value === 'number' ? value + 'px' : String(value);
+}
+
+function appendComboPopupContent(element, content) {
+  if (content && content.nodeType) {
+    element.appendChild(content);
+  } else {
+    element.insertAdjacentHTML(
+      'beforeend',
+      content == null ? '' : String(content)
+    );
+  }
+}
+
+function ComboPopup(options) {
+  if (!(this instanceof ComboPopup)) return new ComboPopup(options);
+  this.options = assignComboPopupOptions({}, ComboPopup.defaults, options || {});
+  this.destroyed = false;
+  this.visible = false;
+  this._openEventsBound = false;
+  this.items = [];
+  this.activeIndex = -1;
+  this._normalizeOptions();
+  this._build();
+  this._bind();
+  this.render();
+}
+
+ComboPopup.defaults = {
+  anchor: null,
+  className: '',
+  ariaLabel: 'Combo box options',
+  panelWidth: null,
+  panelHeight: 300,
+  panelMinWidth: null,
+  panelMaxWidth: null,
+  panelMinHeight: null,
+  panelMaxHeight: null,
+  panelAlign: 'left',
+  panelValign: 'auto',
+  fitContent: false,
+  multiple: false,
+  closeOnSelect: true,
+  emptyText: '',
+  items: [],
+  containsTarget: null,
+  openClassHost: null,
+  renderItem: null,
+  renderGroup: null,
+  onSelect: null,
+  onActiveChange: null,
+  onShow: null,
+  onHide: null
+};
+
+ComboPopup.prototype._normalizeOptions = function() {
+  this.options.items = Array.isArray(this.options.items) ?
+    this.options.items.slice() :
+    [];
+  this.options.multiple = this.options.multiple === true;
+  this.options.closeOnSelect = this.options.closeOnSelect !== false;
+  this.options.panelAlign = this.options.panelAlign === 'right' ? 'right' : 'left';
+  this.options.panelValign = this.options.panelValign === 'top' ?
+    'top' :
+    'auto';
+};
+
+ComboPopup.prototype._build = function() {
+  var panel = document.createElement('div');
+  panel.className = ('fui-combobox-panel ' + (this.options.className || '')).trim();
+  panel.hidden = true;
+  panel.setAttribute('role', 'listbox');
+  panel.setAttribute(
+    'aria-multiselectable',
+    this.options.multiple ? 'true' : 'false'
+  );
+  panel.setAttribute('aria-label', this.options.ariaLabel);
+  document.body.appendChild(panel);
+  this.panel = panel;
+};
+
+ComboPopup.prototype._bind = function() {
+  var self = this;
+  this._onPanelMouseDown = function(event) {
+    event.preventDefault();
+  };
+  this._onPanelClick = function(event) {
+    var element = event.target.closest('.fui-combobox-item');
+    var index;
+    var item;
+    if (!element || element.classList.contains('fui-combobox-item-disabled')) {
+      return;
+    }
+    index = Number(element.getAttribute('data-index'));
+    item = self.items[index];
+    if (!item) return;
+    self.setActiveIndex(index, 'pointer');
+    if (typeof self.options.onSelect === 'function') {
+      self.options.onSelect(item, index, self, event);
+    }
+    if (self.options.closeOnSelect) self.hide();
+  };
+  this._onPanelMouseOver = function(event) {
+    var element = event.target.closest('.fui-combobox-item');
+    if (!element || element.classList.contains('fui-combobox-item-disabled')) {
+      return;
+    }
+    self.setActiveIndex(
+      Number(element.getAttribute('data-index')),
+      'pointer'
+    );
+  };
+  this._onDocumentPointerDown = function(event) {
+    if (self.visible &&
+      !self.panel.contains(event.target) &&
+      !self._containsTarget(event.target)) {
+      self.hide();
+    }
+  };
+  this._onDocumentKeyDown = function(event) {
+    if (event.key === 'Escape' && self.visible) {
+      event.preventDefault();
+      self.hide();
+    }
+  };
+  this._onWindowChange = function() {
+    if (self.visible) self.position();
+  };
+  this.panel.addEventListener('mousedown', this._onPanelMouseDown);
+  this.panel.addEventListener('click', this._onPanelClick);
+  this.panel.addEventListener('mouseover', this._onPanelMouseOver);
+};
+
+ComboPopup.prototype._bindOpenEvents = function() {
+  if (this._openEventsBound) return;
+  this._openEventsBound = true;
+  document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
+  document.addEventListener('keydown', this._onDocumentKeyDown);
+  window.addEventListener('resize', this._onWindowChange);
+  window.addEventListener('scroll', this._onWindowChange, true);
+};
+
+ComboPopup.prototype._unbindOpenEvents = function() {
+  if (!this._openEventsBound) return;
+  this._openEventsBound = false;
+  document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
+  document.removeEventListener('keydown', this._onDocumentKeyDown);
+  window.removeEventListener('resize', this._onWindowChange);
+  window.removeEventListener('scroll', this._onWindowChange, true);
+};
+
+ComboPopup.prototype._containsTarget = function(target) {
+  var anchor = resolveComboPopupElement(this.options.anchor);
+  if (anchor && (anchor === target || anchor.contains(target))) return true;
+  return typeof this.options.containsTarget === 'function' &&
+    this.options.containsTarget(target) === true;
+};
+
+ComboPopup.prototype.setOptions = function(options) {
+  assignComboPopupOptions(this.options, options || {});
+  this._normalizeOptions();
+  this.panel.className = ('fui-combobox-panel ' + (this.options.className || '')).trim();
+  this.panel.setAttribute('aria-label', this.options.ariaLabel);
+  this.panel.setAttribute(
+    'aria-multiselectable',
+    this.options.multiple ? 'true' : 'false'
+  );
+  this.items = this.options.items.slice();
+  this.render();
+  return this;
+};
+
+ComboPopup.prototype.setLayout = function(options) {
+  assignComboPopupOptions(this.options, options || {});
+  return this;
+};
+
+ComboPopup.prototype.setItems = function(items) {
+  this.items = Array.isArray(items) ? items.slice() : [];
+  this.options.items = this.items.slice();
+  this.render();
+  return this;
+};
+
+ComboPopup.prototype.render = function() {
+  var lastGroup;
+  var index;
+  var descriptor;
+  var group;
+  var groupElement;
+  var itemElement;
+  var icon;
+  var text;
+  var value;
+  var empty;
+  this.panel.textContent = '';
+  this.activeIndex = -1;
+  for (index = 0; index < this.items.length; index += 1) {
+    descriptor = this.items[index] || {};
+    group = descriptor.group;
+    if (group != null && group !== lastGroup) {
+      groupElement = document.createElement('div');
+      groupElement.className = 'fui-combobox-group' +
+        (descriptor.groupSticky ? ' fui-combobox-group-sticky' : '');
+      if (typeof this.options.renderGroup === 'function') {
+        appendComboPopupContent(
+          groupElement,
+          this.options.renderGroup(group, descriptor, this)
+        );
+      } else {
+        groupElement.textContent = String(group);
+      }
+      this.panel.appendChild(groupElement);
+      lastGroup = group;
+    }
+    itemElement = document.createElement('div');
+    itemElement.className = 'fui-combobox-item' +
+      (group != null ? ' fui-combobox-group-item' : '');
+    itemElement.setAttribute('data-index', index);
+    itemElement.setAttribute(
+      'data-value',
+      descriptor.value == null ? '' : String(descriptor.value)
+    );
+    itemElement.setAttribute('role', 'option');
+    itemElement.setAttribute(
+      'aria-selected',
+      descriptor.selected ? 'true' : 'false'
+    );
+    if (descriptor.disabled) {
+      itemElement.classList.add('fui-combobox-item-disabled');
+      itemElement.setAttribute('aria-disabled', 'true');
+    }
+    if (descriptor.selected) {
+      itemElement.classList.add('fui-combobox-item-selected');
+    }
+    if (descriptor.iconClass) {
+      icon = document.createElement('span');
+      icon.className = 'fui-combobox-item-icon ' + descriptor.iconClass;
+      itemElement.appendChild(icon);
+    }
+    if (Object.prototype.hasOwnProperty.call(descriptor, 'content')) {
+      appendComboPopupContent(itemElement, descriptor.content);
+    } else if (typeof this.options.renderItem === 'function') {
+      appendComboPopupContent(
+        itemElement,
+        this.options.renderItem(descriptor, itemElement, this)
+      );
+    } else {
+      text = document.createElement('span');
+      text.className = 'fui-combobox-item-text';
+      text.textContent = descriptor.text == null ? '' : String(descriptor.text);
+      itemElement.appendChild(text);
+      if (descriptor.secondaryText != null &&
+        String(descriptor.secondaryText) !== '') {
+        value = document.createElement('span');
+        value.className = 'fui-combobox-item-value';
+        value.textContent = String(descriptor.secondaryText);
+        itemElement.appendChild(value);
+        itemElement.setAttribute(
+          'aria-label',
+          text.textContent + ' ' + value.textContent
+        );
+      }
+    }
+    this.panel.appendChild(itemElement);
+  }
+  if (!this.items.length) {
+    empty = document.createElement('div');
+    empty.className = 'fui-combobox-empty';
+    empty.textContent = this.options.emptyText || '';
+    this.panel.appendChild(empty);
+  }
+  return this;
+};
+
+ComboPopup.prototype.setActiveIndex = function(index, reason) {
+  var elements;
+  var element;
+  var next;
+  var attempts;
+  var item;
+  if (!this.items.length) {
+    this.activeIndex = -1;
+    return this;
+  }
+  next = Math.max(0, Math.min(this.items.length - 1, Number(index) || 0));
+  attempts = 0;
+  while (this.items[next] && this.items[next].disabled &&
+    attempts < this.items.length) {
+    next = (next + 1) % this.items.length;
+    attempts += 1;
+  }
+  this.activeIndex = next;
+  elements = this.panel.querySelectorAll('.fui-combobox-item');
+  Array.prototype.forEach.call(elements, function(candidate, itemIndex) {
+    candidate.classList.toggle(
+      'fui-combobox-item-active',
+      itemIndex === next
+    );
+  });
+  element = this.panel.querySelector(
+    '.fui-combobox-item[data-index="' + next + '"]'
+  );
+  if (element && element.scrollIntoView) {
+    element.scrollIntoView({ block: 'nearest' });
+  }
+  item = this.items[next] || null;
+  if (typeof this.options.onActiveChange === 'function') {
+    this.options.onActiveChange(next, item, reason || 'api', this);
+  }
+  return this;
+};
+
+ComboPopup.prototype.moveActive = function(direction) {
+  var length = this.items.length;
+  var next;
+  var attempts = 0;
+  if (!length) return this;
+  next = this.activeIndex;
+  do {
+    next = (next + direction + length) % length;
+    attempts += 1;
+  } while (this.items[next] && this.items[next].disabled && attempts <= length);
+  return this.setActiveIndex(next, 'keyboard');
+};
+
+ComboPopup.prototype.selectActive = function() {
+  var item = this.items[this.activeIndex];
+  if (!item || item.disabled) return this;
+  if (typeof this.options.onSelect === 'function') {
+    this.options.onSelect(item, this.activeIndex, this, null);
+  }
+  if (this.options.closeOnSelect) this.hide();
+  return this;
+};
+
+ComboPopup.prototype.show = function() {
+  var openClassHost;
+  if (this.destroyed || this.visible) return this;
+  if (activeComboPopup && activeComboPopup !== this) activeComboPopup.hide();
+  this.visible = true;
+  this.panel.hidden = false;
+  this._bindOpenEvents();
+  activeComboPopup = this;
+  openClassHost = resolveComboPopupElement(this.options.openClassHost);
+  if (openClassHost) openClassHost.classList.add('fui-combobox-open');
+  this.position();
+  if (typeof this.options.onShow === 'function') this.options.onShow(this);
+  return this;
+};
+
+ComboPopup.prototype.hide = function() {
+  var openClassHost;
+  if (!this.visible) return this;
+  this.visible = false;
+  this.activeIndex = -1;
+  this.panel.hidden = true;
+  this._unbindOpenEvents();
+  if (activeComboPopup === this) activeComboPopup = null;
+  openClassHost = resolveComboPopupElement(this.options.openClassHost);
+  if (openClassHost) openClassHost.classList.remove('fui-combobox-open');
+  if (typeof this.options.onHide === 'function') this.options.onHide(this);
+  return this;
+};
+
+ComboPopup.prototype.toggle = function() {
+  return this.visible ? this.hide() : this.show();
+};
+
+ComboPopup.prototype.isOpen = function() {
+  return this.visible;
+};
+
+ComboPopup.prototype.handleKeyDown = function(event) {
+  var key = event.key;
+  if ((key === 'ArrowDown' && (event.altKey || event.metaKey)) || key === 'F4') {
+    event.preventDefault();
+    this.show();
+    return true;
+  }
+  if (!this.visible) return false;
+  if (key === 'ArrowDown' || key === 'ArrowUp') {
+    event.preventDefault();
+    this.moveActive(key === 'ArrowDown' ? 1 : -1);
+    return true;
+  }
+  if (key === 'Enter') {
+    event.preventDefault();
+    this.selectActive();
+    return true;
+  }
+  if (key === 'Escape') {
+    event.preventDefault();
+    this.hide();
+    return true;
+  }
+  return false;
+};
+
+ComboPopup.prototype.measureContentWidth = function() {
+  var previousWidth = this.panel.style.width;
+  var width;
+  this.panel.style.width = 'auto';
+  width = Math.ceil(this.panel.scrollWidth || this.panel.offsetWidth || 0) + 2;
+  this.panel.style.width = previousWidth;
+  return width;
+};
+
+ComboPopup.prototype.position = function() {
+  var anchor = resolveComboPopupElement(this.options.anchor);
+  var rect;
+  var width;
+  var height;
+  var left;
+  var top;
+  var viewportLeft;
+  var viewportTop;
+  var viewportWidth;
+  var viewportHeight;
+  if (!this.visible || !anchor) return this;
+  rect = anchor.getBoundingClientRect();
+  viewportLeft = window.pageXOffset;
+  viewportTop = window.pageYOffset;
+  viewportWidth = document.documentElement.clientWidth;
+  viewportHeight = document.documentElement.clientHeight;
+  width = this.options.panelWidth == null ?
+    rect.width :
+    parseFloat(this.options.panelWidth) || rect.width;
+  if (this.options.fitContent) {
+    width = Math.max(width, this.measureContentWidth());
+  }
+  if (this.options.panelMinWidth != null) {
+    width = Math.max(width, parseFloat(this.options.panelMinWidth) || 0);
+  }
+  if (this.options.panelMaxWidth != null) {
+    width = Math.min(width, parseFloat(this.options.panelMaxWidth) || width);
+  }
+  width = Math.min(width, Math.max(0, viewportWidth - 12));
+  this.panel.style.width = comboPopupCssSize(width, rect.width);
+  this.panel.style.height = this.options.panelHeight === 'auto' ?
+    'auto' :
+    comboPopupCssSize(this.options.panelHeight, 300);
+  this.panel.style.minWidth = comboPopupCssSize(this.options.panelMinWidth, null);
+  this.panel.style.maxWidth = comboPopupCssSize(this.options.panelMaxWidth, null);
+  this.panel.style.minHeight = comboPopupCssSize(this.options.panelMinHeight, null);
+  this.panel.style.maxHeight = comboPopupCssSize(this.options.panelMaxHeight, null);
+  height = this.panel.offsetHeight;
+  left = this.options.panelAlign === 'right' ?
+    rect.right + viewportLeft - width :
+    rect.left + viewportLeft;
+  top = rect.bottom + viewportTop;
+  if (this.options.panelValign === 'top' ||
+    (this.options.panelValign === 'auto' &&
+      rect.bottom + height > viewportHeight &&
+      rect.top > height)) {
+    top = rect.top + viewportTop - height;
+  }
+  if (left + width > viewportLeft + viewportWidth - 6) {
+    left = Math.max(
+      viewportLeft + 6,
+      viewportLeft + viewportWidth - width - 6
+    );
+  }
+  if (left < viewportLeft + 6) left = viewportLeft + 6;
+  this.panel.style.left = Math.round(left) + 'px';
+  this.panel.style.top = Math.round(top) + 'px';
+  return this;
+};
+
+ComboPopup.prototype.destroy = function() {
+  if (this.destroyed) return;
+  this.hide();
+  this.destroyed = true;
+  this.panel.removeEventListener('mousedown', this._onPanelMouseDown);
+  this.panel.removeEventListener('click', this._onPanelClick);
+  this.panel.removeEventListener('mouseover', this._onPanelMouseOver);
+  this._unbindOpenEvents();
+  if (this.panel.parentNode) this.panel.parentNode.removeChild(this.panel);
+};
+
+
+
+
+function createComboBoxFactory(TextBox, editorDefinitions) {
+  'use strict';
+
+  if (typeof TextBox !== 'function') {
+    throw new Error('fabui.ComboBox requires fabui.TextBox.');
+  }
+
+  editorDefinitions = editorDefinitions || {};
+  var editorDefinition = editorDefinitions.combo || editorDefinitions.combobox || null;
+
+  var localePacks = {
+    en: { openListText: 'Open list' },
+    'zh-TW': { openListText: '開啟清單' },
+    'zh-CN': { openListText: '打开列表' }
+  };
+
+  var comboDefaults = {
+    iconWidth: 28,
+    valueField: 'value',
+    textField: 'text',
+    groupField: null,
+    groupPosition: 'static',
+    groupFormatter: null,
+    mode: 'local',
+    method: 'post',
+    url: null,
+    data: null,
+    queryParams: {},
+    panelWidth: null,
+    panelHeight: 300,
+    panelMinWidth: null,
+    panelMaxWidth: null,
+    panelMinHeight: null,
+    panelMaxHeight: null,
+    panelAlign: 'left',
+    panelValign: 'auto',
+    multiple: false,
+    multiline: false,
+    separator: ',',
+    hasDownArrow: true,
+    selectOnNavigation: true,
+    showItemIcon: false,
+    showValueInList: false,
+    limitToList: false,
+    delay: 200,
+    locale: 'en',
+    openListText: null,
+    filter: null,
+    formatter: null,
+    loader: null,
+    loadFilter: null,
+    onBeforeLoad: null,
+    onLoadSuccess: null,
+    onLoadError: null,
+    onSelect: null,
+    onUnselect: null,
+    onClick: null,
+    onChange: null,
+    onShowPanel: null,
+    onHidePanel: null
+  };
+
+  function assign(target) {
+    var index;
+    var source;
+    var key;
+    for (index = 1; index < arguments.length; index += 1) {
+      source = arguments[index] || {};
+      for (key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+      }
+    }
+    return target;
+  }
+
+  function resolveElement(element) {
+    return typeof element === 'string' ? document.querySelector(element) : element;
+  }
+
+  function uniqueStrings(values) {
+    var result = [];
+    (values || []).forEach(function(value) {
+      value = value == null ? '' : String(value);
+      if (result.indexOf(value) < 0) result.push(value);
+    });
+    return result;
+  }
+
+  function readElementOptions(element) {
+    var options = {};
+    var stringNames = ['valueField', 'textField', 'groupField', 'groupPosition', 'mode', 'method', 'url', 'separator', 'panelAlign', 'panelValign'];
+    var numberNames = ['panelWidth', 'panelHeight', 'panelMinWidth', 'panelMaxWidth', 'panelMinHeight', 'panelMaxHeight', 'delay'];
+    var booleanNames = ['multiple', 'multiline', 'hasDownArrow', 'selectOnNavigation', 'showItemIcon', 'showValueInList', 'limitToList'];
+    var index;
+    var value;
+    for (index = 0; index < stringNames.length; index += 1) {
+      value = element.getAttribute(stringNames[index]);
+      if (value != null && value !== '') options[stringNames[index]] = value;
+    }
+    for (index = 0; index < numberNames.length; index += 1) {
+      value = element.getAttribute(numberNames[index]);
+      if (value != null && value !== '') options[numberNames[index]] = isFinite(Number(value)) ? Number(value) : value;
+    }
+    for (index = 0; index < booleanNames.length; index += 1) {
+      value = element.getAttribute(booleanNames[index]);
+      if (value != null) options[booleanNames[index]] = value !== 'false';
+    }
+    if (element.hasAttribute('multiple')) options.multiple = true;
+    options.disabled = element.disabled;
+    options.readonly = element.readOnly;
+    options.required = element.required;
+    value = element.getAttribute('label');
+    if (value) options.label = value;
+    value = element.getAttribute('labelPosition');
+    if (value) options.labelPosition = value;
+    return options;
+  }
+
+  function normalizeLocale(name) {
+    if (localePacks[name]) return name;
+    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
+    if (/^zh/i.test(name || '')) return 'zh-CN';
+    return 'en';
+  }
+
+  function encodeParams(params) {
+    var parts = [];
+    Object.keys(params || {}).forEach(function(key) {
+      var value = params[key];
+      if (value == null) return;
+      parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
+    });
+    return parts.join('&');
+  }
+
+  function ComboBox(element, options) {
+    var source = resolveElement(element);
+    var userOptions = options || {};
+    var markupOptions;
+    var textOptions;
+    var icons;
+    var self = this;
+    if (!(this instanceof ComboBox)) return new ComboBox(element, options);
+    if (!source || !/^(INPUT|SELECT|TEXTAREA)$/.test(source.tagName)) {
+      throw new Error('fabui.ComboBox requires an input, select, or textarea element.');
+    }
+    if (source.__fabuiComboBox) return source.__fabuiComboBox;
+
+    this._source = source;
+    this._listeners = {};
+    this._data = [];
+    this._filteredData = [];
+    this._values = [];
+    this._activeIndex = -1;
+    this._panelVisible = false;
+    this._destroyed = false;
+    this._queryTimer = null;
+    this._requestToken = 0;
+    this._originalDisplay = source.style.display;
+    this._originalAriaHidden = source.getAttribute('aria-hidden');
+    markupOptions = readElementOptions(source);
+    this._options = assign({}, ComboBox.defaults, markupOptions, userOptions);
+    this._options.multiple = Boolean(this._options.multiple);
+    this._options.multiline = Boolean(this._options.multiline);
+    this._options.mode = this._options.mode === 'remote' ? 'remote' : 'local';
+    this._options.method = String(this._options.method || 'post').toLowerCase();
+    this._options.locale = normalizeLocale(this._options.locale);
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'openListText')) {
+      this._options.openListText = localePacks[this._options.locale].openListText;
+    }
+    this._options.filter = typeof this._options.filter === 'function' ? this._options.filter : function(query, row) {
+      return String(row[this._options.textField] == null ? '' : row[this._options.textField]).toLowerCase().indexOf(String(query || '').toLowerCase()) >= 0;
+    };
+    this._options.loadFilter = typeof this._options.loadFilter === 'function' ? this._options.loadFilter : function(data) { return data; };
+    this._selectData = source.tagName === 'SELECT' ? this._readSelectData(source) : [];
+    this._initialValues = this._readInitialValues(userOptions);
+
+    if (source.tagName === 'SELECT') {
+      this._textboxSource = document.createElement('input');
+      this._textboxSource.type = 'text';
+      source.parentNode.insertBefore(this._textboxSource, source);
+      source.style.display = 'none';
+      source.setAttribute('aria-hidden', 'true');
+    } else {
+      this._textboxSource = source;
+    }
+
+    icons = normalizeEditorIconDescriptors(this._options.icons);
+    if (this._options.hasDownArrow) {
+      icons.push({
+        iconCls: 'fui-combobox-arrow',
+        align: 'right',
+        width: this._options.iconWidth,
+        title: this._options.openListText,
+        onClick: function() { self.togglePanel(); }
+      });
+    }
+    textOptions = assign({}, markupOptions, userOptions, {
+      cls: ((this._options.cls || '') + ' fui-combobox').trim(),
+      multiple: undefined,
+      multiline: this._options.multiline,
+      icons: icons,
+      editable: this._options.editable,
+      disabled: this._options.disabled,
+      readonly: this._options.readonly,
+      value: '',
+      onChange: null
+    });
+    this._textbox = new TextBox(this._textboxSource, textOptions);
+    this._editor = this._textbox.textbox();
+    if (editorDefinition && editorDefinition.className) {
+      editorDefinition.className.split(/\s+/).forEach(function(className) {
+        if (className) this._editor.classList.add(className);
+      }, this);
+    }
+    if (editorDefinition && editorDefinition.inputMode) {
+      this._editor.inputMode = editorDefinition.inputMode;
+    }
+    this._field = this._editor.closest('.fui-textbox-field');
+    this._shell = this._editor.closest('.fui-textbox');
+    this._comboPopup = new ComboPopup({
+      anchor: this._shell,
+      openClassHost: this._shell,
+      ariaLabel: this._options.openListText,
+      multiple: this._options.multiple,
+      closeOnSelect: !this._options.multiple,
+      containsTarget: function(target) {
+        return self._shell.contains(target);
+      },
+      onSelect: function(descriptor) {
+        var row = descriptor.data;
+        if (!row) return;
+        if (typeof self._options.onClick === 'function') {
+          self._options.onClick.call(self._source, row);
+        }
+        self._emit('click', { record: row });
+        self._chooseRow(row);
+      },
+      onActiveChange: function(index) {
+        self._activeIndex = index;
+      },
+      onShow: function() {
+        self._panelVisible = true;
+        if (typeof self._options.onShowPanel === 'function') {
+          self._options.onShowPanel.call(self);
+        }
+        self._emit('showPanel', { panel: self._comboPopup.panel });
+      },
+      onHide: function() {
+        self._panelVisible = false;
+        self._activeIndex = -1;
+        if (typeof self._options.onHidePanel === 'function') {
+          self._options.onHidePanel.call(self);
+        }
+        self._emit('hidePanel', { panel: self._comboPopup.panel });
+      }
+    });
+    this._panel = this._comboPopup.panel;
+    this._bind();
+    source.__fabuiComboBox = this;
+
+    if (this._options.data) {
+      this.loadData(this._options.data, true);
+    } else if (this._selectData.length) {
+      this.loadData(this._selectData, true);
+    } else {
+      this.setValues(this._initialValues, true);
+    }
+    if (!this._options.data && !this._selectData.length && (this._options.url || this._options.loader)) {
+      this.reload();
+    }
+  }
+
+  ComboBox.prototype._readSelectData = function(select) {
+    var options = this._options;
+    var data = [];
+    Array.prototype.forEach.call(select.children, function(child) {
+      var group = child.tagName === 'OPTGROUP' ? child.label : null;
+      var elements = child.tagName === 'OPTGROUP' ? child.children : [child];
+      Array.prototype.forEach.call(elements, function(option) {
+        if (option.tagName !== 'OPTION') return;
+        var row = {};
+        row[options.valueField] = option.value || option.textContent;
+        row[options.textField] = option.textContent;
+        row.selected = option.selected;
+        row.disabled = option.disabled;
+        row.iconCls = option.getAttribute('iconCls') || '';
+        if (group) {
+          options.groupField = options.groupField || 'group';
+          row[options.groupField] = group;
+        }
+        data.push(row);
+      });
+    });
+    return data;
+  };
+
+  ComboBox.prototype._readInitialValues = function(userOptions) {
+    var value;
+    var values = [];
+    if (Object.prototype.hasOwnProperty.call(userOptions, 'value')) {
+      value = userOptions.value;
+      values = Array.isArray(value) ? value : String(value == null ? '' : value).split(this._options.separator);
+    } else if (this._source.tagName === 'SELECT') {
+      Array.prototype.forEach.call(this._source.options, function(option) {
+        if (option.selected) values.push(option.value || option.textContent);
+      });
+    } else if (this._source.value) {
+      values = this._options.multiple ? this._source.value.split(this._options.separator) : [this._source.value];
+    }
+    return uniqueStrings(values.filter(function(item) { return item !== ''; }));
+  };
+
+  ComboBox.prototype._bind = function() {
+    var self = this;
+    this._onInput = function() { self._handleInput(); };
+    this._onKeyDown = function(event) { self._handleKeyDown(event); };
+    this._onBlur = function() {
+      window.setTimeout(function() {
+        if (!self._destroyed && !self._panel.contains(document.activeElement)) {
+          self._fixInput();
+          self.hidePanel();
+        }
+      }, 60);
+    };
+    this._onFormReset = function() {
+      window.setTimeout(function() { if (!self._destroyed) self.reset(); }, 0);
+    };
+    this._editor.addEventListener('input', this._onInput);
+    this._editor.addEventListener('keydown', this._onKeyDown);
+    this._editor.addEventListener('blur', this._onBlur);
+    if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
+  };
+
+  ComboBox.prototype._handleInput = function() {
+    var self = this;
+    var query = this._getQueryText();
+    window.clearTimeout(this._queryTimer);
+    this._setTypedValues(this._editor.value);
+    this.showPanel();
+    this._queryTimer = window.setTimeout(function() {
+      if (self._options.mode === 'remote') {
+        self._request({ q: query }, true);
+      } else {
+        self._filterData(query);
+      }
+    }, Math.max(0, Number(this._options.delay) || 0));
+  };
+
+  ComboBox.prototype._getQueryText = function() {
+    var text = this._editor.value;
+    if (!this._options.multiple) return text.trim();
+    return text.split(this._options.separator).pop().trim();
+  };
+
+  ComboBox.prototype._setTypedValues = function(text) {
+    var values = this._options.multiple ? String(text).split(this._options.separator) : [text];
+    var old = this._values.slice();
+    values = values.map(function(value) { return value.trim(); }).filter(function(value) { return value !== ''; });
+    if (!this._options.multiple && !values.length) values = [];
+    this._values = uniqueStrings(values);
+    this._syncSourceValue();
+    this._notifyChange(old);
+  };
+
+  ComboBox.prototype._filterData = function(query) {
+    var self = this;
+    var exact;
+    this._filteredData = this._data.filter(function(row) {
+      return self._options.filter.call(self, query, row) !== false;
+    });
+    this._activeIndex = -1;
+    this._renderPanel();
+    if (!this._options.multiple && query) {
+      exact = this._findRowByText(query);
+      if (exact) this.setValue(exact[this._options.valueField]);
+    }
+  };
+
+  ComboBox.prototype._handleKeyDown = function(event) {
+    var key = event.key;
+    if ((key === 'ArrowDown' && (event.altKey || event.metaKey)) || key === 'F4') {
+      event.preventDefault();
+      this.showPanel();
+      return;
+    }
+    if (key === 'Escape' && this._panelVisible) {
+      event.preventDefault();
+      this.hidePanel();
+      return;
+    }
+    if (key === 'ArrowDown' || key === 'ArrowUp') {
+      event.preventDefault();
+      this.showPanel();
+      this._moveActive(key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (key === 'Enter' && this._panelVisible) {
+      event.preventDefault();
+      if (this._activeIndex >= 0) this._chooseRow(this._filteredData[this._activeIndex]);
+      if (!this._options.multiple) this.hidePanel();
+      return;
+    }
+    if (key === 'Enter') {
+      event.preventDefault();
+      this._fixInput();
+    }
+  };
+
+  ComboBox.prototype._moveActive = function(direction) {
+    var length = this._filteredData.length;
+    var index = this._activeIndex;
+    var attempts = 0;
+    if (!length) return;
+    do {
+      index = (index + direction + length) % length;
+      attempts += 1;
+    } while (this._filteredData[index] && this._filteredData[index].disabled && attempts <= length);
+    this._setActiveIndex(index, this._options.selectOnNavigation);
+  };
+
+  ComboBox.prototype._setActiveIndex = function(index, selectRow) {
+    this._comboPopup.setActiveIndex(index);
+    this._activeIndex = this._comboPopup.activeIndex;
+    if (selectRow && this._filteredData[this._activeIndex]) {
+      this._chooseRow(this._filteredData[this._activeIndex], true);
+      this._comboPopup.setActiveIndex(index);
+      this._activeIndex = this._comboPopup.activeIndex;
+    }
+  };
+
+  ComboBox.prototype._chooseRow = function(row, remainOpen) {
+    var value = String(row[this._options.valueField]);
+    if (this._options.multiple && this._values.indexOf(value) >= 0) {
+      this.unselect(value);
+    } else {
+      this.select(value);
+    }
+    if (!remainOpen && !this._options.multiple) this.hidePanel();
+  };
+
+  ComboBox.prototype._fixInput = function() {
+    var self = this;
+    var values;
+    if (this._options.limitToList) {
+      values = this._values.map(function(value) {
+        var row = self._findRow(value) || self._findRowByText(value);
+        return row ? String(row[self._options.valueField]) : null;
+      }).filter(function(value) { return value != null; });
+      this.setValues(values);
+    } else {
+      this.setValues(this._values);
+    }
+  };
+
+  ComboBox.prototype._renderPanel = function() {
+    var self = this;
+    var lastGroup;
+    var descriptors = [];
+    this._filteredData.forEach(function(row) {
+      var group = self._options.groupField ? row[self._options.groupField] : null;
+      var text;
+      var code;
+      var output;
+      var value = String(row[self._options.valueField]);
+      var descriptor = {
+        value: value,
+        text: '',
+        data: row,
+        disabled: row.disabled === true,
+        selected: self._values.indexOf(value) >= 0,
+        group: group,
+        groupSticky: self._options.groupPosition === 'sticky',
+        iconClass: self._options.showItemIcon && row.iconCls ?
+          row.iconCls :
+          ''
+      };
+      if (group != null && group !== lastGroup) {
+        if (typeof self._options.groupFormatter === 'function') {
+          descriptor.groupContent = self._options.groupFormatter.call(
+            self._source,
+            group
+          );
+        } else {
+          descriptor.groupContent = String(group);
+        }
+        lastGroup = group;
+      }
+      if (typeof self._options.formatter === 'function') {
+        output = self._options.formatter.call(self._source, row);
+        descriptor.content = output;
+      } else {
+        text = String(row[self._options.textField] == null ? '' : row[self._options.textField]);
+        code = String(row[self._options.valueField] == null ? '' : row[self._options.valueField]);
+        descriptor.text = text;
+        if (self._options.showValueInList && code && code !== text) {
+          descriptor.secondaryText = '(' + code + ')';
+        }
+      }
+      descriptors.push(descriptor);
+    });
+    this._comboPopup.setOptions({
+      anchor: this._shell,
+      openClassHost: this._shell,
+      ariaLabel: this._options.openListText,
+      panelWidth: this._options.panelWidth,
+      panelHeight: this._options.panelHeight,
+      panelMinWidth: this._options.panelMinWidth,
+      panelMaxWidth: this._options.panelMaxWidth,
+      panelMinHeight: this._options.panelMinHeight,
+      panelMaxHeight: this._options.panelMaxHeight,
+      panelAlign: this._options.panelAlign,
+      panelValign: this._options.panelValign,
+      multiple: this._options.multiple,
+      closeOnSelect: !this._options.multiple,
+      items: descriptors,
+      renderGroup: function(group, descriptor) {
+        return Object.prototype.hasOwnProperty.call(descriptor, 'groupContent') ?
+          descriptor.groupContent :
+          String(group);
+      }
+    });
+  };
+
+  ComboBox.prototype._findRow = function(value) {
+    var field = this._options.valueField;
+    var stringValue = String(value);
+    var index;
+    for (index = 0; index < this._data.length; index += 1) {
+      if (String(this._data[index][field]) === stringValue) return this._data[index];
+    }
+    return null;
+  };
+
+  ComboBox.prototype._findRowByText = function(text) {
+    var field = this._options.textField;
+    var query = String(text).toLowerCase();
+    var index;
+    for (index = 0; index < this._data.length; index += 1) {
+      if (String(this._data[index][field]).toLowerCase() === query) return this._data[index];
+    }
+    return null;
+  };
+
+  ComboBox.prototype._syncText = function() {
+    var self = this;
+    var texts = this._values.map(function(value) {
+      var row = self._findRow(value);
+      return row ? String(row[self._options.textField]) : String(value);
+    });
+    this._textbox.setValue(texts.join(this._options.separator), true);
+    this._syncSourceValue();
+    this._updateTextboxIcon();
+  };
+
+  ComboBox.prototype._syncSourceValue = function() {
+    var self = this;
+    if (this._source.tagName === 'SELECT') {
+      Array.prototype.forEach.call(this._source.options, function(option) {
+        option.selected = self._values.indexOf(String(option.value || option.textContent)) >= 0;
+      });
+      this._textboxSource.value = this._values.join(this._options.separator);
+    } else {
+      this._source.value = this._options.multiple ? this._values.join(this._options.separator) : (this._values[0] || '');
+    }
+  };
+
+  ComboBox.prototype._updateTextboxIcon = function() {
+    var row = this._values.length ? this._findRow(this._values[this._values.length - 1]) : null;
+    if (this._textboxIconCls) this._editor.classList.remove(this._textboxIconCls);
+    this._textboxIconCls = '';
+    this._editor.classList.remove('fui-combobox-text-icon');
+    if (this._options.showItemIcon && row && row.iconCls) {
+      this._textboxIconCls = row.iconCls;
+      this._editor.classList.add('fui-combobox-text-icon', row.iconCls);
+    }
+  };
+
+  ComboBox.prototype._notifyChange = function(oldValues) {
+    var oldValue = this._options.multiple ? oldValues.slice() : (oldValues[0] || '');
+    var newValue = this._options.multiple ? this._values.slice() : (this._values[0] || '');
+    if (JSON.stringify(oldValue) === JSON.stringify(newValue)) return;
+    if (typeof this._options.onChange === 'function') this._options.onChange.call(this, newValue, oldValue);
+    this._emit('change', { value: newValue, oldValue: oldValue });
+  };
+
+  ComboBox.prototype._positionPanel = function() {
+    if (this._comboPopup) this._comboPopup.position();
+  };
+
+  ComboBox.prototype._emit = function(name, detail) {
+    var listeners = (this._listeners[name] || []).slice();
+    listeners.forEach(function(listener) { listener(detail); });
+  };
+
+  ComboBox.prototype.options = function() { return this._options; };
+  ComboBox.prototype.panel = function() { return this._panel; };
+  ComboBox.prototype.textbox = function() { return this._editor; };
+  ComboBox.prototype.getIcon = function(index) { return this._textbox.getIcon(index); };
+  ComboBox.prototype.getData = function() { return this._data.slice(); };
+  ComboBox.prototype.getValue = function() { return this._values[0] || ''; };
+  ComboBox.prototype.getValues = function() { return this._values.slice(); };
+  ComboBox.prototype.getText = function() { return this._editor.value; };
+
+  ComboBox.prototype.setText = function(text) {
+    this._textbox.setValue(text == null ? '' : String(text), true);
+    this._setTypedValues(this._editor.value);
+    return this;
+  };
+
+  ComboBox.prototype.setValue = function(value, silent) {
+    return this.setValues(Array.isArray(value) ? value : [value], silent);
+  };
+
+  ComboBox.prototype.setValues = function(values, silent) {
+    var self = this;
+    var old = this._values.slice();
+    var normalized = Array.isArray(values) ? values : String(values == null ? '' : values).split(this._options.separator);
+    normalized = uniqueStrings(normalized.filter(function(value) { return value != null && String(value) !== ''; }));
+    if (!this._options.multiple && normalized.length > 1) normalized = [normalized[0]];
+    if (this._options.limitToList) normalized = normalized.filter(function(value) { return self._findRow(value) != null; });
+    old.forEach(function(value) {
+      if (normalized.indexOf(value) < 0) {
+        var row = self._findRow(value);
+        if (row && typeof self._options.onUnselect === 'function') self._options.onUnselect.call(self._source, row);
+        if (row) self._emit('unselect', { record: row });
+      }
+    });
+    normalized.forEach(function(value) {
+      if (old.indexOf(value) < 0) {
+        var row = self._findRow(value);
+        if (row && typeof self._options.onSelect === 'function') self._options.onSelect.call(self._source, row);
+        if (row) self._emit('select', { record: row });
+      }
+    });
+    this._values = normalized;
+    this._syncText();
+    this._renderPanel();
+    if (!silent) this._notifyChange(old);
+    return this;
+  };
+
+  ComboBox.prototype.select = function(value) {
+    var values = this._options.multiple ? this._values.concat([String(value)]) : [String(value)];
+    return this.setValues(values);
+  };
+
+  ComboBox.prototype.unselect = function(value) {
+    value = String(value);
+    return this.setValues(this._values.filter(function(item) { return item !== value; }));
+  };
+
+  ComboBox.prototype.clear = function() { return this.setValues([]); };
+  ComboBox.prototype.initValue = function(value) {
+    this._initialValues = Array.isArray(value) ? uniqueStrings(value) : uniqueStrings([value]);
+    if (!this._options.multiple && this._initialValues.length > 1) {
+      this._initialValues = [this._initialValues[0]];
+    }
+    return this.setValues(this._initialValues, true);
+  };
+  ComboBox.prototype.reset = function() { return this.setValues(this._initialValues); };
+
+  ComboBox.prototype.loadData = function(data, silent) {
+    var filtered = this._options.loadFilter.call(this._source, data);
+    var selected = [];
+    var current = this._values.length ? this._values.slice() : this._initialValues.slice();
+    this._data = Array.isArray(filtered) ? filtered.slice() : (filtered && Array.isArray(filtered.rows) ? filtered.rows.slice() : []);
+    this._data.forEach(function(row) {
+      if (row && row.selected) selected.push(String(row[this._options.valueField]));
+    }, this);
+    if (selected.length) current = this._options.multiple ? uniqueStrings(current.concat(selected)) : [selected[selected.length - 1]];
+    this._filteredData = this._data.slice();
+    this._renderPanel();
+    this.setValues(current, silent !== false);
+    if (typeof this._options.onLoadSuccess === 'function') this._options.onLoadSuccess.call(this._source, data);
+    this._emit('loadSuccess', { data: data });
+    return this;
+  };
+
+  ComboBox.prototype._request = function(params, remainText, url) {
+    var self = this;
+    var requestParams = assign({}, this._options.queryParams || {}, params || {});
+    var token = ++this._requestToken;
+    var success = function(data) {
+      if (token !== self._requestToken || self._destroyed) return;
+      var text = self._editor.value;
+      self.loadData(data, true);
+      if (remainText) self._textbox.setValue(text, true);
+    };
+    var error = function(errorValue) {
+      if (token !== self._requestToken || self._destroyed) return;
+      if (typeof self._options.onLoadError === 'function') self._options.onLoadError.call(self._source, errorValue);
+      self._emit('loadError', { error: errorValue });
+    };
+    var result;
+    if (url) this._options.url = url;
+    if (typeof this._options.onBeforeLoad === 'function' && this._options.onBeforeLoad.call(this._source, requestParams) === false) return this;
+    if (typeof this._options.loader === 'function') {
+      try {
+        result = this._options.loader.call(this._source, requestParams, success, error);
+        if (result && typeof result.then === 'function') result.then(success, error);
+      } catch (loadError) {
+        error(loadError);
+      }
+      return this;
+    }
+    if (!this._options.url || typeof fetch !== 'function') return this;
+    var method = this._options.method === 'get' ? 'GET' : 'POST';
+    var query = encodeParams(requestParams);
+    var requestUrl = this._options.url;
+    var fetchOptions = { method: method, headers: {} };
+    if (method === 'GET' && query) requestUrl += (requestUrl.indexOf('?') >= 0 ? '&' : '?') + query;
+    if (method === 'POST') {
+      fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
+      fetchOptions.body = query;
+    }
+    fetch(requestUrl, fetchOptions).then(function(response) {
+      if (!response.ok) throw new Error('ComboBox request failed: ' + response.status);
+      return response.json();
+    }).then(success, error);
+    return this;
+  };
+
+  ComboBox.prototype.reload = function(urlOrParams) {
+    if (typeof urlOrParams === 'string') return this._request({}, false, urlOrParams);
+    if (urlOrParams && typeof urlOrParams === 'object') this._options.queryParams = assign({}, urlOrParams);
+    return this._request({}, false);
+  };
+
+  ComboBox.prototype.scrollTo = function(value) {
+    var stringValue = String(value);
+    var item = Array.prototype.filter.call(this._panel.querySelectorAll('.fui-combobox-item'), function(candidate) {
+      return candidate.getAttribute('data-value') === stringValue;
+    })[0];
+    if (item && item.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
+    return this;
+  };
+
+  ComboBox.prototype.showPanel = function() {
+    if (this._options.disabled || this._panelVisible) return this;
+    this._filteredData = this._data.slice();
+    this._renderPanel();
+    this._comboPopup.show();
+    this.scrollTo(this.getValue());
+    return this;
+  };
+
+  ComboBox.prototype.hidePanel = function() {
+    if (this._comboPopup) this._comboPopup.hide();
+    return this;
+  };
+
+  ComboBox.prototype.togglePanel = function() { return this._panelVisible ? this.hidePanel() : this.showPanel(); };
+  ComboBox.prototype.focus = function() { this._textbox.focus(); return this; };
+
+  ComboBox.prototype.resize = function(width, height) {
+    this._textbox.resize(width, height);
+    this._options.width = this._textbox.options().width;
+    this._options.height = this._textbox.options().height;
+    this._positionPanel();
+    return this;
+  };
+
+  ComboBox.prototype.disable = function() { this.hidePanel(); this._textbox.disable(); this._options.disabled = true; return this; };
+  ComboBox.prototype.enable = function() { this._textbox.enable(); this._options.disabled = false; return this; };
+  ComboBox.prototype.readonly = function(mode) { this._textbox.readonly(mode); this._options.readonly = mode !== false; return this; };
+  ComboBox.prototype.setEditable = function(mode) { this._textbox.setEditable(mode); this._options.editable = mode !== false; return this; };
+
+  ComboBox.prototype.on = function(name, listener) {
+    if (typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  ComboBox.prototype.off = function(name, listener) {
+    var listeners = this._listeners[name];
+    if (!listeners) return this;
+    this._listeners[name] = listener ? listeners.filter(function(item) { return item !== listener; }) : [];
+    return this;
+  };
+
+  ComboBox.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    window.clearTimeout(this._queryTimer);
+    this._editor.removeEventListener('input', this._onInput);
+    this._editor.removeEventListener('keydown', this._onKeyDown);
+    this._editor.removeEventListener('blur', this._onBlur);
+    if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);
+    this._comboPopup.destroy();
+    this._textbox.destroy();
+    if (this._source.tagName === 'SELECT') {
+      if (this._textboxSource.parentNode) this._textboxSource.parentNode.removeChild(this._textboxSource);
+      this._source.style.display = this._originalDisplay;
+      if (this._originalAriaHidden == null) this._source.removeAttribute('aria-hidden');
+      else this._source.setAttribute('aria-hidden', this._originalAriaHidden);
+    }
+    delete this._source.__fabuiComboBox;
+    this._listeners = {};
+  };
+
+  ComboBox.defaults = assign({}, TextBox.defaults || {}, comboDefaults);
+  ComboBox.locales = localePacks;
+  ComboBox.addLocale = function(name, pack) {
+    if (name && pack) localePacks[name] = assign({}, localePacks.en, pack);
+    return ComboBox;
+  };
+  return ComboBox;
+}
+
+var activeColorPopup = null;
+
+function assignColorPopupOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+}
+
+function resolveColorPopupElement(element) {
+  return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function clampColorPopup(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function rgbToColorPopupHsv(red, green, blue) {
+  var r = red / 255;
+  var g = green / 255;
+  var b = blue / 255;
+  var max = Math.max(r, g, b);
+  var min = Math.min(r, g, b);
+  var delta = max - min;
+  var hue = 0;
+  if (delta) {
+    if (max === r) {
+      hue = ((g - b) / delta) % 6;
+    } else if (max === g) {
+      hue = (b - r) / delta + 2;
+    } else {
+      hue = (r - g) / delta + 4;
+    }
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  return {
+    h: hue,
+    s: max === 0 ? 0 : delta / max,
+    v: max
+  };
+}
+
+function hsvToColorPopupRgb(hue, saturation, value) {
+  var chroma = value * saturation;
+  var section = hue / 60;
+  var x = chroma * (1 - Math.abs(section % 2 - 1));
+  var m = value - chroma;
+  var r = 0;
+  var g = 0;
+  var b = 0;
+  if (section < 1) {
+    r = chroma;
+    g = x;
+  } else if (section < 2) {
+    r = x;
+    g = chroma;
+  } else if (section < 3) {
+    g = chroma;
+    b = x;
+  } else if (section < 4) {
+    g = x;
+    b = chroma;
+  } else if (section < 5) {
+    r = x;
+    b = chroma;
+  } else {
+    r = chroma;
+    b = x;
+  }
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255)
+  };
+}
+
+function createColorPopupState(value, normalize) {
+  var color = normalize(value) || '#ff0000';
+  var hex = color.slice(1);
+  var rgb;
+  var state;
+  if (hex.length === 6) hex += 'ff';
+  rgb = {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16)
+  };
+  state = rgbToColorPopupHsv(rgb.r, rgb.g, rgb.b);
+  state.a = parseInt(hex.slice(6, 8), 16) / 255;
+  return state;
+}
+
+function toColorPopupHexPart(value) {
+  var text = clampColorPopup(Math.round(value), 0, 255).toString(16);
+  return text.length < 2 ? '0' + text : text;
+}
+
+function colorPopupStateToHex(state, showAlpha) {
+  var rgb = hsvToColorPopupRgb(state.h, state.s, state.v);
+  var alpha = clampColorPopup(state.a == null ? 1 : state.a, 0, 1);
+  var value = '#' +
+    toColorPopupHexPart(rgb.r) +
+    toColorPopupHexPart(rgb.g) +
+    toColorPopupHexPart(rgb.b);
+  if (showAlpha && alpha < 0.999) {
+    value += toColorPopupHexPart(Math.round(alpha * 255));
+  }
+  return value;
+}
+
+function ColorPopup(options) {
+  if (!(this instanceof ColorPopup)) return new ColorPopup(options);
+  this.options = assignColorPopupOptions({}, ColorPopup.defaults, options || {});
+  this.destroyed = false;
+  this.visible = false;
+  this._openEventsBound = false;
+  this.dragState = null;
+  this.value = '';
+  this.state = null;
+  this._normalizeOptions();
+  this._build();
+  this._bind();
+  this.render();
+}
+
+ColorPopup.defaults = {
+  anchor: null,
+  className: '',
+  panelWidth: 420,
+  ariaLabel: 'Color picker',
+  saturationText: 'Saturation and brightness',
+  hueText: 'Hue',
+  alphaText: 'Alpha',
+  palette: [],
+  showAlpha: true,
+  normalize: function(value) {
+    return value == null ? '' : String(value);
+  },
+  containsTarget: null,
+  openClassHost: null,
+  closeOnSelect: false,
+  closeOnDragEnd: false,
+  onInput: null,
+  onSelect: null,
+  onShow: null,
+  onHide: null
+};
+
+ColorPopup.prototype._normalizeOptions = function() {
+  this.options.palette = Array.isArray(this.options.palette) ?
+    this.options.palette.slice() :
+    [];
+  this.options.showAlpha = this.options.showAlpha !== false;
+  if (typeof this.options.normalize !== 'function') {
+    this.options.normalize = ColorPopup.defaults.normalize;
+  }
+};
+
+ColorPopup.prototype._build = function() {
+  var panel = document.createElement('div');
+  panel.className = ('fui-colorbox-panel ' + (this.options.className || '')).trim();
+  panel.hidden = true;
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'false');
+  panel.setAttribute('aria-label', this.options.ariaLabel);
+  document.body.appendChild(panel);
+  this.panel = panel;
+};
+
+ColorPopup.prototype._bind = function() {
+  var self = this;
+  this._onPanelPointerDown = function(event) {
+    self._handlePointerDown(event);
+  };
+  this._onPanelPointerMove = function(event) {
+    self._handlePointerMove(event);
+  };
+  this._onPanelPointerUp = function(event) {
+    self._handlePointerUp(event);
+  };
+  this._onDocumentPointerDown = function(event) {
+    if (self.visible &&
+      !self.panel.contains(event.target) &&
+      !self._containsTarget(event.target)) {
+      self.hide();
+    }
+  };
+  this._onDocumentKeyDown = function(event) {
+    if (event.key === 'Escape' && self.visible) {
+      event.preventDefault();
+      self.hide();
+    }
+  };
+  this._onWindowChange = function() {
+    if (self.visible) self.position();
+  };
+  this.panel.addEventListener('pointerdown', this._onPanelPointerDown);
+  this.panel.addEventListener('pointermove', this._onPanelPointerMove);
+  this.panel.addEventListener('pointerup', this._onPanelPointerUp);
+  this.panel.addEventListener('pointercancel', this._onPanelPointerUp);
+};
+
+ColorPopup.prototype._bindOpenEvents = function() {
+  if (this._openEventsBound) return;
+  this._openEventsBound = true;
+  document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
+  document.addEventListener('keydown', this._onDocumentKeyDown);
+  window.addEventListener('resize', this._onWindowChange);
+  window.addEventListener('scroll', this._onWindowChange, true);
+};
+
+ColorPopup.prototype._unbindOpenEvents = function() {
+  if (!this._openEventsBound) return;
+  this._openEventsBound = false;
+  document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
+  document.removeEventListener('keydown', this._onDocumentKeyDown);
+  window.removeEventListener('resize', this._onWindowChange);
+  window.removeEventListener('scroll', this._onWindowChange, true);
+};
+
+ColorPopup.prototype._containsTarget = function(target) {
+  var anchor = resolveColorPopupElement(this.options.anchor);
+  if (anchor && (anchor === target || anchor.contains(target))) return true;
+  return typeof this.options.containsTarget === 'function' &&
+    this.options.containsTarget(target) === true;
+};
+
+ColorPopup.prototype.setOptions = function(options) {
+  assignColorPopupOptions(this.options, options || {});
+  this._normalizeOptions();
+  this.panel.className = ('fui-colorbox-panel ' + (this.options.className || '')).trim();
+  this.panel.setAttribute('aria-label', this.options.ariaLabel);
+  this.render();
+  return this;
+};
+
+ColorPopup.prototype.setValue = function(value) {
+  var normalized = this.options.normalize(value);
+  this.value = value == null ? '' : String(value);
+  if (!this.dragState) {
+    this.state = createColorPopupState(normalized || '#ff0000', this.options.normalize);
+  }
+  this._updateSelection(normalized);
+  this._updateVisuals();
+  return this;
+};
+
+ColorPopup.prototype.render = function() {
+  var palette = document.createElement('div');
+  var controls = document.createElement('div');
+  var sv = document.createElement('div');
+  var svMarker = document.createElement('span');
+  var hue = document.createElement('div');
+  var hueMarker = document.createElement('span');
+  var alpha = document.createElement('div');
+  var alphaFill = document.createElement('span');
+  var alphaMarker = document.createElement('span');
+  var index;
+  var raw;
+  var normalized;
+  var swatch;
+  palette.className = 'fui-colorbox-palette';
+  palette.setAttribute('role', 'listbox');
+  for (index = 0; index < this.options.palette.length; index += 1) {
+    raw = this.options.palette[index];
+    normalized = this.options.normalize(raw);
+    if (!normalized) continue;
+    swatch = document.createElement('button');
+    swatch.type = 'button';
+    swatch.className = 'fui-colorbox-swatch';
+    swatch.setAttribute('role', 'option');
+    swatch.setAttribute('aria-label', String(raw));
+    swatch.title = String(raw);
+    swatch.dataset.value = String(raw);
+    swatch.dataset.normalizedValue = normalized;
+    swatch.style.backgroundColor = normalized;
+    palette.appendChild(swatch);
+  }
+  controls.className = 'fui-colorbox-controls';
+  sv.className = 'fui-colorbox-sv';
+  sv.setAttribute('aria-label', this.options.saturationText);
+  svMarker.className = 'fui-colorbox-marker fui-colorbox-sv-marker';
+  sv.appendChild(svMarker);
+  hue.className = 'fui-colorbox-hue';
+  hue.setAttribute('aria-label', this.options.hueText);
+  hueMarker.className = 'fui-colorbox-marker fui-colorbox-hue-marker';
+  hue.appendChild(hueMarker);
+  alpha.className = 'fui-colorbox-alpha';
+  alpha.setAttribute('aria-label', this.options.alphaText);
+  alphaFill.className = 'fui-colorbox-alpha-fill';
+  alphaMarker.className = 'fui-colorbox-marker fui-colorbox-alpha-marker';
+  alpha.appendChild(alphaFill);
+  alpha.appendChild(alphaMarker);
+  controls.appendChild(sv);
+  controls.appendChild(hue);
+  if (this.options.showAlpha) controls.appendChild(alpha);
+  this.panel.textContent = '';
+  this.panel.appendChild(palette);
+  this.panel.appendChild(controls);
+  this.paletteElement = palette;
+  this.saturationElement = sv;
+  this.hueElement = hue;
+  this.alphaElement = alpha;
+  this.panel.style.width = typeof this.options.panelWidth === 'number' ?
+    this.options.panelWidth + 'px' :
+    String(this.options.panelWidth || ColorPopup.defaults.panelWidth + 'px');
+  this._updateSelection(this.options.normalize(this.value));
+  this._updateVisuals();
+  return this;
+};
+
+ColorPopup.prototype._updateSelection = function(normalized) {
+  if (!this.paletteElement) return;
+  Array.prototype.forEach.call(this.paletteElement.children, function(swatch) {
+    var selected = Boolean(normalized) &&
+      swatch.dataset.normalizedValue === normalized;
+    swatch.classList.toggle('fui-colorbox-swatch-selected', selected);
+    swatch.setAttribute('aria-selected', selected ? 'true' : 'false');
+  });
+};
+
+ColorPopup.prototype._updateVisuals = function() {
+  var state = this.state ||
+    createColorPopupState('#ff0000', this.options.normalize);
+  var rgb = hsvToColorPopupRgb(state.h, state.s, state.v);
+  var svMarker = this.panel.querySelector('.fui-colorbox-sv-marker');
+  var hueMarker = this.panel.querySelector('.fui-colorbox-hue-marker');
+  var alphaFill = this.panel.querySelector('.fui-colorbox-alpha-fill');
+  var alphaMarker = this.panel.querySelector('.fui-colorbox-alpha-marker');
+  if (this.saturationElement) {
+    this.saturationElement.style.backgroundColor =
+      'hsl(' + Math.round(state.h) + ', 100%, 50%)';
+  }
+  if (svMarker) {
+    svMarker.style.left = (state.s * 100) + '%';
+    svMarker.style.top = ((1 - state.v) * 100) + '%';
+  }
+  if (hueMarker) hueMarker.style.top = (state.h / 360 * 100) + '%';
+  if (alphaFill) {
+    alphaFill.style.backgroundImage = 'linear-gradient(to right, rgba(' +
+      rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0), rgb(' +
+      rgb.r + ', ' + rgb.g + ', ' + rgb.b + '))';
+  }
+  if (alphaMarker) alphaMarker.style.left = (state.a * 100) + '%';
+};
+
+ColorPopup.prototype._handlePointerDown = function(event) {
+  var swatch = event.target.closest('.fui-colorbox-swatch');
+  var area;
+  var mode;
+  var value;
+  if (!this.visible) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (swatch) {
+    value = swatch.dataset.value;
+    this.setValue(value);
+    if (typeof this.options.onSelect === 'function') {
+      this.options.onSelect(value, this);
+    }
+    if (this.options.closeOnSelect) this.hide();
+    return;
+  }
+  area = event.target.closest('.fui-colorbox-sv');
+  mode = 'sv';
+  if (!area) {
+    area = event.target.closest('.fui-colorbox-hue');
+    mode = 'hue';
+  }
+  if (!area) {
+    area = event.target.closest('.fui-colorbox-alpha');
+    mode = 'alpha';
+  }
+  if (!area) return;
+  this.dragState = {
+    mode: mode,
+    element: area,
+    pointerId: event.pointerId
+  };
+  if (area.setPointerCapture && event.pointerId != null) {
+    area.setPointerCapture(event.pointerId);
+  }
+  this._updateFromPointer(event);
+};
+
+ColorPopup.prototype._handlePointerMove = function(event) {
+  if (!this.dragState) return;
+  event.preventDefault();
+  this._updateFromPointer(event);
+};
+
+ColorPopup.prototype._handlePointerUp = function(event) {
+  var drag = this.dragState;
+  if (!drag) return;
+  if (drag.element.releasePointerCapture && drag.pointerId != null) {
+    try {
+      drag.element.releasePointerCapture(drag.pointerId);
+    } catch (error) {
+      // Pointer capture may already be released.
+    }
+  }
+  this.dragState = null;
+  event.preventDefault();
+  if (this.options.closeOnDragEnd) this.hide();
+};
+
+ColorPopup.prototype._updateFromPointer = function(event) {
+  var drag = this.dragState;
+  var rect;
+  var x;
+  var y;
+  var value;
+  if (!drag || !drag.element) return;
+  rect = drag.element.getBoundingClientRect();
+  x = clampColorPopup(
+    (event.clientX - rect.left) / Math.max(1, rect.width),
+    0,
+    1
+  );
+  y = clampColorPopup(
+    (event.clientY - rect.top) / Math.max(1, rect.height),
+    0,
+    1
+  );
+  this.state = this.state ||
+    createColorPopupState(this.value || '#ff0000', this.options.normalize);
+  if (drag.mode === 'sv') {
+    this.state.s = x;
+    this.state.v = 1 - y;
+  } else if (drag.mode === 'hue') {
+    this.state.h = Math.min(359.999, y * 360);
+  } else if (drag.mode === 'alpha') {
+    this.state.a = x;
+  }
+  value = colorPopupStateToHex(this.state, this.options.showAlpha);
+  this.value = value;
+  this._updateSelection(this.options.normalize(value));
+  this._updateVisuals();
+  if (typeof this.options.onInput === 'function') {
+    this.options.onInput(value, this);
+  }
+};
+
+ColorPopup.prototype.show = function() {
+  var openClassHost;
+  if (this.destroyed || this.visible) return this;
+  if (activeColorPopup && activeColorPopup !== this) activeColorPopup.hide();
+  this.visible = true;
+  this.panel.hidden = false;
+  this._bindOpenEvents();
+  activeColorPopup = this;
+  openClassHost = resolveColorPopupElement(this.options.openClassHost);
+  if (openClassHost) openClassHost.classList.add('fui-colorbox-open');
+  this.position();
+  if (typeof this.options.onShow === 'function') this.options.onShow(this);
+  return this;
+};
+
+ColorPopup.prototype.hide = function() {
+  var openClassHost;
+  if (!this.visible) return this;
+  this.visible = false;
+  this.dragState = null;
+  this.panel.hidden = true;
+  this._unbindOpenEvents();
+  if (activeColorPopup === this) activeColorPopup = null;
+  openClassHost = resolveColorPopupElement(this.options.openClassHost);
+  if (openClassHost) openClassHost.classList.remove('fui-colorbox-open');
+  if (typeof this.options.onHide === 'function') this.options.onHide(this);
+  return this;
+};
+
+ColorPopup.prototype.toggle = function() {
+  return this.visible ? this.hide() : this.show();
+};
+
+ColorPopup.prototype.isOpen = function() {
+  return this.visible;
+};
+
+ColorPopup.prototype.handleKeyDown = function(event) {
+  if ((event.key === 'ArrowDown' && (event.altKey || event.metaKey)) ||
+    event.key === 'F4') {
+    event.preventDefault();
+    this.show();
+    return true;
+  }
+  if (event.key === 'Escape' && this.visible) {
+    event.preventDefault();
+    this.hide();
+    return true;
+  }
+  return false;
+};
+
+ColorPopup.prototype.position = function() {
+  var anchor = resolveColorPopupElement(this.options.anchor);
+  var rect;
+  var width;
+  var height;
+  var left;
+  var top;
+  if (!this.visible || !anchor) return this;
+  rect = anchor.getBoundingClientRect();
+  width = this.panel.offsetWidth;
+  height = this.panel.offsetHeight;
+  left = rect.left;
+  top = rect.bottom + 2;
+  if (left + width > window.innerWidth - 6) {
+    left = Math.max(6, window.innerWidth - width - 6);
+  }
+  if (top + height > window.innerHeight - 6 && rect.top > height + 8) {
+    top = rect.top - height - 2;
+  }
+  this.panel.style.left = Math.round(left) + 'px';
+  this.panel.style.top = Math.round(top) + 'px';
+  return this;
+};
+
+ColorPopup.prototype.destroy = function() {
+  if (this.destroyed) return;
+  this.hide();
+  this.destroyed = true;
+  this.panel.removeEventListener('pointerdown', this._onPanelPointerDown);
+  this.panel.removeEventListener('pointermove', this._onPanelPointerMove);
+  this.panel.removeEventListener('pointerup', this._onPanelPointerUp);
+  this.panel.removeEventListener('pointercancel', this._onPanelPointerUp);
+  this._unbindOpenEvents();
+  if (this.panel.parentNode) this.panel.parentNode.removeChild(this.panel);
+};
+
+
+
+
+function createColorEditBoxFactory(TextBox, editorDefinitions) {
+  'use strict';
+
+  if (typeof TextBox !== 'function') {
+    throw new Error('fabui.ColorEditBox requires fabui.TextBox.');
+  }
+
+  editorDefinitions = editorDefinitions || {};
+  var editorDefinition = editorDefinitions.color || null;
+
+  var localePacks = {
+    en: {
+      openColorText: 'Open color palette',
+      saturationText: 'Saturation and brightness',
+      hueText: 'Hue',
+      alphaText: 'Alpha'
+    },
+    'zh-TW': {
+      openColorText: '開啟色盤',
+      saturationText: '飽和度與明度',
+      hueText: '色相',
+      alphaText: '透明度'
+    },
+    'zh-CN': {
+      openColorText: '打开色板',
+      saturationText: '饱和度与明度',
+      hueText: '色相',
+      alphaText: '透明度'
+    }
+  };
+
+  var defaultPalette = [
+    '#ffffff', '#000000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#7030a0',
+    '#f2f2f2', '#737373', '#ffe5e5', '#fff9e5', '#ffffe5', '#f3ffe5', '#e5fff1', '#e5f8ff', '#e5f4ff', '#f4e5ff',
+    '#d9d9d9', '#595959', '#e6a1a1', '#e6d4a1', '#e5e6a1', '#c4e6a1', '#a1e6c0', '#a1d3e6', '#a1c9e6', '#c8a1e6',
+    '#bfbfbf', '#404040', '#cc6666', '#ccb366', '#cccc66', '#9bcc66', '#66cc94', '#66b1cc', '#66a2cc', '#a066cc',
+    '#a6a6a6', '#262626', '#b23636', '#b29436', '#b2b236', '#76b236', '#36b26e', '#3691b2', '#367eb2', '#7d36b2',
+    '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
+  ];
+
+  var defaults = {
+    iconWidth: 28,
+    panelWidth: 420,
+    locale: 'en',
+    openColorText: null,
+    saturationText: null,
+    hueText: null,
+    alphaText: null,
+    palette: defaultPalette,
+    colors: null,
+    showAlpha: true,
+    onChange: null,
+    onSelect: null,
+    onShowPanel: null,
+    onHidePanel: null
+  };
+
+  function assign(target) {
+    var index;
+    var source;
+    var key;
+    for (index = 1; index < arguments.length; index += 1) {
+      source = arguments[index] || {};
+      for (key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+      }
+    }
+    return target;
+  }
+
+  function resolveElement(element) {
+    return typeof element === 'string' ? document.querySelector(element) : element;
+  }
+
+  function normalizeLocale(name) {
+    if (localePacks[name]) return name;
+    if (/^zh(?:-|_)?tw/i.test(name || '')) return 'zh-TW';
+    if (/^zh/i.test(name || '')) return 'zh-CN';
+    return 'en';
+  }
+
+  function ColorEditBox(element, options) {
+    var source = resolveElement(element);
+    var userOptions = options || {};
+    var textOptions;
+    var icons;
+    var self = this;
+    if (!(this instanceof ColorEditBox)) return new ColorEditBox(element, options);
+    if (!source || !/^(INPUT|TEXTAREA)$/.test(source.tagName)) {
+      throw new Error('fabui.ColorEditBox requires an input or textarea element.');
+    }
+    if (source.__fabuiColorEditBox) return source.__fabuiColorEditBox;
+
+    this._source = source;
+    this._listeners = {};
+    this._panelVisible = false;
+    this._destroyed = false;
+    this._options = assign({}, defaults, userOptions);
+    this._options.locale = normalizeLocale(this._options.locale);
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'openColorText')) {
+      this._options.openColorText = localePacks[this._options.locale].openColorText;
+    }
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'saturationText')) {
+      this._options.saturationText = localePacks[this._options.locale].saturationText;
+    }
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'hueText')) {
+      this._options.hueText = localePacks[this._options.locale].hueText;
+    }
+    if (!Object.prototype.hasOwnProperty.call(userOptions, 'alphaText')) {
+      this._options.alphaText = localePacks[this._options.locale].alphaText;
+    }
+    this._options.palette = Array.isArray(this._options.palette) ?
+      this._options.palette.slice() :
+      defaultPalette.slice();
+    if (Array.isArray(this._options.colors) && this._options.colors.length) {
+      this._options.palette = this._options.colors.slice();
+    }
+    this._options.showAlpha = this._options.showAlpha !== false;
+
+    icons = normalizeEditorIconDescriptors(this._options.icons);
+    icons.push({
+      iconCls: 'fui-colorbox-trigger fui-combobox-arrow',
+      align: 'right',
+      width: this._options.iconWidth,
+      title: this._options.openColorText,
+      onClick: function() { self.togglePanel(); }
+    });
+    textOptions = assign({}, userOptions, {
+      cls: ((this._options.cls || '') + ' fui-colorbox').trim(),
+      icons: icons,
+      onChange: function(newValue, oldValue) {
+        self._syncColor();
+        self._invoke('onChange', newValue, oldValue);
+        self._emit('change', { value: newValue, oldValue: oldValue });
+      }
+    });
+    this._textbox = new TextBox(source, textOptions);
+    this._editor = this._textbox.textbox();
+    if (editorDefinition && editorDefinition.className) {
+      editorDefinition.className.split(/\s+/).forEach(function(className) {
+        if (className) self._editor.classList.add(className);
+      });
+    }
+    this._field = this._editor.closest('.fui-textbox-field');
+    this._shell = this._editor.closest('.fui-textbox');
+    this._trigger = this._textbox.getIcon(icons.length - 1);
+    this._colorPopup = new ColorPopup({
+      anchor: this._shell,
+      openClassHost: this._shell,
+      panelWidth: this._options.panelWidth,
+      ariaLabel: this._options.openColorText,
+      saturationText: this._options.saturationText,
+      hueText: this._options.hueText,
+      alphaText: this._options.alphaText,
+      palette: this._options.palette,
+      showAlpha: this._options.showAlpha,
+      normalize: this._normalizeColor.bind(this),
+      onInput: function(value) {
+        self._textbox.setValue(value);
+      },
+      onSelect: function(value) {
+        self.setValue(value);
+        self._invoke('onSelect', self.getValue());
+        self._emit('select', { value: self.getValue() });
+      },
+      onShow: function() {
+        self._panelVisible = true;
+        self._invoke('onShowPanel');
+        self._emit('showPanel', { panel: self._colorPopup.panel });
+      },
+      onHide: function() {
+        self._panelVisible = false;
+        self._invoke('onHidePanel');
+        self._emit('hidePanel', { panel: self._colorPopup.panel });
+      }
+    });
+    this._panel = this._colorPopup.panel;
+    this._syncColor();
+    source.__fabuiColorEditBox = this;
+  }
+
+  ColorEditBox.prototype._normalizeColor = function(value) {
+    if (!editorDefinition || typeof editorDefinition.normalize !== 'function') {
+      return value == null ? '' : String(value);
+    }
+    return editorDefinition.normalize(value);
+  };
+
+  ColorEditBox.prototype._parseColor = function(value) {
+    if (!editorDefinition || typeof editorDefinition.parse !== 'function') {
+      return value == null ? '' : String(value);
+    }
+    return editorDefinition.parse(value);
+  };
+
+  ColorEditBox.prototype._syncColor = function() {
+    var normalized = this._normalizeColor(this.getValue());
+    if (this._trigger) {
+      this._trigger.style.setProperty('--fui-colorbox-value', normalized || 'transparent');
+    }
+    this._editor.style.setProperty('--fui-colorbox-value', normalized || 'transparent');
+    this._editor.style.setProperty('--fg-editor-color', normalized || 'transparent');
+    this._colorPopup.setValue(this.getValue());
+  };
+
+  ColorEditBox.prototype._invoke = function(name) {
+    var callback = this._options[name];
+    if (typeof callback === 'function') {
+      return callback.apply(this, Array.prototype.slice.call(arguments, 1));
+    }
+    return undefined;
+  };
+
+  ColorEditBox.prototype._emit = function(name, detail) {
+    (this._listeners[name] || []).slice().forEach(function(listener) {
+      listener(detail);
+    });
+  };
+
+  ColorEditBox.prototype.options = function() { return this._options; };
+  ColorEditBox.prototype.textbox = function() { return this._textbox.textbox(); };
+  ColorEditBox.prototype.button = function() { return this._textbox.button(); };
+  ColorEditBox.prototype.panel = function() { return this._colorPopup.panel; };
+  ColorEditBox.prototype.getIcon = function(index) { return this._textbox.getIcon(index); };
+  ColorEditBox.prototype.getText = function() { return this._textbox.getText(); };
+  ColorEditBox.prototype.getValue = function() { return this._textbox.getValue(); };
+
+  ColorEditBox.prototype.setText = function(value) {
+    return this.setValue(value);
+  };
+
+  ColorEditBox.prototype.setValue = function(value, silent) {
+    this._textbox.setValue(this._parseColor(value), silent);
+    this._syncColor();
+    return this;
+  };
+
+  ColorEditBox.prototype.initValue = function(value) {
+    this._textbox.initValue(this._parseColor(value));
+    this._syncColor();
+    return this;
+  };
+
+  ColorEditBox.prototype.clear = function() {
+    return this.setValue('');
+  };
+
+  ColorEditBox.prototype.reset = function() {
+    this._textbox.reset();
+    this._syncColor();
+    return this;
+  };
+
+  ColorEditBox.prototype.focus = function() {
+    this._textbox.focus();
+    return this;
+  };
+
+  ColorEditBox.prototype.showPanel = function() {
+    if (this._options.disabled || this._options.readonly) return this;
+    this._colorPopup.setOptions({
+      anchor: this._shell,
+      openClassHost: this._shell,
+      panelWidth: this._options.panelWidth,
+      ariaLabel: this._options.openColorText,
+      saturationText: this._options.saturationText,
+      hueText: this._options.hueText,
+      alphaText: this._options.alphaText,
+      palette: this._options.palette,
+      showAlpha: this._options.showAlpha
+    });
+    this._colorPopup.setValue(this.getValue() || '#ff0000');
+    this._colorPopup.show();
+    return this;
+  };
+
+  ColorEditBox.prototype.hidePanel = function() {
+    this._colorPopup.hide();
+    return this;
+  };
+
+  ColorEditBox.prototype.togglePanel = function() {
+    if (this._colorPopup.isOpen()) return this.hidePanel();
+    return this.showPanel();
+  };
+
+  ColorEditBox.prototype.resize = function(width, height) {
+    if (width != null) this._options.width = width;
+    if (height != null) this._options.height = height;
+    this._textbox.resize(width, height);
+    this._colorPopup.position();
+    return this;
+  };
+
+  ColorEditBox.prototype.disable = function() {
+    this.hidePanel();
+    this._options.disabled = true;
+    this._textbox.disable();
+    return this;
+  };
+
+  ColorEditBox.prototype.enable = function() {
+    this._options.disabled = false;
+    this._textbox.enable();
+    return this;
+  };
+
+  ColorEditBox.prototype.readonly = function(mode) {
+    this._options.readonly = mode !== false;
+    if (this._options.readonly) this.hidePanel();
+    this._textbox.readonly(mode);
+    return this;
+  };
+
+  ColorEditBox.prototype.setEditable = function(mode) {
+    this._options.editable = mode !== false;
+    this._textbox.setEditable(mode);
+    return this;
+  };
+
+  ColorEditBox.prototype.on = function(name, listener) {
+    if (typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  ColorEditBox.prototype.off = function(name, listener) {
+    var listeners = this._listeners[name];
+    if (!listeners) return this;
+    this._listeners[name] = listener ? listeners.filter(function(item) {
+      return item !== listener;
+    }) : [];
+    return this;
+  };
+
+  ColorEditBox.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._colorPopup.destroy();
+    delete this._source.__fabuiColorEditBox;
+    this._textbox.destroy();
+    this._listeners = {};
+  };
+
+  ColorEditBox.defaults = defaults;
+  ColorEditBox.editorDefinition = editorDefinition;
+  return ColorEditBox;
+}
+
+
+
+
+
+
+
+
+var EDITOR_TYPES = ['text', 'number', 'date', 'combo', 'color'];
+
+function assignEditBoxOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+}
+
+function resolveElement(element) {
+  return typeof element === 'string' ? document.querySelector(element) : element;
+}
+
+function normalizeEditorType(value) {
+  var type = String(value == null ? '' : value).toLowerCase();
+  if (type === 'text' || type === 'textbox') return 'text';
+  if (type === 'number' || type === 'numberbox' || type === 'numeric') return 'number';
+  if (type === 'date' || type === 'datebox' || type === 'calendar') return 'date';
+  if (type === 'combo' || type === 'combobox' || type === 'select' || type === 'dropdown') return 'combo';
+  if (type === 'colour' || type === 'colorbox' || type === 'colourbox') return 'color';
+  return EDITOR_TYPES.indexOf(type) >= 0 ? type : '';
+}
+
+function normalizeDefinitionName(value) {
+  return normalizeEditorType(value) || String(value == null ? '' : value).toLowerCase();
+}
+
+function inferEditorType(element, options) {
+  var explicit = normalizeEditorType(
+    options.editor || options.editType || options.kind
+  );
+  var inputType;
+  if (explicit) return explicit;
+  if (normalizeEditorType(options.type)) return normalizeEditorType(options.type);
+  if (element && element.tagName === 'SELECT') return 'combo';
+  inputType = element && element.getAttribute ? String(element.getAttribute('type') || '').toLowerCase() : '';
+  if (inputType === 'number') return 'number';
+  if (inputType === 'date' || inputType === 'month') return 'date';
+  if (inputType === 'color') return 'color';
+  return 'text';
+}
+
+function createEditBoxFactory(editorDefinitions) {
+  var definitions = editorDefinitions || createEditorDefinitions();
+  var TextBox = createTextBoxFactory(definitions);
+  var NumberBox = createNumberBoxFactory(TextBox, definitions);
+  var DateBox = createDateBoxFactory(TextBox, definitions);
+  var ComboBox = createComboBoxFactory(TextBox, definitions);
+  var ColorEditBox = createColorEditBoxFactory(TextBox, definitions);
+  var factories = {
+    text: TextBox,
+    number: NumberBox,
+    date: DateBox,
+    combo: ComboBox,
+    color: ColorEditBox
+  };
+
+  function EditBox(element, options) {
+    var childOptions;
+    var factory;
+    if (!(this instanceof EditBox)) {
+      return new EditBox(element, options);
+    }
+    this._source = resolveElement(element);
+    if (!this._source || !/^(INPUT|TEXTAREA|SELECT)$/.test(this._source.tagName)) {
+      throw new Error('fabui.EditBox requires an input, textarea, or select element.');
+    }
+    if (this._source.__fabuiEditBox) {
+      return this._source.__fabuiEditBox;
+    }
+    options = options || {};
+    this._editorType = inferEditorType(this._source, options);
+    factory = factories[this._editorType];
+    if (!factory) {
+      throw new Error('Unsupported fabui.EditBox editor: ' + String(options.editor || options.type || ''));
+    }
+    if (this._source.tagName === 'SELECT' && this._editorType !== 'combo') {
+      throw new Error('fabui.EditBox select elements require editor "combo".');
+    }
+    childOptions = assignEditBoxOptions({}, options);
+    delete childOptions.editor;
+    delete childOptions.editType;
+    delete childOptions.kind;
+    if (normalizeEditorType(childOptions.type)) {
+      delete childOptions.type;
+    }
+    childOptions.cls = 'fui-editbox' + (childOptions.cls ? ' ' + childOptions.cls : '');
+    this._destroyed = false;
+    this._control = new factory(this._source, childOptions);
+    this._source.__fabuiEditBox = this;
+  }
+
+  EditBox.prototype.getEditorType = function() {
+    return this._editorType;
+  };
+
+  EditBox.prototype.getDefinition = function(name) {
+    return definitions[normalizeDefinitionName(name || this._editorType)] || null;
+  };
+
+  EditBox.prototype.options = function() {
+    var options = this._control.options();
+    options.editor = this._editorType;
+    return options;
+  };
+
+  EditBox.prototype.textbox = function() {
+    return this._control.textbox();
+  };
+
+  EditBox.prototype.button = function() {
+    return typeof this._control.button === 'function' ? this._control.button() : null;
+  };
+
+  EditBox.prototype.panel = function() {
+    return typeof this._control.panel === 'function' ? this._control.panel() : null;
+  };
+
+  EditBox.prototype.calendar = function() {
+    return typeof this._control.calendar === 'function' ? this._control.calendar() : null;
+  };
+
+  EditBox.prototype.getIcon = function(index) {
+    return this._control.getIcon(index);
+  };
+
+  EditBox.prototype.getText = function() {
+    return this._control.getText();
+  };
+
+  EditBox.prototype.setText = function(value) {
+    this._control.setText(value);
+    return this;
+  };
+
+  EditBox.prototype.getValue = function() {
+    return this._control.getValue();
+  };
+
+  EditBox.prototype.setValue = function(value, silent) {
+    this._control.setValue(value, silent);
+    return this;
+  };
+
+  EditBox.prototype.getNumber = function() {
+    if (typeof this._control.getNumber !== 'function') return null;
+    return this._control.getNumber();
+  };
+
+  EditBox.prototype.getDate = function() {
+    if (typeof this._control.getDate !== 'function') return null;
+    return this._control.getDate();
+  };
+
+  EditBox.prototype.getData = function() {
+    if (typeof this._control.getData !== 'function') return [];
+    return this._control.getData();
+  };
+
+  EditBox.prototype.getValues = function() {
+    if (typeof this._control.getValues !== 'function') return [this.getValue()];
+    return this._control.getValues();
+  };
+
+  EditBox.prototype.setValues = function(values, silent) {
+    if (typeof this._control.setValues !== 'function') {
+      return this.setValue(Array.isArray(values) ? values[0] : values, silent);
+    }
+    this._control.setValues(values, silent);
+    return this;
+  };
+
+  EditBox.prototype.select = function(value) {
+    if (typeof this._control.select !== 'function') {
+      throw new Error('fabui.EditBox select() requires editor "combo".');
+    }
+    this._control.select(value);
+    return this;
+  };
+
+  EditBox.prototype.unselect = function(value) {
+    if (typeof this._control.unselect !== 'function') {
+      throw new Error('fabui.EditBox unselect() requires editor "combo".');
+    }
+    this._control.unselect(value);
+    return this;
+  };
+
+  EditBox.prototype.scrollTo = function(value) {
+    if (typeof this._control.scrollTo !== 'function') {
+      throw new Error('fabui.EditBox scrollTo() requires editor "combo".');
+    }
+    this._control.scrollTo(value);
+    return this;
+  };
+
+  EditBox.prototype.setDate = function(value, silent) {
+    if (typeof this._control.setDate !== 'function') {
+      throw new Error('fabui.EditBox setDate() requires editor "date".');
+    }
+    this._control.setDate(value, silent);
+    return this;
+  };
+
+  EditBox.prototype.initValue = function(value) {
+    this._control.initValue(value);
+    return this;
+  };
+
+  EditBox.prototype.clear = function() {
+    this._control.clear();
+    return this;
+  };
+
+  EditBox.prototype.reset = function() {
+    this._control.reset();
+    return this;
+  };
+
+  EditBox.prototype.focus = function() {
+    this._control.focus();
+    return this;
+  };
+
+  EditBox.prototype.resize = function(width, height) {
+    this._control.resize(width, height);
+    return this;
+  };
+
+  EditBox.prototype.disable = function() {
+    this._control.disable();
+    return this;
+  };
+
+  EditBox.prototype.enable = function() {
+    this._control.enable();
+    return this;
+  };
+
+  EditBox.prototype.readonly = function(mode) {
+    this._control.readonly(mode);
+    return this;
+  };
+
+  EditBox.prototype.setEditable = function(mode) {
+    this._control.setEditable(mode);
+    return this;
+  };
+
+  EditBox.prototype.setTheme = function(theme) {
+    if (typeof this._control.setTheme !== 'function') {
+      throw new Error('fabui.EditBox setTheme() requires editor "date".');
+    }
+    this._control.setTheme(theme);
+    return this;
+  };
+
+  EditBox.prototype.fix = function() {
+    if (typeof this._control.fix === 'function') this._control.fix();
+    return this;
+  };
+
+  EditBox.prototype.showPanel = function() {
+    if (typeof this._control.showPanel === 'function') this._control.showPanel();
+    return this;
+  };
+
+  EditBox.prototype.hidePanel = function() {
+    if (typeof this._control.hidePanel === 'function') this._control.hidePanel();
+    return this;
+  };
+
+  EditBox.prototype.togglePanel = function() {
+    if (typeof this._control.togglePanel === 'function') this._control.togglePanel();
+    return this;
+  };
+
+  EditBox.prototype.loadData = function(data, silent) {
+    if (typeof this._control.loadData !== 'function') {
+      throw new Error('fabui.EditBox loadData() requires editor "combo".');
+    }
+    this._control.loadData(data, silent);
+    return this;
+  };
+
+  EditBox.prototype.reload = function(urlOrParams) {
+    if (typeof this._control.reload !== 'function') {
+      throw new Error('fabui.EditBox reload() requires editor "combo".');
+    }
+    this._control.reload(urlOrParams);
+    return this;
+  };
+
+  EditBox.prototype.cloneFrom = function(from) {
+    var source = from instanceof EditBox ? from._control : from;
+    if (typeof this._control.cloneFrom !== 'function') {
+      throw new Error('fabui.EditBox cloneFrom() requires editor "date".');
+    }
+    this._control.cloneFrom(source);
+    return this;
+  };
+
+  EditBox.prototype.on = function(name, listener) {
+    this._control.on(name, listener);
+    return this;
+  };
+
+  EditBox.prototype.off = function(name, listener) {
+    this._control.off(name, listener);
+    return this;
+  };
+
+  EditBox.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    delete this._source.__fabuiEditBox;
+    this._control.destroy();
+    this._control = null;
+  };
+
+  EditBox.prototype.dispose = EditBox.prototype.destroy;
+
+  EditBox.editorDefinitions = definitions;
+  EditBox.editorTypes = EDITOR_TYPES.slice();
+  EditBox.getEditorDefinition = function(name) {
+    return definitions[normalizeDefinitionName(name)] || null;
+  };
+  EditBox.getControl = function(element) {
+    element = resolveElement(element);
+    return element && element.__fabuiEditBox ? element.__fabuiEditBox : null;
+  };
+  return EditBox;
+}
+
+var editorDefinitions = createEditorDefinitions();
+var EditBox = createEditBoxFactory(editorDefinitions);
+
+
+var MENU_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+var activeMenu = null;
+var menuZIndex = 110000;
+
+function assignMenuOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveMenuElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function menuNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function menuBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function restoreMenuAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function directElementChildren(element) {
+  return Array.prototype.filter.call(element.children || [], function(child) {
+    return child.nodeType === 1;
+  });
+}
+
+function directChildByTag(element, tagName) {
+  var children = directElementChildren(element);
+  var index;
+  for (index = 0; index < children.length; index += 1) {
+    if (children[index].tagName === tagName) return children[index];
+  }
+  return null;
+}
+
+function directChildByClass(element, className) {
+  var children = directElementChildren(element);
+  var index;
+  for (index = 0; index < children.length; index += 1) {
+    if (children[index].classList.contains(className)) return children[index];
+  }
+  return null;
+}
+
+function readMenuItemText(element) {
+  var label = directChildByTag(element, 'SPAN');
+  var clone;
+  var nested;
+  if (label) return label.textContent == null ? '' : label.textContent.trim();
+  clone = element.cloneNode(true);
+  nested = directElementChildren(clone);
+  nested.forEach(function(child) {
+    if (child.tagName === 'DIV') child.remove();
+  });
+  return clone.textContent == null ? '' : clone.textContent.trim();
+}
+
+function parseMenuDataValue(value) {
+  value = String(value == null ? '' : value).trim();
+  if (!value) return '';
+  if (
+    (value.charAt(0) === '\'' && value.charAt(value.length - 1) === '\'') ||
+    (value.charAt(0) === '"' && value.charAt(value.length - 1) === '"')
+  ) {
+    return value.slice(1, -1);
+  }
+  if (/^(?:true|false)$/i.test(value)) return value.toLowerCase() === 'true';
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
+  return value;
+}
+
+function parseMenuDataOptions(source) {
+  var options = {};
+  var pattern = /([A-Za-z_$][\w$-]*)\s*:\s*("(?:\\.|[^"])*"|'(?:\\.|[^'])*'|[^,]+)/g;
+  var match;
+  source = String(source == null ? '' : source);
+  while ((match = pattern.exec(source))) {
+    options[match[1]] = parseMenuDataValue(match[2]);
+  }
+  return options;
+}
+
+function normalizeMenuTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return MENU_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeMenuAlign(value) {
+  return String(value || 'left').toLowerCase() === 'right' ? 'right' : 'left';
+}
+
+function normalizeMenuLocale(value) {
+  value = String(value || 'en');
+  return value === 'zh-TW' || value === 'zh-CN' ? value : 'en';
+}
+
+function findMenuTheme(element) {
+  var current = resolveMenuElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < MENU_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + MENU_THEMES[index])) {
+        return MENU_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function createMenuFactory(Control, registerControl, unregisterControl) {
+  var localePacks = {
+    en: {
+      menu: 'Menu',
+      submenu: 'Submenu'
+    },
+    'zh-TW': {
+      menu: '選單',
+      submenu: '子選單'
+    },
+    'zh-CN': {
+      menu: '菜单',
+      submenu: '子菜单'
+    }
+  };
+
+  function FabMenu(element, options) {
+    var host = resolveMenuElement(element);
+    var markupItems;
+    if (!(this instanceof FabMenu)) return new FabMenu(element, options);
+    if (!host) throw new Error('fabui.Menu requires a host element.');
+    if (host.__fabuiMenu) return host.__fabuiMenu;
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._visible = false;
+    this._activeItem = null;
+    this._pointerInside = false;
+    this._hideTimer = null;
+    this._openEventsBound = false;
+    this._itemId = 1;
+    this._original = {
+      html: host.innerHTML,
+      className: host.getAttribute('class'),
+      style: host.getAttribute('style'),
+      role: host.getAttribute('role'),
+      tabIndex: host.getAttribute('tabindex'),
+      ariaLabel: host.getAttribute('aria-label'),
+      hidden: host.hidden,
+      parent: host.parentNode,
+      nextSibling: host.nextSibling
+    };
+    this._themeSource = host.parentElement || document.body;
+    this._options = assignMenuOptions({}, FabMenu.defaults, this._readElementOptions(), options || {});
+    this._options.align = normalizeMenuAlign(this._options.align);
+    this._options.locale = normalizeMenuLocale(this._options.locale);
+    this._options.minWidth = Math.max(0, menuNumber(this._options.minWidth, 120));
+    this._options.itemHeight = Math.max(22, menuNumber(this._options.itemHeight, 32));
+    this._options.duration = Math.max(0, menuNumber(this._options.duration, 100));
+    this._options.hideOnUnhover = menuBoolean(this._options.hideOnUnhover, true);
+    this._options.inline = menuBoolean(this._options.inline, false);
+    this._options.fit = menuBoolean(this._options.fit, false);
+    markupItems = this._readMarkupItems(host);
+    this.items = markupItems.length ? markupItems : this._normalizeItems(this._options.items, null);
+    this._build();
+    this._render();
+    this._bind();
+    host.__fabuiMenu = this;
+    registerControl(host, this);
+    this.setTheme(this._options.theme);
+    if (this._options.inline) this.show();
+  }
+
+  FabMenu.prototype = Object.create(Control.prototype);
+  FabMenu.prototype.constructor = FabMenu;
+
+  FabMenu.prototype._getText = function(key) {
+    return localePacks[this._options.locale][key] || localePacks.en[key] || key;
+  };
+
+  FabMenu.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var options = {};
+    var value;
+    var parsed;
+    value = host.getAttribute('theme') || host.getAttribute('data-theme');
+    if (value) options.theme = value;
+    value = host.getAttribute('locale') || host.getAttribute('data-locale');
+    if (value) options.locale = value;
+    value = host.getAttribute('align') || host.getAttribute('data-align');
+    if (value) options.align = value;
+    value = host.getAttribute('aria-label');
+    if (value) options.ariaLabel = value;
+    ['minWidth', 'itemHeight', 'duration', 'zIndex', 'left', 'top'].forEach(function(name) {
+      var attribute = host.getAttribute(name);
+      if (attribute == null) attribute = host.getAttribute('data-' + name.replace(/[A-Z]/g, function(letter) {
+        return '-' + letter.toLowerCase();
+      }));
+      if (attribute != null && attribute !== '') options[name] = Number(attribute);
+    });
+    ['hideOnUnhover', 'inline', 'fit'].forEach(function(name) {
+      var attribute = host.getAttribute(name);
+      if (attribute == null) attribute = host.getAttribute('data-' + name.replace(/[A-Z]/g, function(letter) {
+        return '-' + letter.toLowerCase();
+      }));
+      if (attribute != null) options[name] = menuBoolean(attribute, false);
+    });
+    parsed = parseMenuDataOptions(host.getAttribute('data-options'));
+    return assignMenuOptions(options, parsed);
+  };
+
+  FabMenu.prototype._readMarkupItem = function(element, parent) {
+    var data;
+    var nested;
+    var customContent;
+    var item;
+    var children;
+    if (element.classList.contains('menu-sep') || element.classList.contains('fui-menu-separator')) {
+      return this._normalizeItem({ separator: true }, parent);
+    }
+    data = parseMenuDataOptions(element.getAttribute('data-options'));
+    nested = directElementChildren(element).filter(function(child) {
+      return child.tagName === 'DIV' && !child.classList.contains('menu-content');
+    })[0] || null;
+    customContent = directChildByClass(element, 'menu-content');
+    item = this._normalizeItem(assignMenuOptions({
+      id: element.id || null,
+      text: readMenuItemText(element),
+      iconCls: element.getAttribute('iconCls') ||
+        element.getAttribute('data-icon-cls') ||
+        null,
+      name: element.getAttribute('name') || element.getAttribute('data-name') || null,
+      href: element.getAttribute('href') || element.getAttribute('data-href') || null,
+      disabled: element.classList.contains('menu-item-disabled') ||
+        menuBoolean(element.getAttribute('disabled'), false),
+      hidden: element.hidden
+    }, data), parent);
+    if (customContent) item.content = customContent.innerHTML;
+    if (nested) {
+      children = this._readMarkupItems(nested, item);
+      item.children = children;
+      item.submenuWidth = nested.style.width || item.submenuWidth;
+    }
+    return item;
+  };
+
+  FabMenu.prototype._readMarkupItems = function(container, parent) {
+    var self = this;
+    return directElementChildren(container).map(function(element) {
+      return self._readMarkupItem(element, parent || null);
+    });
+  };
+
+  FabMenu.prototype._normalizeItems = function(items, parent) {
+    var self = this;
+    return (Array.isArray(items) ? items : []).map(function(item) {
+      return self._normalizeItem(item, parent);
+    });
+  };
+
+  FabMenu.prototype._normalizeItem = function(options, parent) {
+    var item = assignMenuOptions({
+      id: null,
+      name: null,
+      text: '',
+      iconCls: null,
+      href: null,
+      disabled: false,
+      hidden: false,
+      separator: false,
+      onclick: null,
+      onClick: null,
+      content: null,
+      submenuWidth: null,
+      children: [],
+      parent: parent || null,
+      target: null
+    }, options || {});
+    item._menuKey = this._itemId;
+    this._itemId += 1;
+    item.text = item.text == null ? '' : String(item.text);
+    item.disabled = menuBoolean(item.disabled, false);
+    item.hidden = menuBoolean(item.hidden, false);
+    item.separator = menuBoolean(item.separator, false);
+    item.submenuWidth = item.submenuWidth || null;
+    item.parent = parent || null;
+    item.children = this._normalizeItems(item.children, item);
+    return item;
+  };
+
+  FabMenu.prototype._build = function() {
+    var host = this.hostElement;
+    if (!this._options.inline && host.parentNode !== document.body) {
+      document.body.appendChild(host);
+    }
+    host.textContent = '';
+    host.className = (
+      (this._original.className ? this._original.className + ' ' : '') +
+      'fui-menu' +
+      (this._options.inline ? ' fui-menu-inline' : '')
+    ).trim();
+    host.setAttribute('role', 'menu');
+    host.setAttribute('aria-label', this._options.ariaLabel || this._getText('menu'));
+    host.tabIndex = -1;
+    host.hidden = !this._options.inline;
+    host.style.minWidth = this._options.minWidth + 'px';
+    host.style.setProperty('--fui-menu-item-height', this._options.itemHeight + 'px');
+    host.style.zIndex = String(menuNumber(this._options.zIndex, 110000));
+    this.listElement = document.createElement('div');
+    this.listElement.className = 'fui-menu-list';
+    this.listElement.setAttribute('role', 'presentation');
+    host.appendChild(this.listElement);
+  };
+
+  FabMenu.prototype._render = function() {
+    var fragment = document.createDocumentFragment();
+    var self = this;
+    this._closeSubmenus();
+    this._activeItem = null;
+    this.listElement.textContent = '';
+    this.items.forEach(function(item) {
+      fragment.appendChild(self._renderItem(item));
+    });
+    this.listElement.appendChild(fragment);
+    if (this._options.fit && this._options.inline && this.hostElement.parentElement) {
+      this.hostElement.style.width = '100%';
+    }
+    return this;
+  };
+
+  FabMenu.prototype._renderItem = function(item) {
+    var element = document.createElement('div');
+    var iconCell;
+    var icon;
+    var text;
+    var arrow;
+    var submenu;
+    var content;
+    var self = this;
+    if (item.separator) {
+      element.className = 'fui-menu-separator';
+      element.setAttribute('role', 'separator');
+      element.hidden = item.hidden;
+      item.target = element;
+      element.__fabuiMenuItem = item;
+      return element;
+    }
+    element.className = 'fui-menu-item';
+    element.setAttribute('role', 'menuitem');
+    element.setAttribute('data-menu-key', item._menuKey);
+    element.tabIndex = -1;
+    element.hidden = item.hidden;
+    if (item.id) element.id = item.id;
+    if (item.disabled) {
+      element.classList.add('fui-menu-item-disabled');
+      element.setAttribute('aria-disabled', 'true');
+    }
+    iconCell = document.createElement('span');
+    iconCell.className = 'fui-menu-icon-cell';
+    icon = document.createElement('span');
+    icon.className = 'fui-menu-icon' + (item.iconCls ? ' ' + item.iconCls : '');
+    iconCell.appendChild(icon);
+    text = document.createElement('span');
+    text.className = 'fui-menu-text';
+    text.textContent = item.text;
+    arrow = document.createElement('span');
+    arrow.className = 'fui-menu-arrow';
+    element.appendChild(iconCell);
+    element.appendChild(text);
+    element.appendChild(arrow);
+    item.target = element;
+    item.iconElement = icon;
+    item.textElement = text;
+    item.arrowElement = arrow;
+    element.__fabuiMenuItem = item;
+    if (item.children.length || item.content != null) {
+      element.classList.add('fui-menu-item-parent');
+      element.setAttribute('aria-haspopup', 'menu');
+      element.setAttribute('aria-expanded', 'false');
+      arrow.setAttribute('aria-label', this._getText('submenu'));
+      submenu = document.createElement('div');
+      submenu.className = 'fui-menu-submenu';
+      submenu.setAttribute('role', item.content != null ? 'presentation' : 'menu');
+      submenu.hidden = true;
+      if (item.submenuWidth) submenu.style.width = String(item.submenuWidth);
+      if (item.content != null) {
+        content = document.createElement('div');
+        content.className = 'fui-menu-content';
+        if (item.content && item.content.nodeType === 1) content.appendChild(item.content);
+        else content.innerHTML = String(item.content);
+        submenu.appendChild(content);
+      } else {
+        item.children.forEach(function(child) {
+          submenu.appendChild(self._renderItem(child));
+        });
+      }
+      element.appendChild(submenu);
+      item.submenuElement = submenu;
+    } else {
+      arrow.hidden = true;
+      item.submenuElement = null;
+    }
+    return element;
+  };
+
+  FabMenu.prototype._bind = function() {
+    var self = this;
+    this._onPointerOver = function(event) {
+      var element = event.target.closest('.fui-menu-item');
+      if (!element || !self.hostElement.contains(element)) return;
+      self._pointerInside = true;
+      self._cancelHide();
+      self._activateItem(element.__fabuiMenuItem, false);
+      if (element.__fabuiMenuItem.submenuElement) self._openSubmenu(element.__fabuiMenuItem);
+      else self._closeSiblingSubmenus(element.__fabuiMenuItem);
+    };
+    this._onPointerLeave = function() {
+      if (
+        self._pointerInside &&
+        self._options.hideOnUnhover &&
+        !self._options.inline
+      ) {
+        self._pointerInside = false;
+        self._scheduleHide();
+      }
+    };
+    this._onPointerEnter = function() {
+      self._pointerInside = true;
+      self._cancelHide();
+    };
+    this._onClick = function(event) {
+      var element = event.target.closest('.fui-menu-item');
+      if (event.target.closest('.fui-menu-content')) return;
+      if (!element || !self.hostElement.contains(element)) return;
+      event.preventDefault();
+      self._activateItem(element.__fabuiMenuItem, true);
+      self._selectItem(element.__fabuiMenuItem, event);
+    };
+    this._onKeyDown = function(event) {
+      if (
+        event.target.closest &&
+        event.target.closest('.fui-menu-content') &&
+        event.key !== 'Escape'
+      ) return;
+      self._handleKeyDown(event);
+    };
+    this._onDocumentPointerDown = function(event) {
+      if (self.hostElement.contains(event.target)) return;
+      if (self._triggerElement && self._triggerElement.contains(event.target)) return;
+      self.hide(event);
+    };
+    this._onDocumentKeyDown = function(event) {
+      if (event.key === 'Escape') self.hide(event);
+    };
+    this._onViewportChange = function() {
+      if (self._visible && !self._options.inline) self.hide();
+    };
+    this.addEventListener(this.hostElement, 'pointerover', this._onPointerOver);
+    this.addEventListener(this.hostElement, 'pointerenter', this._onPointerEnter);
+    this.addEventListener(this.hostElement, 'pointerleave', this._onPointerLeave);
+    this.addEventListener(this.hostElement, 'click', this._onClick);
+    this.addEventListener(this.hostElement, 'keydown', this._onKeyDown);
+  };
+
+  FabMenu.prototype._bindOpenEvents = function() {
+    if (this._openEventsBound || this._options.inline) return;
+    this._openEventsBound = true;
+    this.addEventListener(document, 'pointerdown', this._onDocumentPointerDown, true);
+    this.addEventListener(document, 'keydown', this._onDocumentKeyDown);
+    this.addEventListener(window, 'resize', this._onViewportChange);
+    this.addEventListener(window, 'scroll', this._onViewportChange, true);
+  };
+
+  FabMenu.prototype._unbindOpenEvents = function() {
+    if (!this._openEventsBound) return;
+    this._openEventsBound = false;
+    this.removeEventListener(document, 'pointerdown', this._onDocumentPointerDown, true);
+    this.removeEventListener(document, 'keydown', this._onDocumentKeyDown);
+    this.removeEventListener(window, 'resize', this._onViewportChange);
+    this.removeEventListener(window, 'scroll', this._onViewportChange, true);
+  };
+
+  FabMenu.prototype._cancelHide = function() {
+    if (this._hideTimer == null) return;
+    clearTimeout(this._hideTimer);
+    this._hideTimer = null;
+  };
+
+  FabMenu.prototype._scheduleHide = function() {
+    var self = this;
+    this._cancelHide();
+    this._pointerInside = false;
+    this._hideTimer = setTimeout(function() {
+      self._hideTimer = null;
+      self.hide();
+    }, this._options.duration);
+  };
+
+  FabMenu.prototype._itemsForPanel = function(panel) {
+    var items = [];
+    var elements = panel ? panel.children : [];
+    var index;
+    var item;
+    for (index = 0; index < elements.length; index += 1) {
+      item = elements[index].__fabuiMenuItem;
+      if (
+        item &&
+        !item.separator &&
+        !item.disabled &&
+        !item.hidden
+      ) items.push(item);
+    }
+    return items;
+  };
+
+  FabMenu.prototype._activePanel = function() {
+    if (this._activeItem && this._activeItem.parent && this._activeItem.parent.submenuElement) {
+      return this._activeItem.parent.submenuElement;
+    }
+    return this.listElement;
+  };
+
+  FabMenu.prototype._activateItem = function(item, focus) {
+    if (!item || item.separator || item.disabled || item.hidden) return false;
+    if (this._activeItem && this._activeItem.target) {
+      this._activeItem.target.classList.remove('fui-menu-item-active');
+    }
+    this._activeItem = item;
+    item.target.classList.add('fui-menu-item-active');
+    if (focus) item.target.focus();
+    return true;
+  };
+
+  FabMenu.prototype._activateRelative = function(delta) {
+    var panel = this._activePanel();
+    var items = this._itemsForPanel(panel);
+    var index = items.indexOf(this._activeItem);
+    if (!items.length) return;
+    if (index < 0) index = delta > 0 ? -1 : 0;
+    index = (index + delta + items.length) % items.length;
+    this._activateItem(items[index], true);
+    this._closeSiblingSubmenus(items[index]);
+  };
+
+  FabMenu.prototype._activateEdge = function(last) {
+    var items = this._itemsForPanel(this._activePanel());
+    if (items.length) this._activateItem(items[last ? items.length - 1 : 0], true);
+  };
+
+  FabMenu.prototype._closeSiblingSubmenus = function(item) {
+    var siblings = item.parent ? item.parent.children : this.items;
+    siblings.forEach(function(sibling) {
+      if (sibling !== item) this._closeItemSubmenu(sibling, true);
+    }, this);
+  };
+
+  FabMenu.prototype._closeItemSubmenu = function(item, recursive) {
+    if (recursive) {
+      item.children.forEach(function(child) {
+        this._closeItemSubmenu(child, true);
+      }, this);
+    }
+    if (!item.submenuElement) return;
+    item.submenuElement.hidden = true;
+    item.target.classList.remove('fui-menu-item-open');
+    item.target.setAttribute('aria-expanded', 'false');
+  };
+
+  FabMenu.prototype._closeSubmenus = function() {
+    this.items.forEach(function(item) {
+      this._closeItemSubmenu(item, true);
+    }, this);
+  };
+
+  FabMenu.prototype._positionSubmenu = function(item) {
+    var submenu = item.submenuElement;
+    var itemRect;
+    var submenuRect;
+    var viewportWidth;
+    var viewportHeight;
+    var opensLeft;
+    if (!submenu) return;
+    submenu.style.left = '';
+    submenu.style.right = '';
+    submenu.style.top = '';
+    submenu.hidden = false;
+    itemRect = item.target.getBoundingClientRect();
+    submenuRect = submenu.getBoundingClientRect();
+    viewportWidth = document.documentElement.clientWidth;
+    viewportHeight = document.documentElement.clientHeight;
+    opensLeft = this._options.align === 'right';
+    if (this._options.align === 'right') {
+      submenu.style.left = 'auto';
+      submenu.style.right = 'calc(100% - 4px)';
+    } else {
+      submenu.style.left = 'calc(100% - 4px)';
+      submenu.style.right = 'auto';
+    }
+    if (
+      this._options.align !== 'right' &&
+      itemRect.right + submenuRect.width > viewportWidth &&
+      itemRect.left >= submenuRect.width
+    ) {
+      submenu.style.left = 'auto';
+      submenu.style.right = 'calc(100% - 4px)';
+      opensLeft = true;
+    } else if (
+      this._options.align === 'right' &&
+      itemRect.left - submenuRect.width < 0 &&
+      viewportWidth - itemRect.right >= submenuRect.width
+    ) {
+      submenu.style.right = 'auto';
+      submenu.style.left = 'calc(100% - 4px)';
+      opensLeft = false;
+    }
+    if (itemRect.top + submenuRect.height > viewportHeight) {
+      submenu.style.top = Math.min(0, viewportHeight - itemRect.top - submenuRect.height - 4) + 'px';
+    }
+    item.target.classList.toggle('fui-menu-item-submenu-left', opensLeft);
+  };
+
+  FabMenu.prototype._openSubmenu = function(item) {
+    if (!item || !item.submenuElement || item.disabled) return false;
+    this._closeSiblingSubmenus(item);
+    item.target.classList.add('fui-menu-item-open');
+    item.target.setAttribute('aria-expanded', 'true');
+    this._positionSubmenu(item);
+    return true;
+  };
+
+  FabMenu.prototype._handleKeyDown = function(event) {
+    var item = this._activeItem;
+    var childItems;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this._activateRelative(1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this._activateRelative(-1);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      this._activateEdge(false);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      this._activateEdge(true);
+    } else if (event.key === 'ArrowRight' && item && item.submenuElement) {
+      event.preventDefault();
+      this._openSubmenu(item);
+      childItems = this._itemsForPanel(item.submenuElement);
+      if (childItems.length) this._activateItem(childItems[0], true);
+    } else if (event.key === 'ArrowLeft' && item && item.parent) {
+      event.preventDefault();
+      this._closeItemSubmenu(item.parent, true);
+      this._activateItem(item.parent, true);
+    } else if ((event.key === 'Enter' || event.key === ' ') && item) {
+      event.preventDefault();
+      this._selectItem(item, event);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      if (this._options.inline) {
+        this._closeSubmenus();
+        this._activeItem = null;
+      } else {
+        this.hide(event);
+      }
+    }
+  };
+
+  FabMenu.prototype._selectItem = function(item, event) {
+    var callback;
+    if (!item || item.separator || item.disabled || item.hidden) return false;
+    if (item.submenuElement) {
+      this._openSubmenu(item);
+      return true;
+    }
+    callback = typeof item.onclick === 'function' ? item.onclick : item.onClick;
+    if (typeof callback === 'function') callback.call(item.target, item);
+    this._fire('Click', {
+      item: item,
+      originalEvent: event || null
+    });
+    if (item.href && typeof window !== 'undefined') window.location.href = item.href;
+    if (!this._options.inline) this.hide(event);
+    return true;
+  };
+
+  FabMenu.prototype._fire = function(name, detail) {
+    var args = assignMenuOptions({ menu: this }, detail || {});
+    var callback = this._options['on' + name];
+    var eventName = name.toLowerCase();
+    if (typeof callback === 'function') {
+      if (name === 'Click') callback.call(this.hostElement, args.item);
+      else callback.call(this.hostElement);
+    }
+    (this._listeners[eventName] || []).slice().forEach(function(listener) {
+      listener.call(this, args);
+    }, this);
+  };
+
+  FabMenu.prototype._positionRoot = function(left, top) {
+    var host = this.hostElement;
+    var pageLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+    var pageTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+    var viewportRight = pageLeft + document.documentElement.clientWidth;
+    var viewportBottom = pageTop + document.documentElement.clientHeight;
+    var rect;
+    host.style.left = Math.round(menuNumber(left, 0)) + 'px';
+    host.style.top = Math.round(menuNumber(top, 0)) + 'px';
+    rect = host.getBoundingClientRect();
+    left = Math.max(pageLeft, Math.min(menuNumber(left, 0), viewportRight - rect.width));
+    top = Math.max(pageTop, Math.min(menuNumber(top, 0), viewportBottom - rect.height));
+    host.style.left = Math.round(left) + 'px';
+    host.style.top = Math.round(top) + 'px';
+  };
+
+  FabMenu.prototype.show = function(position) {
+    var wasVisible = this._visible;
+    if (this._destroyed) return this;
+    this._cancelHide();
+    if (activeMenu && activeMenu !== this && !activeMenu._options.inline) activeMenu.hide();
+    activeMenu = this;
+    position = position || {};
+    if (position.left != null) this._options.left = position.left;
+    if (position.top != null) this._options.top = position.top;
+    this.hostElement.hidden = false;
+    this.hostElement.style.visibility = 'hidden';
+    menuZIndex = Math.max(menuZIndex + 1, menuNumber(this._options.zIndex, 110000));
+    this.hostElement.style.zIndex = String(menuZIndex);
+    if (!this._options.inline) this._positionRoot(this._options.left, this._options.top);
+    this.hostElement.style.visibility = '';
+    this._visible = true;
+    this._bindOpenEvents();
+    if (!this._options.inline) this.hostElement.focus();
+    if (!wasVisible) this._fire('Show');
+    return this;
+  };
+
+  FabMenu.prototype.hide = function() {
+    if (this._destroyed || this._options.inline) return this;
+    this._cancelHide();
+    if (!this._visible) {
+      if (activeMenu === this) activeMenu = null;
+      return this;
+    }
+    this._closeSubmenus();
+    if (this._activeItem && this._activeItem.target) {
+      this._activeItem.target.classList.remove('fui-menu-item-active');
+    }
+    this._activeItem = null;
+    this._pointerInside = false;
+    this.hostElement.hidden = true;
+    this._visible = false;
+    this._unbindOpenEvents();
+    if (activeMenu === this) activeMenu = null;
+    this._fire('Hide');
+    return this;
+  };
+
+  FabMenu.prototype.options = function() {
+    return this._options;
+  };
+
+  FabMenu.prototype.getItem = function(target) {
+    target = resolveMenuElement(target);
+    return target && target.__fabuiMenuItem ? target.__fabuiMenuItem : null;
+  };
+
+  FabMenu.prototype.navItems = function(callback) {
+    function visit(items) {
+      var index;
+      for (index = 0; index < items.length; index += 1) {
+        if (callback(items[index]) === false) return false;
+        if (visit(items[index].children) === false) return false;
+      }
+      return true;
+    }
+    if (typeof callback === 'function') visit(this.items);
+    return this;
+  };
+
+  FabMenu.prototype.findItems = function(criteria) {
+    var matches = [];
+    this.navItems(function(item) {
+      var matched = false;
+      if (typeof criteria === 'function') matched = criteria(item) === true;
+      else if (criteria && typeof criteria === 'object') {
+        matched = Object.keys(criteria).every(function(key) {
+          return item[key] === criteria[key];
+        });
+      } else {
+        matched = item.text === criteria || item.name === criteria || item.id === criteria;
+      }
+      if (matched) matches.push(item);
+    });
+    return matches;
+  };
+
+  FabMenu.prototype.findItem = function(criteria) {
+    return this.findItems(criteria)[0] || null;
+  };
+
+  FabMenu.prototype.setText = function(parameter) {
+    var item = parameter && this.getItem(parameter.target);
+    if (!item) return this;
+    item.text = parameter.text == null ? '' : String(parameter.text);
+    if (item.textElement) item.textElement.textContent = item.text;
+    return this;
+  };
+
+  FabMenu.prototype.setIcon = function(parameter) {
+    var item = parameter && this.getItem(parameter.target);
+    if (!item) return this;
+    item.iconCls = parameter.iconCls || null;
+    if (item.iconElement) item.iconElement.className = 'fui-menu-icon' + (item.iconCls ? ' ' + item.iconCls : '');
+    return this;
+  };
+
+  FabMenu.prototype.appendItem = function(options) {
+    var parent = options && options.parent ?
+      (options.parent.__fabuiMenuItem || options.parent) :
+      null;
+    var item = this._normalizeItem(options, parent);
+    if (parent && parent.children) parent.children.push(item);
+    else this.items.push(item);
+    this._render();
+    return item;
+  };
+
+  FabMenu.prototype.removeItem = function(target) {
+    var item = target && target.__fabuiMenuItem ? target.__fabuiMenuItem : target;
+    var items;
+    var index;
+    if (!item) return this;
+    items = item.parent ? item.parent.children : this.items;
+    index = items.indexOf(item);
+    if (index >= 0) {
+      items.splice(index, 1);
+      this._render();
+    }
+    return this;
+  };
+
+  FabMenu.prototype.enableItem = function(target) {
+    var item = target && target.__fabuiMenuItem ? target.__fabuiMenuItem : target;
+    if (!item) return this;
+    item.disabled = false;
+    if (item.target) {
+      item.target.classList.remove('fui-menu-item-disabled');
+      item.target.removeAttribute('aria-disabled');
+    }
+    return this;
+  };
+
+  FabMenu.prototype.disableItem = function(target) {
+    var item = target && target.__fabuiMenuItem ? target.__fabuiMenuItem : target;
+    if (!item) return this;
+    item.disabled = true;
+    this._closeItemSubmenu(item, true);
+    if (item.target) {
+      item.target.classList.add('fui-menu-item-disabled');
+      item.target.setAttribute('aria-disabled', 'true');
+    }
+    return this;
+  };
+
+  FabMenu.prototype.showItem = function(target) {
+    var item = target && target.__fabuiMenuItem ? target.__fabuiMenuItem : target;
+    if (!item) return this;
+    item.hidden = false;
+    if (item.target) item.target.hidden = false;
+    return this;
+  };
+
+  FabMenu.prototype.hideItem = function(target) {
+    var item = target && target.__fabuiMenuItem ? target.__fabuiMenuItem : target;
+    if (!item) return this;
+    item.hidden = true;
+    this._closeItemSubmenu(item, true);
+    if (item.target) item.target.hidden = true;
+    return this;
+  };
+
+  FabMenu.prototype.resize = function(target) {
+    var element = resolveMenuElement(target) || this.hostElement;
+    if (!element) return this;
+    if (element === this.hostElement) {
+      element.style.minWidth = this._options.minWidth + 'px';
+      if (this._visible && !this._options.inline) {
+        this._positionRoot(this._options.left, this._options.top);
+      }
+    }
+    return this;
+  };
+
+  FabMenu.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findMenuTheme(this._themeSource) :
+      normalizeMenuTheme(this._options.theme);
+    for (index = 0; index < MENU_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + MENU_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  FabMenu.prototype.setLocale = function(locale) {
+    this._options.locale = normalizeMenuLocale(locale);
+    this.hostElement.setAttribute('aria-label', this._options.ariaLabel || this._getText('menu'));
+    return this;
+  };
+
+  FabMenu.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabMenu.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabMenu.prototype.destroy = function() {
+    var host = this.hostElement;
+    var parent = this._original.parent;
+    if (this._destroyed) return;
+    this.hide();
+    this._destroyed = true;
+    this._cancelHide();
+    this._unbindOpenEvents();
+    if (activeMenu === this) activeMenu = null;
+    this.removeEventListener();
+    unregisterControl(host, this);
+    delete host.__fabuiMenu;
+    if (parent && host.parentNode !== parent) {
+      if (this._original.nextSibling && this._original.nextSibling.parentNode === parent) {
+        parent.insertBefore(host, this._original.nextSibling);
+      } else {
+        parent.appendChild(host);
+      }
+    }
+    host.innerHTML = this._original.html;
+    restoreMenuAttribute(host, 'class', this._original.className);
+    restoreMenuAttribute(host, 'style', this._original.style);
+    restoreMenuAttribute(host, 'role', this._original.role);
+    restoreMenuAttribute(host, 'tabindex', this._original.tabIndex);
+    restoreMenuAttribute(host, 'aria-label', this._original.ariaLabel);
+    host.hidden = this._original.hidden;
+    this._fire('Destroy');
+    this._listeners = {};
+    this.items = [];
+    this.listElement = null;
+  };
+
+  FabMenu.prototype.dispose = FabMenu.prototype.destroy;
+
+  FabMenu.defaults = {
+    zIndex: 110000,
+    left: 0,
+    top: 0,
+    align: 'left',
+    minWidth: 120,
+    itemHeight: 32,
+    duration: 100,
+    hideOnUnhover: true,
+    inline: false,
+    fit: false,
+    items: [],
+    locale: 'en',
+    theme: 'inherit',
+    ariaLabel: null,
+    onShow: null,
+    onHide: null,
+    onClick: null,
+    onDestroy: null
+  };
+  FabMenu.locales = localePacks;
+  FabMenu.themes = MENU_THEMES.slice();
+  FabMenu.getControl = function(element) {
+    element = resolveMenuElement(element);
+    return element && element.__fabuiMenu ? element.__fabuiMenu : null;
+  };
+  FabMenu.normalizeTheme = normalizeMenuTheme;
+  FabMenu.normalizeAlign = normalizeMenuAlign;
+  FabMenu.normalizeLocale = normalizeMenuLocale;
+  return FabMenu;
+}
+
+
+
+var menuButtonId = 1;
+
+function assignMenuButtonOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveMenuButtonElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function restoreMenuButtonAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function normalizeMenuButtonEvent(value, fallback) {
+  value = String(value == null ? fallback : value).trim().toLowerCase();
+  return /^[a-z][a-z0-9:-]*$/.test(value) ? value : fallback;
+}
+
+function normalizeMenuButtonAlign(value) {
+  return String(value || 'left').toLowerCase() === 'right' ? 'right' : 'left';
+}
+
+function getMenuButtonHoverEvents(hideEvent) {
+  if (String(hideEvent || '').toLowerCase().indexOf('pointer') === 0) {
+    return {
+      enter: 'pointerenter',
+      leave: 'pointerleave'
+    };
+  }
+  return {
+    enter: 'mouseenter',
+    leave: 'mouseleave'
+  };
+}
+
+function createMenuButtonFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  Button,
+  Menu
+) {
+  function FabMenuButton(element, options) {
+    var host = resolveMenuButtonElement(element);
+    var menuHost;
+    var menuOption;
+    var buttonOptions;
+    var menuOptions;
+    if (!(this instanceof FabMenuButton)) return new FabMenuButton(element, options);
+    if (!host) throw new Error('fabui.MenuButton requires a host element.');
+    if (host.__fabuiMenuButton) return host.__fabuiMenuButton;
+    if (!/^(?:A|BUTTON)$/i.test(host.tagName)) {
+      throw new Error('fabui.MenuButton host must be an anchor or button element.');
+    }
+    if (typeof Button !== 'function' || typeof Menu !== 'function') {
+      throw new Error('fabui.MenuButton requires fabui.Button and fabui.Menu.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._showTimer = null;
+    this._hideTimer = null;
+    this._ownsMenu = false;
+    this._menuOriginalId = null;
+    this._menuOriginalTrigger = null;
+    this._original = {
+      ariaControls: host.getAttribute('aria-controls'),
+      ariaExpanded: host.getAttribute('aria-expanded'),
+      ariaHasPopup: host.getAttribute('aria-haspopup')
+    };
+    this._options = assignMenuButtonOptions(
+      {},
+      FabMenuButton.defaults,
+      this._readElementOptions(),
+      options || {}
+    );
+    this._options.menuAlign = normalizeMenuButtonAlign(this._options.menuAlign);
+    this._options.duration = Math.max(0, Number(this._options.duration) || 0);
+    this._options.showEvent = normalizeMenuButtonEvent(this._options.showEvent, 'mouseenter');
+    this._options.hideEvent = normalizeMenuButtonEvent(this._options.hideEvent, 'mouseleave');
+    this._options.hasDownArrow = this._options.hasDownArrow !== false;
+    this._menuHoverEvents = getMenuButtonHoverEvents(this._options.hideEvent);
+    menuOption = this._options.menu;
+    if (menuOption && menuOption.hostElement && menuOption instanceof Menu) {
+      this.menu = menuOption;
+      menuHost = menuOption.hostElement;
+    } else {
+      menuHost = resolveMenuButtonElement(menuOption);
+      if (!menuHost) {
+        throw new Error('fabui.MenuButton requires a valid menu selector, element, or fabui.Menu.');
+      }
+      menuOptions = assignMenuButtonOptions({}, this._options.menuOptions || {}, {
+        hideOnUnhover: false,
+        inline: false,
+        theme: this._options.theme
+      });
+      this.menu = new Menu(menuHost, menuOptions);
+      this._ownsMenu = true;
+    }
+    this._menuOriginalId = menuHost.getAttribute('id');
+    this._menuOriginalTrigger = this.menu._triggerElement || null;
+    this.menu._triggerElement = host;
+    if (!menuHost.id) {
+      menuHost.id = 'fui-menu-button-menu-' + menuButtonId;
+      menuButtonId += 1;
+    }
+    buttonOptions = assignMenuButtonOptions({}, this._options, {
+      menu: undefined,
+      menuOptions: undefined,
+      duration: undefined,
+      showEvent: undefined,
+      hideEvent: undefined,
+      hasDownArrow: undefined,
+      menuAlign: undefined,
+      onClick: null,
+      onShow: null,
+      onHide: null,
+      onMenuClick: null
+    });
+    this.button = new Button(host, buttonOptions);
+    this._build();
+    this._bind();
+    host.__fabuiMenuButton = this;
+    registerControl(host, this);
+    this.setTheme(this._options.theme);
+  }
+
+  FabMenuButton.prototype = Object.create(Control.prototype);
+  FabMenuButton.prototype.constructor = FabMenuButton;
+
+  FabMenuButton.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var options = parseMenuDataOptions(host.getAttribute('data-options'));
+    var value;
+    var text = host.textContent == null ? '' : host.textContent.trim();
+    if (text) options.text = text;
+    value = host.getAttribute('iconCls') ||
+      host.getAttribute('icon') ||
+      host.getAttribute('data-icon-cls');
+    if (value) options.iconCls = value;
+    if (host.style.width) options.width = host.style.width;
+    if (host.style.height) options.height = host.style.height;
+    if (host.disabled || host.hasAttribute('disabled')) options.disabled = true;
+    value = host.getAttribute('data-icon-align');
+    if (value) options.iconAlign = value;
+    value = host.getAttribute('data-size');
+    if (value) options.size = value;
+    ['plain', 'outline', 'fit'].forEach(function(name) {
+      var attribute = host.getAttribute('data-' + name);
+      if (attribute != null) options[name] = attribute !== 'false' && attribute !== '0';
+    });
+    value = host.getAttribute('menu') || host.getAttribute('data-menu');
+    if (value) options.menu = value;
+    value = host.getAttribute('data-menu-align');
+    if (value) options.menuAlign = value;
+    value = host.getAttribute('data-show-event');
+    if (value) options.showEvent = value;
+    value = host.getAttribute('data-hide-event');
+    if (value) options.hideEvent = value;
+    value = host.getAttribute('data-duration');
+    if (value != null && value !== '') options.duration = Number(value);
+    value = host.getAttribute('data-has-down-arrow');
+    if (value != null) options.hasDownArrow = value !== 'false' && value !== '0';
+    return options;
+  };
+
+  FabMenuButton.prototype._build = function() {
+    var host = this.hostElement;
+    this.arrowElement = document.createElement('span');
+    this.arrowElement.className = 'fui-menu-button-arrow';
+    this.arrowElement.setAttribute('aria-hidden', 'true');
+    this.arrowElement.hidden = !this._options.hasDownArrow;
+    host.classList.add('fui-menu-button');
+    host.classList.toggle('fui-menu-button-no-arrow', !this._options.hasDownArrow);
+    host.appendChild(this.arrowElement);
+    host.setAttribute('aria-haspopup', 'menu');
+    host.setAttribute('aria-expanded', 'false');
+    host.setAttribute('aria-controls', this.menu.hostElement.id);
+  };
+
+  FabMenuButton.prototype._bind = function() {
+    var self = this;
+    this._onTriggerClick = function(args) {
+      if (self._options.disabled) return false;
+      self._cancelTimers();
+      if (self.menu.hostElement.hidden) self.show(args.originalEvent);
+      else self.hide(args.originalEvent);
+      return self._fire('Click', { originalEvent: args.originalEvent });
+    };
+    this._onShowEvent = function(event) {
+      if (self._options.disabled) return;
+      self._cancelHide();
+      if (self._options.showEvent === 'click') return;
+      self._scheduleShow(event);
+    };
+    this._onHideEvent = function(event) {
+      if (self._options.hideEvent === 'click') return;
+      self._cancelShow();
+      self._scheduleHide(event);
+    };
+    this._onMenuEnter = function() {
+      self._cancelHide();
+    };
+    this._onMenuLeave = function(event) {
+      self._scheduleHide(event);
+    };
+    this._onKeyDown = function(event) {
+      if (self._options.disabled) return;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        self.show(event);
+        self.menu.hostElement.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true
+        }));
+      } else if (event.key === 'Escape') {
+        self.hide(event);
+        self.hostElement.focus();
+      }
+    };
+    this._onMenuShow = function(args) {
+      self.hostElement.classList.add('fui-menu-button-open');
+      self.hostElement.setAttribute('aria-expanded', 'true');
+      self._fire('Show', { menu: self.menu, originalEvent: args.originalEvent || null });
+    };
+    this._onMenuHide = function(args) {
+      self.hostElement.classList.remove('fui-menu-button-open');
+      self.hostElement.setAttribute('aria-expanded', 'false');
+      self._fire('Hide', { menu: self.menu, originalEvent: args.originalEvent || null });
+    };
+    this._onMenuClick = function(args) {
+      self._fire('MenuClick', {
+        menu: self.menu,
+        item: args.item,
+        originalEvent: args.originalEvent || null
+      });
+      self.hostElement.focus();
+    };
+    this.button.on('click', this._onTriggerClick);
+    this.addEventListener(this.hostElement, this._options.showEvent, this._onShowEvent);
+    this.addEventListener(this.hostElement, this._options.hideEvent, this._onHideEvent);
+    this.addEventListener(this.hostElement, 'keydown', this._onKeyDown);
+    this.addEventListener(
+      this.menu.hostElement,
+      this._menuHoverEvents.enter,
+      this._onMenuEnter
+    );
+    this.addEventListener(
+      this.menu.hostElement,
+      this._menuHoverEvents.leave,
+      this._onMenuLeave
+    );
+    this.menu.on('show', this._onMenuShow);
+    this.menu.on('hide', this._onMenuHide);
+    this.menu.on('click', this._onMenuClick);
+  };
+
+  FabMenuButton.prototype._fire = function(name, detail) {
+    var callback = this._options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var args = assignMenuButtonOptions({
+      menuButton: this,
+      button: this.button,
+      menu: this.menu
+    }, detail || {});
+    var allowed = true;
+    if (typeof callback === 'function' && callback.call(this.hostElement, this, args) === false) {
+      allowed = false;
+    }
+    listeners.forEach(function(listener) {
+      if (listener.call(this, args) === false) allowed = false;
+    }, this);
+    return allowed;
+  };
+
+  FabMenuButton.prototype._cancelShow = function() {
+    if (this._showTimer == null) return;
+    clearTimeout(this._showTimer);
+    this._showTimer = null;
+  };
+
+  FabMenuButton.prototype._cancelHide = function() {
+    if (this._hideTimer == null) return;
+    clearTimeout(this._hideTimer);
+    this._hideTimer = null;
+  };
+
+  FabMenuButton.prototype._cancelTimers = function() {
+    this._cancelShow();
+    this._cancelHide();
+  };
+
+  FabMenuButton.prototype._scheduleShow = function(event) {
+    var self = this;
+    this._cancelShow();
+    this._showTimer = setTimeout(function() {
+      self._showTimer = null;
+      self.show(event);
+    }, this._options.duration);
+  };
+
+  FabMenuButton.prototype._scheduleHide = function(event) {
+    var self = this;
+    this._cancelHide();
+    this._hideTimer = setTimeout(function() {
+      self._hideTimer = null;
+      self.hide(event);
+    }, this._options.duration);
+  };
+
+  FabMenuButton.prototype.options = function() {
+    return this._options;
+  };
+
+  FabMenuButton.prototype.show = function(event) {
+    var rect;
+    var left;
+    var top;
+    var menuOptions;
+    if (this._destroyed || this._options.disabled) return this;
+    this._cancelTimers();
+    rect = this.hostElement.getBoundingClientRect();
+    left = rect.left + (window.pageXOffset || 0);
+    top = rect.bottom + (window.pageYOffset || 0);
+    this.menu.show({ left: left, top: top });
+    if (this._options.menuAlign === 'right') {
+      left = rect.right + (window.pageXOffset || 0) - this.menu.hostElement.getBoundingClientRect().width;
+      menuOptions = this.menu.options();
+      menuOptions.left = left;
+      this.menu.resize();
+    }
+    return this;
+  };
+
+  FabMenuButton.prototype.hide = function() {
+    this._cancelTimers();
+    this.menu.hide();
+    return this;
+  };
+
+  FabMenuButton.prototype.disable = function() {
+    if (this._options.disabled) return this;
+    this._options.disabled = true;
+    this.button.disable();
+    this.hide();
+    return this;
+  };
+
+  FabMenuButton.prototype.enable = function() {
+    if (!this._options.disabled) return this;
+    this._options.disabled = false;
+    this.button.enable();
+    return this;
+  };
+
+  FabMenuButton.prototype.resize = function(param) {
+    this.button.resize(param);
+    if (param && Object.prototype.hasOwnProperty.call(param, 'width')) {
+      this._options.width = param.width;
+    }
+    if (param && Object.prototype.hasOwnProperty.call(param, 'height')) {
+      this._options.height = param.height;
+    }
+    return this;
+  };
+
+  FabMenuButton.prototype.setText = function(text) {
+    this._options.text = text == null ? '' : String(text);
+    this.button.setText(this._options.text);
+    return this;
+  };
+
+  FabMenuButton.prototype.setIcon = function(iconCls, iconAlign) {
+    this._options.iconCls = iconCls == null ? null : String(iconCls).trim();
+    if (iconAlign != null) this._options.iconAlign = iconAlign;
+    this.button.setIcon(this._options.iconCls, iconAlign);
+    return this;
+  };
+
+  FabMenuButton.prototype.setTheme = function(theme) {
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.button.setTheme(this._options.theme);
+    this.menu.setTheme(this._options.theme);
+    this.theme = this.button.theme;
+    return this;
+  };
+
+  FabMenuButton.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabMenuButton.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabMenuButton.prototype.destroy = function() {
+    var host = this.hostElement;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._cancelTimers();
+    this.removeEventListener();
+    this.button.off('click', this._onTriggerClick);
+    this.menu.off('show', this._onMenuShow);
+    this.menu.off('hide', this._onMenuHide);
+    this.menu.off('click', this._onMenuClick);
+    this.menu.hide();
+    this.menu._triggerElement = this._menuOriginalTrigger;
+    if (this._ownsMenu) this.menu.destroy();
+    restoreMenuButtonAttribute(this.menu.hostElement, 'id', this._menuOriginalId);
+    this.button.destroy();
+    restoreMenuButtonAttribute(host, 'aria-controls', this._original.ariaControls);
+    restoreMenuButtonAttribute(host, 'aria-expanded', this._original.ariaExpanded);
+    restoreMenuButtonAttribute(host, 'aria-haspopup', this._original.ariaHasPopup);
+    unregisterControl(host, this);
+    delete host.__fabuiMenuButton;
+    this._listeners = {};
+  };
+
+  FabMenuButton.prototype.dispose = FabMenuButton.prototype.destroy;
+
+  FabMenuButton.defaults = {
+    width: null,
+    height: null,
+    id: null,
+    disabled: false,
+    toggle: false,
+    selected: false,
+    group: null,
+    plain: true,
+    outline: false,
+    text: '',
+    iconCls: null,
+    iconAlign: 'left',
+    size: 'small',
+    fit: false,
+    cls: '',
+    theme: 'inherit',
+    menu: null,
+    menuOptions: null,
+    menuAlign: 'left',
+    duration: 100,
+    showEvent: 'mouseenter',
+    hideEvent: 'mouseleave',
+    hasDownArrow: true,
+    onClick: null,
+    onShow: null,
+    onHide: null,
+    onMenuClick: null,
+    onResize: null
+  };
+  FabMenuButton.getControl = function(element) {
+    element = resolveMenuButtonElement(element);
+    return element && element.__fabuiMenuButton ? element.__fabuiMenuButton : null;
+  };
+  FabMenuButton.normalizeMenuAlign = normalizeMenuButtonAlign;
+  return FabMenuButton;
+}
+
+function assignSplitButtonOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveSplitButtonElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function createSplitButtonFactory(
+  Control,
+  registerControl,
+  unregisterControl,
+  MenuButton
+) {
+  if (typeof MenuButton !== 'function') {
+    throw new Error('fabui.SplitButton requires fabui.MenuButton.');
+  }
+
+  function FabSplitButton(element, options) {
+    var host = resolveSplitButtonElement(element);
+    var menuButtonOptions;
+    if (!(this instanceof FabSplitButton)) return new FabSplitButton(element, options);
+    if (!host) throw new Error('fabui.SplitButton requires a host element.');
+    if (host.__fabuiSplitButton) return host.__fabuiSplitButton;
+    if (host.__fabuiMenuButton) {
+      throw new Error('fabui.SplitButton cannot reuse an initialized fabui.MenuButton host.');
+    }
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._showTimer = null;
+    options = options || {};
+    menuButtonOptions = assignSplitButtonOptions({}, options, {
+      showEvent: 'fui-splitbutton-open',
+      hideEvent: 'mouseleave',
+      hasDownArrow: true,
+      onClick: null,
+      onShow: null,
+      onHide: null,
+      onMenuClick: null
+    });
+    this.menuButton = new MenuButton(host, menuButtonOptions);
+    this.button = this.menuButton.button;
+    this.menu = this.menuButton.menu;
+    this.arrowElement = this.menuButton.arrowElement;
+    this._options = assignSplitButtonOptions(
+      {},
+      FabSplitButton.defaults,
+      this.menuButton.options(),
+      options
+    );
+    this._options.duration = Math.max(0, Number(this._options.duration) || 0);
+    this._options.hasDownArrow = true;
+    this.theme = this.menuButton.theme;
+    this.menuButton.button.off('click', this.menuButton._onTriggerClick);
+    this._build();
+    this._bind();
+    host.__fabuiSplitButton = this;
+    registerControl(host, this);
+  }
+
+  FabSplitButton.prototype = Object.create(Control.prototype);
+  FabSplitButton.prototype.constructor = FabSplitButton;
+
+  FabSplitButton.prototype._build = function() {
+    this.hostElement.classList.add('fui-split-button');
+    this.arrowElement.classList.add('fui-split-button-arrow');
+    this.arrowElement.hidden = false;
+  };
+
+  FabSplitButton.prototype._bind = function() {
+    var self = this;
+    this._onButtonClick = function(args) {
+      var event = args.originalEvent;
+      var target = event && event.target;
+      var arrowClick = target && (
+        target === self.arrowElement ||
+        self.arrowElement.contains(target)
+      );
+      self._cancelShow();
+      if (arrowClick) {
+        if (self._fire('ArrowClick', { originalEvent: event }) !== false) {
+          if (self.menu.hostElement.hidden) self.show(event);
+          else self.hide(event);
+        }
+        return false;
+      }
+      return self._fire('Click', {
+        originalEvent: event,
+        selected: self.button.options.selected
+      });
+    };
+    this._onArrowEnter = function(event) {
+      if (self._options.disabled) return;
+      self.menuButton._cancelHide();
+      self._scheduleShow(event);
+    };
+    this._onArrowLeave = function() {
+      self._cancelShow();
+    };
+    this._onHostLeave = function() {
+      self._cancelShow();
+    };
+    this._onMenuKeyDown = function(event) {
+      if (event.key === 'Escape') self.hostElement.focus();
+    };
+    this._onMenuShow = function(args) {
+      self._fire('Show', {
+        originalEvent: args.originalEvent || null
+      });
+    };
+    this._onMenuHide = function(args) {
+      self._fire('Hide', {
+        originalEvent: args.originalEvent || null
+      });
+    };
+    this._onMenuClick = function(args) {
+      self._fire('MenuClick', {
+        item: args.item,
+        originalEvent: args.originalEvent || null
+      });
+    };
+    this.button.on('click', this._onButtonClick);
+    this.addEventListener(this.arrowElement, 'pointerenter', this._onArrowEnter);
+    this.addEventListener(this.arrowElement, 'pointerleave', this._onArrowLeave);
+    this.addEventListener(this.hostElement, 'mouseleave', this._onHostLeave);
+    this.addEventListener(this.menu.hostElement, 'keydown', this._onMenuKeyDown);
+    this.menuButton.on('show', this._onMenuShow);
+    this.menuButton.on('hide', this._onMenuHide);
+    this.menuButton.on('menuclick', this._onMenuClick);
+  };
+
+  FabSplitButton.prototype._fire = function(name, detail) {
+    var callback = this._options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var args = assignSplitButtonOptions({
+      splitButton: this,
+      menuButton: this.menuButton,
+      button: this.button,
+      menu: this.menu
+    }, detail || {});
+    var allowed = true;
+    if (typeof callback === 'function' && callback.call(this.hostElement, this, args) === false) {
+      allowed = false;
+    }
+    listeners.forEach(function(listener) {
+      if (listener.call(this, args) === false) allowed = false;
+    }, this);
+    return allowed;
+  };
+
+  FabSplitButton.prototype._cancelShow = function() {
+    if (this._showTimer == null) return;
+    clearTimeout(this._showTimer);
+    this._showTimer = null;
+  };
+
+  FabSplitButton.prototype._scheduleShow = function(event) {
+    var self = this;
+    this._cancelShow();
+    this._showTimer = setTimeout(function() {
+      self._showTimer = null;
+      self.show(event);
+    }, this._options.duration);
+  };
+
+  FabSplitButton.prototype.options = function() {
+    return this._options;
+  };
+
+  FabSplitButton.prototype.show = function(event) {
+    if (this._destroyed || this._options.disabled) return this;
+    this._cancelShow();
+    this.menuButton.show(event);
+    return this;
+  };
+
+  FabSplitButton.prototype.hide = function(event) {
+    this._cancelShow();
+    this.menuButton.hide(event);
+    return this;
+  };
+
+  FabSplitButton.prototype.disable = function() {
+    if (this._options.disabled) return this;
+    this._options.disabled = true;
+    this.menuButton.disable();
+    return this;
+  };
+
+  FabSplitButton.prototype.enable = function() {
+    if (!this._options.disabled) return this;
+    this._options.disabled = false;
+    this.menuButton.enable();
+    return this;
+  };
+
+  FabSplitButton.prototype.resize = function(param) {
+    this.menuButton.resize(param);
+    if (param && Object.prototype.hasOwnProperty.call(param, 'width')) {
+      this._options.width = param.width;
+    }
+    if (param && Object.prototype.hasOwnProperty.call(param, 'height')) {
+      this._options.height = param.height;
+    }
+    return this;
+  };
+
+  FabSplitButton.prototype.setText = function(text) {
+    this._options.text = text == null ? '' : String(text);
+    this.menuButton.setText(this._options.text);
+    return this;
+  };
+
+  FabSplitButton.prototype.setIcon = function(iconCls, iconAlign) {
+    this._options.iconCls = iconCls == null ? null : String(iconCls).trim();
+    if (iconAlign != null) this._options.iconAlign = iconAlign;
+    this.menuButton.setIcon(this._options.iconCls, iconAlign);
+    return this;
+  };
+
+  FabSplitButton.prototype.setTheme = function(theme) {
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.menuButton.setTheme(this._options.theme);
+    this.theme = this.menuButton.theme;
+    return this;
+  };
+
+  FabSplitButton.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabSplitButton.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabSplitButton.prototype.destroy = function() {
+    var host = this.hostElement;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._cancelShow();
+    this.removeEventListener();
+    this.button.off('click', this._onButtonClick);
+    this.menuButton.off('show', this._onMenuShow);
+    this.menuButton.off('hide', this._onMenuHide);
+    this.menuButton.off('menuclick', this._onMenuClick);
+    this.menuButton.destroy();
+    unregisterControl(host, this);
+    delete host.__fabuiSplitButton;
+    this._listeners = {};
+  };
+
+  FabSplitButton.prototype.dispose = FabSplitButton.prototype.destroy;
+
+  FabSplitButton.defaults = {
+    width: null,
+    height: null,
+    id: null,
+    disabled: false,
+    toggle: false,
+    selected: false,
+    group: null,
+    plain: true,
+    outline: false,
+    text: '',
+    iconCls: null,
+    iconAlign: 'left',
+    size: 'small',
+    fit: false,
+    cls: '',
+    theme: 'inherit',
+    menu: null,
+    menuOptions: null,
+    menuAlign: 'left',
+    duration: 100,
+    onClick: null,
+    onArrowClick: null,
+    onShow: null,
+    onHide: null,
+    onMenuClick: null,
+    onResize: null
+  };
+  FabSplitButton.getControl = function(element) {
+    element = resolveSplitButtonElement(element);
+    return element && element.__fabuiSplitButton ? element.__fabuiSplitButton : null;
+  };
+  return FabSplitButton;
+}
+
+var PANEL_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function assignPanelOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolvePanelElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function panelNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function panelSizeValue(value) {
+  if (value == null || value === '' || value === 'auto') return '';
+  return typeof value === 'number' ? Math.max(0, value) + 'px' : String(value);
+}
+
+function restorePanelAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function normalizePanelTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return PANEL_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findPanelTheme(element) {
+  var current = resolvePanelElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < PANEL_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + PANEL_THEMES[index])) {
+        return PANEL_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function normalizePanelHalign(value) {
+  value = String(value || 'top').toLowerCase();
+  return value === 'left' || value === 'right' ? value : 'top';
+}
+
+function createPanelFactory(Control, registerControl, unregisterControl) {
+  var localePacks = {
+    en: {
+      close: 'Close',
+      collapse: 'Collapse',
+      expand: 'Expand',
+      minimize: 'Minimize',
+      maximize: 'Maximize',
+      restore: 'Restore',
+      loading: 'Loading...'
+    },
+    'zh-TW': {
+      close: '關閉',
+      collapse: '收合',
+      expand: '展開',
+      minimize: '最小化',
+      maximize: '最大化',
+      restore: '還原',
+      loading: '載入中...'
+    },
+    'zh-CN': {
+      close: '关闭',
+      collapse: '收合',
+      expand: '展开',
+      minimize: '最小化',
+      maximize: '最大化',
+      restore: '还原',
+      loading: '加载中...'
+    }
+  };
+
+  function normalizeLocale(value) {
+    if (localePacks[value]) return value;
+    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
+    if (/^zh/i.test(value || '')) return 'zh-CN';
+    return 'en';
+  }
+
+  function FabPanel(element, options) {
+    var host = resolvePanelElement(element);
+    var initiallyCollapsed;
+    var initiallyMaximized;
+    var initiallyMinimized;
+    if (!(this instanceof FabPanel)) return new FabPanel(element, options);
+    if (!host) throw new Error('fabui.Panel requires a host element.');
+    if (host.__fabuiPanel) return host.__fabuiPanel;
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._loaded = false;
+    this._loadController = null;
+    this._animationStartTimer = null;
+    this._animationEndTimer = null;
+    this._animationComplete = null;
+    this._normalRect = null;
+    this._originalParent = host.parentNode;
+    this._originalNextSibling = host.nextSibling;
+    this._originalStyle = host.getAttribute('style');
+    this._originalClass = host.getAttribute('class');
+    this._originalId = host.getAttribute('id');
+    this._originalTitle = host.getAttribute('title');
+    this._themeSource = this._originalParent && this._originalParent.nodeType === 1 ?
+      this._originalParent :
+      document.body;
+    this.options = assignPanelOptions({}, FabPanel.defaults, this._readElementOptions(), options || {});
+    this.options.locale = normalizeLocale(this.options.locale);
+    this.options.halign = normalizePanelHalign(this.options.halign);
+    initiallyCollapsed = this.options.collapsed === true;
+    initiallyMaximized = this.options.maximized === true;
+    initiallyMinimized = this.options.minimized === true;
+    this.options.collapsed = false;
+    this.options.maximized = false;
+    this.options.minimized = false;
+    this._build();
+    host.__fabuiPanel = this;
+    registerControl(host, this);
+    registerControl(this.panelElement, this);
+    this.setLocale(this.options.locale, this.options.messages);
+    this.setTheme(this.options.theme);
+    this.resize(this.options, true);
+    if (this.options.closed) {
+      this._setVisible(false);
+    } else {
+      this.open(true);
+      if (initiallyCollapsed) this.collapse();
+      if (initiallyMaximized) this.maximize();
+      if (initiallyMinimized) this.minimize();
+    }
+  }
+
+  FabPanel.prototype = Object.create(Control.prototype);
+  FabPanel.prototype.constructor = FabPanel;
+
+  FabPanel.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var options = {};
+    var title = host.getAttribute('title');
+    var width = host.style.width;
+    var height = host.style.height;
+    if (title) options.title = title;
+    if (width) options.width = width;
+    if (height) options.height = height;
+    return options;
+  };
+
+  FabPanel.prototype._build = function() {
+    var panel = document.createElement('div');
+    var header = document.createElement('div');
+    var icon = document.createElement('span');
+    var title = document.createElement('div');
+    var tools = document.createElement('div');
+    var footer = document.createElement('div');
+    panel.className = 'fui-panel' + (this.options.cls ? ' ' + this.options.cls : '');
+    panel.setAttribute('role', 'region');
+    header.className = 'fui-panel-header' + (this.options.headerCls ? ' ' + this.options.headerCls : '');
+    icon.className = 'fui-panel-icon';
+    title.className = 'fui-panel-title';
+    tools.className = 'fui-panel-tools';
+    footer.className = 'fui-panel-footer';
+    header.appendChild(icon);
+    header.appendChild(title);
+    header.appendChild(tools);
+    panel.appendChild(header);
+    panel.appendChild(this.hostElement);
+    panel.appendChild(footer);
+    if (this._originalParent) this._originalParent.insertBefore(panel, this._originalNextSibling);
+    this.hostElement.classList.add('fui-panel-body');
+    if (this.options.bodyCls) this.hostElement.classList.add(this.options.bodyCls);
+    this.hostElement.removeAttribute('title');
+    this.hostElement.style.display = '';
+    this.panelElement = panel;
+    this.headerElement = header;
+    this.iconElement = icon;
+    this.titleElement = title;
+    this.toolsElement = tools;
+    this.footerElement = footer;
+    if (this.options.id) this.hostElement.id = this.options.id;
+    if (this.options.content != null) this.setContent(this.options.content);
+    this.setTitle(this.options.title);
+    this._renderTools();
+    this._renderFooter();
+    this._applyStructureOptions();
+  };
+
+  FabPanel.prototype._applyStructureOptions = function() {
+    var style = this.options.style || {};
+    var key;
+    this.panelElement.classList.toggle('fui-panel-no-border', this.options.border === false);
+    this.panelElement.classList.remove('fui-panel-halign-top', 'fui-panel-halign-left', 'fui-panel-halign-right');
+    this.panelElement.classList.add('fui-panel-halign-' + this.options.halign);
+    this.panelElement.classList.toggle('fui-panel-title-up', this.options.titleDirection === 'up');
+    this.headerElement.hidden = this.options.noheader === true ||
+      (!this.options.title && !this.options.iconCls && !this.toolsElement.childNodes.length);
+    this.iconElement.className = ('fui-panel-icon ' + (this.options.iconCls || '')).trim();
+    this.iconElement.hidden = !this.options.iconCls;
+    this.titleElement.classList.toggle('fui-panel-title-with-icon', Boolean(this.options.iconCls));
+    for (key in style) {
+      if (Object.prototype.hasOwnProperty.call(style, key)) this.panelElement.style[key] = style[key];
+    }
+  };
+
+  FabPanel.prototype._createTool = function(type, enabled, handler) {
+    var self = this;
+    var button;
+    if (!enabled) return;
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fui-panel-tool fui-panel-tool-' + type;
+    button.setAttribute('data-panel-tool', type);
+    button.addEventListener('click', function(event) {
+      event.stopPropagation();
+      handler.call(self);
+    });
+    this.toolsElement.appendChild(button);
+  };
+
+  FabPanel.prototype._renderTools = function() {
+    var self = this;
+    var customTools = Array.isArray(this.options.tools) ? this.options.tools : [];
+    this.toolsElement.textContent = '';
+    customTools.forEach(function(tool, index) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = ('fui-panel-tool fui-panel-tool-custom ' + (tool.iconCls || '')).trim();
+      button.textContent = tool.text || '';
+      button.title = tool.title || tool.text || '';
+      button.setAttribute('aria-label', tool.ariaLabel || tool.title || tool.text || ('Tool ' + (index + 1)));
+      button.addEventListener('click', function(event) {
+        event.stopPropagation();
+        if (typeof tool.onClick === 'function') tool.onClick.call(self, event, self);
+        else if (typeof tool.handler === 'function') tool.handler.call(self, event, self);
+      });
+      self.toolsElement.appendChild(button);
+    });
+    this._createTool('collapse', this.options.collapsible, function() {
+      if (this.options.collapsed) this.expand();
+      else this.collapse();
+    });
+    this._createTool('minimize', this.options.minimizable, this.minimize);
+    this._createTool('maximize', this.options.maximizable, function() {
+      if (this.options.maximized) this.restore();
+      else this.maximize();
+    });
+    this._createTool('close', this.options.closable, this.close);
+  };
+
+  FabPanel.prototype._renderFooter = function() {
+    var footer = this.options.footer;
+    this.footerElement.textContent = '';
+    if (footer && footer.nodeType === 1) {
+      this.footerElement.appendChild(footer);
+    } else if (footer != null && footer !== '') {
+      this.footerElement.textContent = String(footer);
+    }
+    this.footerElement.hidden = !this.footerElement.childNodes.length;
+  };
+
+  FabPanel.prototype._setVisible = function(visible) {
+    this.panelElement.hidden = !visible;
+  };
+
+  FabPanel.prototype._getAnimationDuration = function() {
+    if (this.options.animate === false) return 0;
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) return 0;
+    return Math.max(0, panelNumber(this.options.animationDuration, 180));
+  };
+
+  FabPanel.prototype._finishStateAnimation = function(runComplete) {
+    var complete = this._animationComplete;
+    if (this._animationStartTimer != null) clearTimeout(this._animationStartTimer);
+    if (this._animationEndTimer != null) clearTimeout(this._animationEndTimer);
+    this._animationStartTimer = null;
+    this._animationEndTimer = null;
+    this._animationComplete = null;
+    if (this.panelElement) {
+      this.panelElement.classList.remove('fui-panel-transitioning');
+      this.panelElement.style.removeProperty('--fui-panel-animation-duration');
+    }
+    if (runComplete !== false && complete) complete();
+  };
+
+  FabPanel.prototype._cancelStateAnimation = function(runComplete) {
+    if (
+      this._animationStartTimer != null ||
+      this._animationEndTimer != null ||
+      this._animationComplete
+    ) {
+      this._finishStateAnimation(runComplete);
+    } else if (this.panelElement) {
+      this.panelElement.classList.remove('fui-panel-transitioning');
+      this.panelElement.style.removeProperty('--fui-panel-animation-duration');
+    }
+  };
+
+  FabPanel.prototype._animateState = function(change, complete) {
+    var self = this;
+    var duration = this._getAnimationDuration();
+    this._cancelStateAnimation(true);
+    if (!duration) {
+      change();
+      if (complete) complete();
+      return;
+    }
+    this._animationComplete = complete || null;
+    this.panelElement.style.setProperty('--fui-panel-animation-duration', duration + 'ms');
+    this.panelElement.classList.add('fui-panel-transitioning');
+    this.panelElement.offsetWidth;
+    this._animationStartTimer = setTimeout(function() {
+      self._animationStartTimer = null;
+      change();
+      self._animationEndTimer = setTimeout(function() {
+        self._finishStateAnimation(true);
+      }, duration + 34);
+    }, 16);
+  };
+
+  FabPanel.prototype._restoreConfiguredSize = function() {
+    if (this.options.fit) {
+      this.panelElement.style.width = '100%';
+      this.panelElement.style.height = '100%';
+      return;
+    }
+    this.panelElement.style.width = panelSizeValue(this.options.width);
+    this.panelElement.style.height = panelSizeValue(this.options.height);
+  };
+
+  FabPanel.prototype._measureCollapsedSize = function() {
+    var bodyHidden = this.hostElement.hidden;
+    var footerHidden = this.footerElement.hidden;
+    var width = this.panelElement.style.width;
+    var height = this.panelElement.style.height;
+    var wasCollapsed = this.panelElement.classList.contains('fui-panel-collapsed');
+    this.hostElement.hidden = true;
+    this.footerElement.hidden = true;
+    this.panelElement.classList.add('fui-panel-collapsed');
+    this._restoreConfiguredSize();
+    var collapsedSize = {
+      width: this.panelElement.offsetWidth,
+      height: this.panelElement.offsetHeight
+    };
+    this.hostElement.hidden = bodyHidden;
+    this.footerElement.hidden = footerHidden;
+    if (!wasCollapsed) this.panelElement.classList.remove('fui-panel-collapsed');
+    this.panelElement.style.width = width;
+    this.panelElement.style.height = height;
+    return {
+      width: Math.max(0, collapsedSize.width),
+      height: Math.max(0, collapsedSize.height)
+    };
+  };
+
+  FabPanel.prototype._fireBefore = function(name, detail) {
+    var callback = this.options['onBefore' + name];
+    var listeners = (this._listeners['before' + name.toLowerCase()] || []).slice();
+    var allowed = true;
+    var index;
+    if (typeof callback === 'function' && callback.call(this.hostElement, this, detail) === false) {
+      allowed = false;
+    }
+    for (index = 0; index < listeners.length; index += 1) {
+      if (listeners[index].call(this, detail) === false) allowed = false;
+    }
+    return allowed;
+  };
+
+  FabPanel.prototype._fire = function(name, detail) {
+    var callback = this.options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var eventDetail = assignPanelOptions({ panel: this }, detail || {});
+    if (typeof callback === 'function') callback.call(this.hostElement, this, eventDetail);
+    listeners.forEach(function(listener) { listener.call(this, eventDetail); }, this);
+  };
+
+  FabPanel.prototype._load = function() {
+    var self = this;
+    var options = this.options;
+    var params = assignPanelOptions({}, options.queryParams || {});
+    var method = String(options.method || 'get').toUpperCase();
+    var url = options.href;
+    var request;
+    var success;
+    var failure;
+    var loading;
+    if (!url || (this._loaded && options.cache !== false)) return Promise.resolve(this);
+    if (!this._fireBefore('Load', { params: params, href: url })) return Promise.resolve(this);
+    if (this._loadController) this._loadController.abort();
+    this.hostElement.textContent = '';
+    loading = document.createElement('div');
+    loading.className = 'fui-panel-loading';
+    loading.textContent = String(options.loadingMessage || this.messages.loading);
+    this.hostElement.appendChild(loading);
+    success = function(data) {
+      var content = typeof options.extractor === 'function' ?
+        options.extractor.call(self.hostElement, data) :
+        data;
+      self.hostElement.innerHTML = content == null ? '' : String(content);
+      self._loaded = true;
+      self._fire('Load', { data: data });
+      self.doLayout();
+      return self;
+    };
+    failure = function(error) {
+      if (error && error.name === 'AbortError') return self;
+      self._fire('LoadError', { error: error });
+      return self;
+    };
+    if (typeof options.loader === 'function') {
+      request = new Promise(function(resolve, reject) {
+        var result = options.loader.call(self.hostElement, params, resolve, reject);
+        if (result === false) resolve(null);
+      }).then(success, failure);
+    } else if (typeof fetch === 'function') {
+      this._loadController = typeof AbortController === 'function' ? new AbortController() : null;
+      if (method === 'GET') {
+        var query = new URLSearchParams(params).toString();
+        if (query) url += (url.indexOf('?') >= 0 ? '&' : '?') + query;
+      }
+      request = fetch(url, {
+        method: method,
+        body: method === 'GET' ? undefined : new URLSearchParams(params),
+        signal: this._loadController ? this._loadController.signal : undefined
+      }).then(function(response) {
+        if (!response.ok) throw new Error('Panel load failed with status ' + response.status + '.');
+        return response.text();
+      }).then(success, failure);
+    } else {
+      request = Promise.resolve(failure(new Error('Fetch API is unavailable.')));
+    }
+    this.loadPromise = request;
+    return request;
+  };
+
+  FabPanel.prototype.open = function(force) {
+    if (!force && !this._fireBefore('Open')) return this;
+    this.options.closed = false;
+    this.options.minimized = false;
+    this._setVisible(true);
+    this._fire('Open');
+    if (!this.options.collapsed) this._load();
+    return this;
+  };
+
+  FabPanel.prototype.close = function(force) {
+    if (this.options.closed) return this;
+    if (!force && !this._fireBefore('Close')) return this;
+    this.options.closed = true;
+    this._setVisible(false);
+    this._fire('Close');
+    return this;
+  };
+
+  FabPanel.prototype.minimize = function() {
+    if (this.options.minimized) return this;
+    this.options.minimized = true;
+    this._setVisible(false);
+    this._fire('Minimize');
+    return this;
+  };
+
+  FabPanel.prototype.maximize = function() {
+    var self = this;
+    if (this.options.maximized) return this;
+    this._cancelStateAnimation(true);
+    this._normalRect = {
+      width: this.options.width,
+      height: this.options.height,
+      left: this.options.left,
+      top: this.options.top
+    };
+    this.options.maximized = true;
+    this.options.collapsed = false;
+    this.hostElement.hidden = false;
+    this.footerElement.hidden = !this.footerElement.childNodes.length;
+    this.panelElement.classList.add('fui-panel-maximized');
+    this.panelElement.classList.remove('fui-panel-collapsed', 'fui-panel-content-hidden');
+    this._animateState(function() {
+      self.resize({ width: '100%', height: '100%', left: 0, top: 0 }, true);
+    });
+    this._syncToolStates();
+    this._fire('Maximize');
+    return this;
+  };
+
+  FabPanel.prototype.restore = function() {
+    var self = this;
+    var normalRect;
+    if (!this.options.maximized || !this._normalRect) return this;
+    this._cancelStateAnimation(true);
+    normalRect = this._normalRect;
+    this.options.maximized = false;
+    this._animateState(function() {
+      self.resize(normalRect, true);
+    }, function() {
+      self.panelElement.classList.remove('fui-panel-maximized');
+      self.resize(normalRect, true);
+      self._normalRect = null;
+    });
+    this._syncToolStates();
+    this._fire('Restore');
+    return this;
+  };
+
+  FabPanel.prototype.collapse = function() {
+    var self = this;
+    var startSize;
+    var collapsedSize;
+    if (this.options.collapsed || !this._fireBefore('Collapse')) return this;
+    this._cancelStateAnimation(true);
+    startSize = {
+      width: this.panelElement.offsetWidth,
+      height: this.panelElement.offsetHeight
+    };
+    collapsedSize = this._measureCollapsedSize();
+    this.panelElement.style.width = Math.max(0, Math.round(startSize.width)) + 'px';
+    this.panelElement.style.height = Math.max(0, Math.round(startSize.height)) + 'px';
+    this.options.collapsed = true;
+    this._animateState(function() {
+      self.panelElement.classList.add('fui-panel-content-hidden');
+      self.panelElement.style.width = Math.max(0, Math.round(collapsedSize.width)) + 'px';
+      self.panelElement.style.height = Math.max(0, Math.round(collapsedSize.height)) + 'px';
+    }, function() {
+      self.hostElement.hidden = true;
+      self.footerElement.hidden = true;
+      self.panelElement.classList.add('fui-panel-collapsed');
+      self.panelElement.classList.remove('fui-panel-content-hidden');
+      self._restoreConfiguredSize();
+    });
+    this._syncToolStates();
+    this._fire('Collapse');
+    return this;
+  };
+
+  FabPanel.prototype.expand = function() {
+    var self = this;
+    var startSize;
+    var expandedSize;
+    if (!this.options.collapsed || !this._fireBefore('Expand')) return this;
+    this._cancelStateAnimation(true);
+    startSize = {
+      width: this.panelElement.offsetWidth,
+      height: this.panelElement.offsetHeight
+    };
+    this.options.collapsed = false;
+    this.hostElement.hidden = false;
+    this.footerElement.hidden = !this.footerElement.childNodes.length;
+    this.panelElement.classList.remove('fui-panel-collapsed');
+    this._restoreConfiguredSize();
+    expandedSize = {
+      width: this.panelElement.offsetWidth,
+      height: this.panelElement.offsetHeight
+    };
+    this.panelElement.style.width = Math.max(0, Math.round(startSize.width)) + 'px';
+    this.panelElement.style.height = Math.max(0, Math.round(startSize.height)) + 'px';
+    this.panelElement.classList.add('fui-panel-content-hidden');
+    this._animateState(function() {
+      self.panelElement.classList.remove('fui-panel-content-hidden');
+      self.panelElement.style.width = Math.max(0, Math.round(expandedSize.width)) + 'px';
+      self.panelElement.style.height = Math.max(0, Math.round(expandedSize.height)) + 'px';
+    }, function() {
+      self._restoreConfiguredSize();
+      self.doLayout();
+    });
+    this._syncToolStates();
+    this._fire('Expand');
+    this._load();
+    return this;
+  };
+
+  FabPanel.prototype._syncToolStates = function() {
+    var collapse = this.toolsElement.querySelector('[data-panel-tool="collapse"]');
+    var maximize = this.toolsElement.querySelector('[data-panel-tool="maximize"]');
+    if (collapse) {
+      collapse.classList.toggle('fui-panel-tool-expand', this.options.collapsed);
+      collapse.setAttribute('aria-label', this.options.collapsed ? this.messages.expand : this.messages.collapse);
+      collapse.title = this.options.collapsed ? this.messages.expand : this.messages.collapse;
+    }
+    if (maximize) {
+      maximize.classList.toggle('fui-panel-tool-restore', this.options.maximized);
+      maximize.setAttribute('aria-label', this.options.maximized ? this.messages.restore : this.messages.maximize);
+      maximize.title = this.options.maximized ? this.messages.restore : this.messages.maximize;
+    }
+  };
+
+  FabPanel.prototype.move = function(position, silent) {
+    position = position || {};
+    if (Object.prototype.hasOwnProperty.call(position, 'left')) this.options.left = position.left;
+    if (Object.prototype.hasOwnProperty.call(position, 'top')) this.options.top = position.top;
+    this.panelElement.style.left = panelSizeValue(this.options.left);
+    this.panelElement.style.top = panelSizeValue(this.options.top);
+    if (this.options.left != null || this.options.top != null) {
+      this.panelElement.classList.add('fui-panel-positioned');
+    } else {
+      this.panelElement.classList.remove('fui-panel-positioned');
+    }
+    if (!silent) {
+      this._fire('Move', {
+        left: panelNumber(this.options.left, 0),
+        top: panelNumber(this.options.top, 0)
+      });
+    }
+    return this;
+  };
+
+  FabPanel.prototype.resize = function(options, silent) {
+    var width;
+    var height;
+    options = options || {};
+    if (typeof options !== 'object') {
+      width = options;
+      height = arguments[1];
+      silent = arguments[2];
+      options = { width: width, height: height };
+    }
+    if (options.width != null) this.options.width = options.width;
+    if (options.height != null) this.options.height = options.height;
+    if (options.minWidth != null) this.options.minWidth = options.minWidth;
+    if (options.maxWidth != null) this.options.maxWidth = options.maxWidth;
+    if (options.minHeight != null) this.options.minHeight = options.minHeight;
+    if (options.maxHeight != null) this.options.maxHeight = options.maxHeight;
+    if (this.options.fit) {
+      this.panelElement.style.width = '100%';
+      this.panelElement.style.height = '100%';
+    } else {
+      this.panelElement.style.width = panelSizeValue(this.options.width);
+      this.panelElement.style.height = panelSizeValue(this.options.height);
+    }
+    this.panelElement.style.minWidth = panelSizeValue(this.options.minWidth);
+    this.panelElement.style.maxWidth = panelSizeValue(this.options.maxWidth);
+    this.panelElement.style.minHeight = panelSizeValue(this.options.minHeight);
+    this.panelElement.style.maxHeight = panelSizeValue(this.options.maxHeight);
+    if (
+      Object.prototype.hasOwnProperty.call(options, 'left') ||
+      Object.prototype.hasOwnProperty.call(options, 'top')
+    ) {
+      this.move(options, true);
+    }
+    if (!silent) {
+      this._fire('Resize', {
+        width: this.panelElement.offsetWidth,
+        height: this.panelElement.offsetHeight
+      });
+    }
+    this.doLayout();
+    return this;
+  };
+
+  FabPanel.prototype.doLayout = function() {
+    var self = this;
+    Array.prototype.forEach.call(this.hostElement.querySelectorAll('*'), function(element) {
+      var control = Control.getControl ? Control.getControl(element) : null;
+      if (!control || control === self) return;
+      if (typeof control.refresh === 'function') control.refresh();
+      else if (typeof control.resize === 'function') control.resize();
+    });
+    return this;
+  };
+
+  FabPanel.prototype.clear = function() {
+    this.hostElement.textContent = '';
+    this._loaded = false;
+    return this;
+  };
+
+  FabPanel.prototype.refresh = function(href) {
+    if (href != null) this.options.href = href;
+    this._loaded = false;
+    this._load();
+    return this;
+  };
+
+  FabPanel.prototype.setTitle = function(title) {
+    this.options.title = title == null ? '' : String(title);
+    this.titleElement.textContent = this.options.title;
+    this.panelElement.setAttribute('aria-label', this.options.title || 'Panel');
+    return this;
+  };
+
+  FabPanel.prototype.setContent = function(content) {
+    this.clear();
+    if (content && content.nodeType) this.hostElement.appendChild(content);
+    else this.hostElement.innerHTML = content == null ? '' : String(content);
+    return this;
+  };
+
+  FabPanel.prototype.setLocale = function(locale, messages) {
+    var minimize;
+    var close;
+    this.options.locale = normalizeLocale(locale);
+    this.options.messages = messages || this.options.messages;
+    this.messages = assignPanelOptions({}, localePacks[this.options.locale], this.options.messages || {});
+    this._syncToolStates();
+    minimize = this.toolsElement.querySelector('[data-panel-tool="minimize"]');
+    close = this.toolsElement.querySelector('[data-panel-tool="close"]');
+    if (minimize) {
+      minimize.title = this.messages.minimize;
+      minimize.setAttribute('aria-label', this.messages.minimize);
+    }
+    if (close) {
+      close.title = this.messages.close;
+      close.setAttribute('aria-label', this.messages.close);
+    }
+    return this;
+  };
+
+  FabPanel.prototype.setTheme = function(theme) {
+    var index;
+    this.options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this.options.theme === 'inherit' ?
+      findPanelTheme(this._themeSource) :
+      normalizePanelTheme(this.options.theme);
+    for (index = 0; index < PANEL_THEMES.length; index += 1) {
+      this.panelElement.classList.remove('fg-theme-' + PANEL_THEMES[index]);
+    }
+    this.panelElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  FabPanel.prototype.panel = function() { return this.panelElement; };
+  FabPanel.prototype.header = function() { return this.headerElement; };
+  FabPanel.prototype.body = function() { return this.hostElement; };
+  FabPanel.prototype.footer = function() { return this.footerElement; };
+  FabPanel.prototype.isOpen = function() { return !this.options.closed && !this.options.minimized; };
+
+  FabPanel.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabPanel.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabPanel.prototype.destroy = function(force) {
+    if (this._destroyed || (!force && !this._fireBefore('Destroy'))) return;
+    this._destroyed = true;
+    this._cancelStateAnimation(false);
+    if (this._loadController) this._loadController.abort();
+    unregisterControl(this.hostElement, this);
+    unregisterControl(this.panelElement, this);
+    delete this.hostElement.__fabuiPanel;
+    restorePanelAttribute(this.hostElement, 'class', this._originalClass);
+    restorePanelAttribute(this.hostElement, 'style', this._originalStyle);
+    restorePanelAttribute(this.hostElement, 'id', this._originalId);
+    restorePanelAttribute(this.hostElement, 'title', this._originalTitle);
+    if (this._originalParent) {
+      this._originalParent.insertBefore(this.hostElement, this._originalNextSibling);
+    }
+    if (this.panelElement.parentNode) this.panelElement.parentNode.removeChild(this.panelElement);
+    this._fire('Destroy');
+    this._listeners = {};
+  };
+
+  FabPanel.prototype.dispose = FabPanel.prototype.destroy;
+
+  FabPanel.defaults = {
+    id: null,
+    title: '',
+    iconCls: '',
+    width: 'auto',
+    height: 'auto',
+    left: null,
+    top: null,
+    minWidth: null,
+    maxWidth: null,
+    minHeight: null,
+    maxHeight: null,
+    cls: '',
+    headerCls: '',
+    bodyCls: '',
+    style: null,
+    fit: false,
+    border: true,
+    noheader: false,
+    content: null,
+    halign: 'top',
+    titleDirection: 'down',
+    collapsible: false,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    tools: null,
+    footer: null,
+    collapsed: false,
+    minimized: false,
+    maximized: false,
+    closed: false,
+    href: null,
+    cache: true,
+    loadingMessage: '',
+    extractor: function(data) {
+      var match = /<body[^>]*>([\s\S]*)<\/body>/i.exec(String(data == null ? '' : data));
+      return match ? match[1] : data;
+    },
+    method: 'get',
+    queryParams: null,
+    loader: null,
+    theme: 'inherit',
+    locale: 'en',
+    messages: null,
+    animate: true,
+    animationDuration: 180
+  };
+  FabPanel.locales = localePacks;
+  FabPanel.getControl = function(element) {
+    element = resolvePanelElement(element);
+    return element && element.__fabuiPanel ? element.__fabuiPanel : null;
+  };
+  return FabPanel;
+}
+
+var TABS_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function normalizeTabsTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return TABS_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function reorderTabRecords(records, fromIndex, toIndex) {
+  var record;
+  if (!Array.isArray(records) || !records.length) return false;
+  fromIndex = Math.floor(Number(fromIndex));
+  toIndex = Math.floor(Number(toIndex));
+  if (
+    !isFinite(fromIndex) ||
+    !isFinite(toIndex) ||
+    fromIndex < 0 ||
+    fromIndex >= records.length
+  ) return false;
+  toIndex = Math.max(0, Math.min(records.length - 1, toIndex));
+  if (fromIndex === toIndex) return false;
+  record = records.splice(fromIndex, 1)[0];
+  records.splice(toIndex, 0, record);
+  return true;
+}
+
+function resolveTabDropIndex(fromIndex, targetIndex, length) {
+  var insertIndex;
+  var insertBefore;
+  fromIndex = Math.floor(Number(fromIndex));
+  targetIndex = Math.floor(Number(targetIndex));
+  length = Math.max(0, Math.floor(Number(length)));
+  if (
+    !isFinite(fromIndex) ||
+    !isFinite(targetIndex) ||
+    !length ||
+    fromIndex < 0 ||
+    fromIndex >= length ||
+    targetIndex < 0 ||
+    targetIndex >= length
+  ) return -1;
+  insertBefore = targetIndex < fromIndex;
+  insertIndex = targetIndex + (insertBefore ? 0 : 1);
+  if (insertIndex > fromIndex) insertIndex -= 1;
+  return Math.max(0, Math.min(length - 1, insertIndex));
+}
+
+function resolveTabDropSide(fromIndex, targetIndex) {
+  fromIndex = Math.floor(Number(fromIndex));
+  targetIndex = Math.floor(Number(targetIndex));
+  if (!isFinite(fromIndex) || !isFinite(targetIndex) || fromIndex === targetIndex) {
+    return null;
+  }
+  return targetIndex < fromIndex ? 'before' : 'after';
+}
+
+function findTabsTheme(element) {
+  var current = element;
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < TABS_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + TABS_THEMES[index])) {
+        return TABS_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function createTabsFactory(Control, registerControl, unregisterControl) {
+  'use strict';
+
+  var defaults = {
+    width: 'auto',
+    height: 'auto',
+    fit: false,
+    border: true,
+    scrollIncrement: 100,
+    scrollDuration: 400,
+    plain: false,
+    narrow: false,
+    pill: false,
+    justified: false,
+    draggable: false,
+    tabPosition: 'top',
+    toolPosition: 'right',
+    headerWidth: 150,
+    tabWidth: 'auto',
+    tabHeight: 28,
+    selected: 0,
+    locale: 'en',
+    theme: 'inherit',
+    cls: '',
+    showHeader: true,
+    tools: [],
+    tabs: [],
+    onBeforeSelect: null,
+    onSelect: null,
+    onUnselect: null,
+    onBeforeClose: null,
+    onClose: null,
+    onAdd: null,
+    onUpdate: null,
+    onLoad: null,
+    onContextMenu: null,
+    onReorder: null
+  };
+  var localePacks = {
+    en: {
+      untitled: 'Untitled',
+      previous: 'Previous tabs',
+      next: 'Next tabs',
+      close: 'Close {title}',
+      tool: 'Tab tool {index}',
+      loadError: 'Unable to load tab content: {status}'
+    },
+    'zh-TW': {
+      untitled: '未命名',
+      previous: '上一組頁籤',
+      next: '下一組頁籤',
+      close: '關閉 {title}',
+      tool: '頁籤工具 {index}',
+      loadError: '無法載入頁籤內容：{status}'
+    },
+    'zh-CN': {
+      untitled: '未命名',
+      previous: '上一组页签',
+      next: '下一组页签',
+      close: '关闭 {title}',
+      tool: '页签工具 {index}',
+      loadError: '无法加载页签内容：{status}'
+    }
+  };
+
+  function assign(target) {
+    var source;
+    var key;
+    var i;
+    for (i = 1; i < arguments.length; i += 1) {
+      source = arguments[i] || {};
+      for (key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+      }
+    }
+    return target;
+  }
+
+  function resolveElement(element) {
+    if (typeof element === 'string') {
+      try {
+        return document.querySelector(element);
+      } catch (error) {
+        return null;
+      }
+    }
+    return element;
+  }
+
+  function cssSize(value) {
+    if (value == null || value === '' || value === 'auto') return 'auto';
+    return typeof value === 'number' ? value + 'px' : String(value);
+  }
+
+  function normalizePosition(value) {
+    value = String(value || 'top').toLowerCase();
+    return ['top', 'bottom', 'left', 'right'].indexOf(value) >= 0 ? value : 'top';
+  }
+
+  function normalizeToolPosition(value) {
+    value = String(value || 'right').toLowerCase();
+    return ['left', 'right', 'top', 'bottom'].indexOf(value) >= 0 ? value : 'right';
+  }
+
+  function normalizeLocale(value) {
+    value = String(value || 'en');
+    return localePacks[value] ? value : 'en';
+  }
+
+  function formatText(text, values) {
+    return String(text || '').replace(/\{([^}]+)\}/g, function(match, key) {
+      return values && values[key] != null ? values[key] : match;
+    });
+  }
+
+  function readBoolean(element, name, fallback) {
+    var value = element.getAttribute(name);
+    if (value == null) return fallback;
+    return value === '' || value === name || value === 'true' || value === '1';
+  }
+
+  function isElementNode(value) {
+    return value && value.nodeType === 1;
+  }
+
+  function Tabs(element, options) {
+    var children;
+    var configuredTabs;
+    var i;
+    if (!(this instanceof Tabs)) return new Tabs(element, options);
+    this.element = resolveElement(element);
+    if (!this.element || this.element.nodeType !== 1) {
+      throw new Error('fabui.Tabs requires a container element.');
+    }
+    if (this.element.__fabuiTabs) return this.element.__fabuiTabs;
+    Control.call(this);
+    this.hostElement = this.element;
+    this._listeners = {};
+    this._tabs = [];
+    this._selectedIndex = -1;
+    this._destroyed = false;
+    this._dragState = null;
+    this._dragImage = null;
+    this._dragBlocked = false;
+    this._originalClassName = this.element.className;
+    this._originalStyle = this.element.getAttribute('style');
+    this._originalHtml = this.element.innerHTML;
+    this._themeSource = this.element.parentElement || document.body;
+    this._options = assign({}, defaults, this._readElementOptions(), options || {});
+    this._options.tabPosition = normalizePosition(this._options.tabPosition);
+    this._options.toolPosition = normalizeToolPosition(this._options.toolPosition);
+    this._options.locale = normalizeLocale(this._options.locale);
+    children = Array.prototype.slice.call(this.element.children);
+    this._build();
+    for (i = 0; i < children.length; i += 1) {
+      this._appendExistingPanel(children[i]);
+    }
+    configuredTabs = Array.isArray(this._options.tabs) ? this._options.tabs : [];
+    for (i = 0; i < configuredTabs.length; i += 1) {
+      this.add(assign({}, configuredTabs[i], { selected: false }), true);
+    }
+    this._renderTools();
+    this._applyOptions();
+    if (this._tabs.length) this.select(this._options.selected, true);
+    this.element.__fabuiTabs = this;
+    registerControl(this.element, this);
+    this.setTheme(this._options.theme);
+  }
+
+  Tabs.prototype = Object.create(Control.prototype);
+  Tabs.prototype.constructor = Tabs;
+
+  Tabs.prototype._readElementOptions = function() {
+    var options = {};
+    var width = this.element.style.width;
+    var height = this.element.style.height;
+    var value;
+    if (width) options.width = width;
+    if (height) options.height = height;
+    value = this.element.getAttribute('tabPosition');
+    if (value) options.tabPosition = value;
+    value = this.element.getAttribute('toolPosition');
+    if (value) options.toolPosition = value;
+    value = this.element.getAttribute('theme');
+    if (value) options.theme = value;
+    value = this.element.getAttribute('locale');
+    if (value) options.locale = value;
+    ['fit', 'border', 'plain', 'narrow', 'pill', 'justified', 'draggable', 'showHeader'].forEach(function(name) {
+      var parsed = readBoolean(this.element, name, null);
+      if (parsed != null) options[name] = parsed;
+    }, this);
+    return options;
+  };
+
+  Tabs.prototype._build = function() {
+    var header = document.createElement('div');
+    var strip = document.createElement('div');
+    var previous = document.createElement('button');
+    var next = document.createElement('button');
+    var viewport = document.createElement('div');
+    var list = document.createElement('div');
+    var tools = document.createElement('div');
+    var panels = document.createElement('div');
+    this.element.textContent = '';
+    this.element.className = (
+      (this._originalClassName ? this._originalClassName + ' ' : '') +
+      'fui-tabs ' +
+      (this._options.cls || '')
+    ).trim();
+    header.className = 'fui-tabs-header';
+    strip.className = 'fui-tabs-strip';
+    previous.type = 'button';
+    previous.className = 'fui-tabs-scroll fui-tabs-scroll-prev';
+    previous.setAttribute('aria-label', this._getText('previous'));
+    next.type = 'button';
+    next.className = 'fui-tabs-scroll fui-tabs-scroll-next';
+    next.setAttribute('aria-label', this._getText('next'));
+    viewport.className = 'fui-tabs-viewport';
+    list.className = 'fui-tabs-list';
+    list.setAttribute('role', 'tablist');
+    tools.className = 'fui-tabs-tools';
+    panels.className = 'fui-tabs-panels';
+    viewport.appendChild(list);
+    strip.appendChild(previous);
+    strip.appendChild(viewport);
+    strip.appendChild(next);
+    header.appendChild(strip);
+    header.appendChild(tools);
+    this.element.appendChild(header);
+    this.element.appendChild(panels);
+    this.header = header;
+    this.strip = strip;
+    this.previousButton = previous;
+    this.nextButton = next;
+    this.viewport = viewport;
+    this.list = list;
+    this.tools = tools;
+    this.panels = panels;
+    this._bind();
+  };
+
+  Tabs.prototype._bind = function() {
+    var self = this;
+    this._onTabClick = function(event) {
+      var close = event.target.closest('.fui-tabs-close');
+      var panelTool = event.target.closest('.fui-tabs-panel-tool');
+      var tab = event.target.closest('.fui-tabs-tab');
+      var index;
+      var toolIndex;
+      var tool;
+      if (!tab || !self.list.contains(tab)) return;
+      index = Number(tab.getAttribute('data-index'));
+      if (panelTool) {
+        event.preventDefault();
+        event.stopPropagation();
+        toolIndex = Number(panelTool.getAttribute('data-tool-index'));
+        tool = self._tabs[index] && self._tabs[index].panelTools[toolIndex];
+        if (tool) {
+          if (typeof tool.handler === 'function') tool.handler.call(self, event, self._tabs[index].panel);
+          else if (typeof tool.onClick === 'function') tool.onClick.call(self, event, self._tabs[index].panel);
+        }
+        return;
+      }
+      if (close) {
+        event.preventDefault();
+        event.stopPropagation();
+        self.close(index);
+        return;
+      }
+      self.select(index);
+    };
+    this._onContextMenu = function(event) {
+      var tab = event.target.closest('.fui-tabs-tab');
+      var index;
+      if (!tab || !self.list.contains(tab)) return;
+      index = Number(tab.getAttribute('data-index'));
+      self._invoke('onContextMenu', event, self._tabs[index].options.title, index);
+      self._emit('contextmenu', {
+        originalEvent: event,
+        title: self._tabs[index].options.title,
+        index: index,
+        tab: self._tabs[index].panel
+      });
+    };
+    this._onTabKeyDown = function(event) {
+      var tab = event.target.closest('.fui-tabs-tab');
+      var index;
+      var nextIndex;
+      if (!tab) return;
+      index = Number(tab.getAttribute('data-index'));
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = self._findEnabled(index, 1);
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = self._findEnabled(index, -1);
+      if (event.key === 'Home') nextIndex = self._findEnabled(-1, 1);
+      if (event.key === 'End') nextIndex = self._findEnabled(0, -1);
+      if (event.key === 'Delete' && self._tabs[index] && self._tabs[index].options.closable) {
+        event.preventDefault();
+        self.close(index);
+        return;
+      }
+      if (nextIndex != null && nextIndex >= 0) {
+        event.preventDefault();
+        self.select(nextIndex);
+        self._tabs[nextIndex].tab.focus();
+      }
+    };
+    this._onTabPointerDown = function(event) {
+      self._dragBlocked = Boolean(
+        event.target.closest('.fui-tabs-close') ||
+        event.target.closest('.fui-tabs-panel-tool')
+      );
+    };
+    this._onTabPointerUp = function() {
+      self._dragBlocked = false;
+    };
+    this._onTabDragStart = function(event) {
+      var tab = event.target.closest('.fui-tabs-tab');
+      var index;
+      if (!self._isHorizontalDragEnabled() || self._dragBlocked || !tab || !self.list.contains(tab)) {
+        event.preventDefault();
+        return;
+      }
+      index = Number(tab.getAttribute('data-index'));
+      if (!self._tabs[index] || self._tabs[index].options.disabled) {
+        event.preventDefault();
+        return;
+      }
+      self._dragState = {
+        fromIndex: index,
+        dropIndex: index,
+        tab: tab
+      };
+      tab.classList.add('fui-tabs-tab-dragging');
+      self.element.classList.add('fui-tabs-dragging');
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(index));
+        self._createTabDragImage(tab, event);
+        if (self._dragImage) {
+          event.dataTransfer.setDragImage(
+            self._dragImage,
+            self._dragImageOffsetX,
+            self._dragImageOffsetY
+          );
+        }
+      }
+    };
+    this._onTabDragOver = function(event) {
+      var state = self._dragState;
+      var target;
+      var targetIndex;
+      var insertIndex;
+      var dropSide;
+      var viewportRect;
+      if (!state || !self._isHorizontalDragEnabled()) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+      target = event.target.closest('.fui-tabs-tab');
+      self._clearDropIndicators();
+      if (target === state.tab) {
+        state.dropIndex = state.fromIndex;
+        return;
+      }
+      if (target && self.list.contains(target)) {
+        targetIndex = Number(target.getAttribute('data-index'));
+        insertIndex = resolveTabDropIndex(state.fromIndex, targetIndex, self._tabs.length);
+        dropSide = resolveTabDropSide(state.fromIndex, targetIndex);
+        if (dropSide) target.classList.add('fui-tabs-drop-' + dropSide);
+      } else {
+        insertIndex = event.clientX < self.list.getBoundingClientRect().left ?
+          0 :
+          self._tabs.length;
+        if (insertIndex > state.fromIndex) insertIndex -= 1;
+        insertIndex = Math.max(0, Math.min(self._tabs.length - 1, insertIndex));
+      }
+      state.dropIndex = insertIndex;
+      viewportRect = self.viewport.getBoundingClientRect();
+      if (event.clientX < viewportRect.left + 24) self.viewport.scrollLeft -= 18;
+      else if (event.clientX > viewportRect.right - 24) self.viewport.scrollLeft += 18;
+    };
+    this._onTabDrop = function(event) {
+      var state = self._dragState;
+      if (!state) return;
+      event.preventDefault();
+      self._moveTab(state.fromIndex, state.dropIndex);
+      self._clearTabDrag();
+    };
+    this._onTabDragEnd = function() {
+      self._clearTabDrag();
+    };
+    this._onPrevious = function() { self.scrollBy(Math.abs(Number(self._options.scrollIncrement) || 100)); };
+    this._onNext = function() { self.scrollBy(-Math.abs(Number(self._options.scrollIncrement) || 100)); };
+    this._onResize = function() { self.resize(); };
+    this.addEventListener(this.list, 'click', this._onTabClick);
+    this.addEventListener(this.list, 'pointerdown', this._onTabPointerDown);
+    this.addEventListener(this.list, 'pointerup', this._onTabPointerUp);
+    this.addEventListener(this.list, 'pointercancel', this._onTabPointerUp);
+    this.addEventListener(this.list, 'dragstart', this._onTabDragStart);
+    this.addEventListener(this.list, 'dragover', this._onTabDragOver);
+    this.addEventListener(this.list, 'drop', this._onTabDrop);
+    this.addEventListener(this.list, 'dragend', this._onTabDragEnd);
+    this.addEventListener(this.list, 'keydown', this._onTabKeyDown);
+    this.addEventListener(this.list, 'contextmenu', this._onContextMenu);
+    this.addEventListener(this.previousButton, 'click', this._onPrevious);
+    this.addEventListener(this.nextButton, 'click', this._onNext);
+    this.addEventListener(window, 'resize', this._onResize);
+  };
+
+  Tabs.prototype._appendExistingPanel = function(panel) {
+    var options = {
+      title: panel.getAttribute('title') || panel.getAttribute('data-title') || 'Tab ' + (this._tabs.length + 1),
+      closable: readBoolean(panel, 'data-closable', readBoolean(panel, 'closable', false)),
+      disabled: readBoolean(panel, 'data-disabled', readBoolean(panel, 'disabled', false)),
+      iconCls: panel.getAttribute('data-icon-cls') || panel.getAttribute('iconCls') || '',
+      selected: readBoolean(panel, 'data-selected', readBoolean(panel, 'selected', false)),
+      href: panel.getAttribute('data-href') || panel.getAttribute('href') || '',
+      tools: panel.getAttribute('data-tools') || panel.getAttribute('tools') || null
+    };
+    panel.removeAttribute('title');
+    this._createRecord(panel, options);
+    if (options.selected) this._options.selected = this._tabs.length - 1;
+  };
+
+  Tabs.prototype._createRecord = function(panel, options) {
+    var insertIndex;
+    var record = { panel: panel, options: assign({
+      title: this._getText('untitled'),
+      closable: false,
+      disabled: false,
+      iconCls: '',
+      selected: false,
+      tabWidth: null,
+      href: '',
+      content: null,
+      cache: true,
+      method: 'GET',
+      tools: []
+    }, options || {}), loaded: false, panelTools: [] };
+    panel.classList.add('fui-tabs-panel');
+    panel.setAttribute('role', 'tabpanel');
+    panel.hidden = true;
+    this.panels.appendChild(panel);
+    insertIndex = Number(record.options.index);
+    if (!isFinite(insertIndex) || insertIndex < 0 || insertIndex > this._tabs.length) {
+      insertIndex = this._tabs.length;
+    }
+    if (insertIndex <= this._selectedIndex) this._selectedIndex += 1;
+    this._tabs.splice(insertIndex, 0, record);
+    this._renderRecord(record, insertIndex);
+    this._syncIndexes();
+    return record;
+  };
+
+  Tabs.prototype._renderRecord = function(record, index) {
+    var tab = record.tab || document.createElement('button');
+    var icon;
+    var title;
+    var close;
+    tab.type = 'button';
+    tab.className = 'fui-tabs-tab';
+    tab.setAttribute('role', 'tab');
+    tab.textContent = '';
+    if (record.options.iconCls) {
+      icon = document.createElement('span');
+      icon.className = 'fui-tabs-icon ' + record.options.iconCls;
+      icon.setAttribute('aria-hidden', 'true');
+      tab.appendChild(icon);
+    }
+    title = document.createElement('span');
+    title.className = 'fui-tabs-title';
+    title.textContent = record.options.title;
+    tab.appendChild(title);
+    record.panelTools = this._resolveTools(record.options.tools);
+    record.panelTools.forEach(function(tool, toolIndex) {
+      var toolElement = document.createElement('span');
+      toolElement.className = ('fui-tabs-panel-tool ' + (tool.iconCls || '')).trim();
+      toolElement.setAttribute('role', 'button');
+      toolElement.setAttribute('data-tool-index', toolIndex);
+      toolElement.setAttribute('aria-label', tool.ariaLabel || tool.title || tool.text || ('Tool ' + (toolIndex + 1)));
+      toolElement.title = tool.title || tool.text || '';
+      if (tool.text) toolElement.textContent = tool.text;
+      tab.appendChild(toolElement);
+    });
+    if (record.options.closable) {
+      close = document.createElement('span');
+      close.className = 'fui-tabs-close';
+      close.setAttribute('aria-label', formatText(this._getText('close'), { title: record.options.title }));
+      close.textContent = '×';
+      tab.appendChild(close);
+    }
+    tab.disabled = Boolean(record.options.disabled);
+    tab.draggable = this._isHorizontalDragEnabled() && !record.options.disabled;
+    tab.classList.toggle('fui-tabs-disabled', Boolean(record.options.disabled));
+    tab.style.width = cssSize(record.options.tabWidth != null ? record.options.tabWidth : this._options.tabWidth);
+    tab.style.height = cssSize(this._options.tabHeight);
+    tab.style.lineHeight = cssSize(this._options.tabHeight);
+    tab.setAttribute('data-index', index);
+    tab.id = this._getId() + '-tab-' + index;
+    record.panel.id = record.panel.id || this._getId() + '-panel-' + index;
+    tab.setAttribute('aria-controls', record.panel.id);
+    record.panel.setAttribute('aria-labelledby', tab.id);
+    if (!record.tab) this.list.insertBefore(tab, this.list.children[index] || null);
+    record.tab = tab;
+    tab.classList.toggle('fui-tabs-selected', index === this._selectedIndex);
+    tab.setAttribute('aria-selected', index === this._selectedIndex ? 'true' : 'false');
+    tab.tabIndex = index === this._selectedIndex ? 0 : -1;
+    record.panel.hidden = index !== this._selectedIndex;
+  };
+
+  Tabs.prototype._resolveTools = function(value) {
+    var host;
+    if (Array.isArray(value)) return value.slice();
+    if (typeof value !== 'string') return [];
+    try {
+      host = document.querySelector(value);
+    } catch (error) {
+      host = null;
+    }
+    if (!host) return [];
+    return Array.prototype.map.call(host.children, function(element) {
+      return {
+        element: element,
+        iconCls: element.getAttribute('iconCls') ||
+          element.getAttribute('data-icon-cls') ||
+          element.className ||
+          '',
+        title: element.getAttribute('title') || element.getAttribute('aria-label') || '',
+        handler: function(event) {
+          element.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          }));
+        }
+      };
+    });
+  };
+
+  Tabs.prototype._getId = function() {
+    if (!this._id) this._id = 'fui-tabs-' + Tabs._nextId++;
+    return this._id;
+  };
+
+  Tabs.prototype._applyOptions = function() {
+    var position = normalizePosition(this._options.tabPosition);
+    var toolPosition = normalizeToolPosition(this._options.toolPosition);
+    this._options.tabPosition = position;
+    this._options.toolPosition = toolPosition;
+    this.element.classList.toggle('fui-tabs-borderless', this._options.border === false);
+    this.element.classList.toggle('fui-tabs-plain', Boolean(this._options.plain));
+    this.element.classList.toggle('fui-tabs-narrow', Boolean(this._options.narrow));
+    this.element.classList.toggle('fui-tabs-pill', Boolean(this._options.pill));
+    this.element.classList.toggle('fui-tabs-justified', Boolean(this._options.justified));
+    this.element.classList.toggle(
+      'fui-tabs-draggable',
+      Boolean(this._options.draggable) && (position === 'top' || position === 'bottom')
+    );
+    this.element.classList.remove('fui-tabs-top', 'fui-tabs-bottom', 'fui-tabs-left', 'fui-tabs-right');
+    this.element.classList.add('fui-tabs-' + position);
+    this.header.classList.remove(
+      'fui-tabs-tool-left',
+      'fui-tabs-tool-right',
+      'fui-tabs-tool-top',
+      'fui-tabs-tool-bottom'
+    );
+    this.header.classList.add('fui-tabs-tool-' + toolPosition);
+    this.header.style.width = position === 'left' || position === 'right' ?
+      cssSize(this._options.headerWidth) :
+      '';
+    this.viewport.style.scrollBehavior = Number(this._options.scrollDuration) > 0 ? 'smooth' : 'auto';
+    this.header.hidden = this._options.showHeader === false;
+    this.element.insertBefore(this.header, this.panels);
+    this.resize(this._options.width, this._options.height);
+    this._tabs.forEach(function(record, index) {
+      this._renderRecord(record, index);
+    }, this);
+    this._syncOverflow();
+  };
+
+  Tabs.prototype._renderTools = function() {
+    var self = this;
+    var tools = this._resolveTools(this._options.tools);
+    this.tools.textContent = '';
+    tools.forEach(function(tool, index) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'fui-tabs-tool' + (tool.iconCls ? ' ' + tool.iconCls : '');
+      button.title = tool.title || '';
+      button.setAttribute('aria-label', tool.title || formatText(self._getText('tool'), { index: index + 1 }));
+      if (tool.text) button.textContent = tool.text;
+      button.addEventListener('click', function(event) {
+        if (typeof tool.onClick === 'function' || typeof tool.handler === 'function') {
+          event.data = { target: self.element, tabs: self, index: index, tool: button };
+          if (typeof tool.onClick === 'function') tool.onClick.call(self, event);
+          else tool.handler.call(self, event);
+        }
+      });
+      self.tools.appendChild(button);
+    });
+    this.tools.hidden = tools.length === 0 || this._toolVisible === false;
+  };
+
+  Tabs.prototype._syncIndexes = function() {
+    this._tabs.forEach(function(record, index) {
+      record.tab.setAttribute('data-index', index);
+      record.tab.id = this._getId() + '-tab-' + index;
+      record.panel.setAttribute('aria-labelledby', record.tab.id);
+    }, this);
+  };
+
+  Tabs.prototype._isHorizontalDragEnabled = function() {
+    return this._options.draggable === true &&
+      (this._options.tabPosition === 'top' || this._options.tabPosition === 'bottom');
+  };
+
+  Tabs.prototype._clearDropIndicators = function() {
+    if (!this.list) return;
+    Array.prototype.forEach.call(
+      this.list.querySelectorAll('.fui-tabs-drop-before, .fui-tabs-drop-after'),
+      function(tab) {
+        tab.classList.remove('fui-tabs-drop-before');
+        tab.classList.remove('fui-tabs-drop-after');
+      }
+    );
+  };
+
+  Tabs.prototype._createTabDragImage = function(tab, event) {
+    var rect;
+    var dragImage;
+    var pointerX;
+    var pointerY;
+    this._removeTabDragImage();
+    if (!tab || !this.element) return;
+    rect = tab.getBoundingClientRect();
+    dragImage = tab.cloneNode(true);
+    dragImage.removeAttribute('id');
+    dragImage.removeAttribute('aria-controls');
+    dragImage.removeAttribute('aria-selected');
+    dragImage.removeAttribute('tabindex');
+    dragImage.setAttribute('aria-hidden', 'true');
+    dragImage.classList.remove('fui-tabs-tab-dragging');
+    dragImage.classList.add('fui-tabs-drag-image');
+    dragImage.style.width = rect.width + 'px';
+    dragImage.style.height = rect.height + 'px';
+    this.element.appendChild(dragImage);
+    this._dragImage = dragImage;
+    pointerX = Number(event && event.clientX);
+    pointerY = Number(event && event.clientY);
+    if (!isFinite(pointerX)) pointerX = rect.left + (rect.width / 2);
+    if (!isFinite(pointerY)) pointerY = rect.top + (rect.height / 2);
+    this._dragImageOffsetX = Math.max(
+      0,
+      Math.min(rect.width, pointerX - rect.left)
+    );
+    this._dragImageOffsetY = Math.max(
+      0,
+      Math.min(rect.height, pointerY - rect.top)
+    );
+  };
+
+  Tabs.prototype._removeTabDragImage = function() {
+    if (this._dragImage && this._dragImage.parentNode) {
+      this._dragImage.parentNode.removeChild(this._dragImage);
+    }
+    this._dragImage = null;
+    this._dragImageOffsetX = 0;
+    this._dragImageOffsetY = 0;
+  };
+
+  Tabs.prototype._clearTabDrag = function() {
+    this._clearDropIndicators();
+    this._removeTabDragImage();
+    if (this._dragState && this._dragState.tab) {
+      this._dragState.tab.classList.remove('fui-tabs-tab-dragging');
+    }
+    if (this.element) this.element.classList.remove('fui-tabs-dragging');
+    this._dragState = null;
+    this._dragBlocked = false;
+  };
+
+  Tabs.prototype._moveTab = function(fromIndex, toIndex) {
+    var selected = this._tabs[this._selectedIndex];
+    var moved = this._tabs[fromIndex];
+    if (!moved || !reorderTabRecords(this._tabs, fromIndex, toIndex)) return false;
+    this._tabs.forEach(function(record) {
+      this.list.appendChild(record.tab);
+      this.panels.appendChild(record.panel);
+    }, this);
+    this._selectedIndex = selected ? this._tabs.indexOf(selected) : -1;
+    this._syncIndexes();
+    this._syncOverflow();
+    this._invoke('onReorder', moved.options.title, fromIndex, toIndex, moved.panel);
+    this._emit('reorder', {
+      title: moved.options.title,
+      fromIndex: fromIndex,
+      toIndex: toIndex,
+      tab: moved.panel
+    });
+    return true;
+  };
+
+  Tabs.prototype._resolveIndex = function(which) {
+    var i;
+    if (typeof which === 'number' && isFinite(which)) return which >= 0 && which < this._tabs.length ? which : -1;
+    if (typeof which === 'string') {
+      for (i = 0; i < this._tabs.length; i += 1) {
+        if (this._tabs[i].options.title === which) return i;
+      }
+    }
+    for (i = 0; i < this._tabs.length; i += 1) {
+      if (this._tabs[i] === which || this._tabs[i].panel === which || this._tabs[i].tab === which) return i;
+    }
+    return -1;
+  };
+
+  Tabs.prototype._findEnabled = function(start, direction) {
+    var length = this._tabs.length;
+    var i;
+    var index;
+    if (!length) return -1;
+    for (i = 1; i <= length; i += 1) {
+      index = (start + direction * i + length) % length;
+      if (!this._tabs[index].options.disabled) return index;
+    }
+    return -1;
+  };
+
+  Tabs.prototype._load = function(record) {
+    var self = this;
+    if (!record.options.href || (record.loaded && record.options.cache !== false)) return;
+    record.panel.classList.add('fui-tabs-loading');
+    fetch(record.options.href, { method: record.options.method || 'GET' }).then(function(response) {
+      if (!response.ok) throw new Error(formatText(self._getText('loadError'), { status: response.status }));
+      return response.text();
+    }).then(function(html) {
+      record.panel.innerHTML = html;
+      record.loaded = true;
+      record.panel.classList.remove('fui-tabs-loading');
+      self._invoke('onLoad', record.panel, record.options.title);
+      self._emit('load', { tab: record.panel, title: record.options.title });
+    }).catch(function(error) {
+      record.panel.classList.remove('fui-tabs-loading');
+      record.panel.textContent = error.message;
+    });
+  };
+
+  Tabs.prototype._scrollTabs = function(distance) {
+    this.viewport.scrollLeft += distance;
+    this._syncOverflow();
+  };
+
+  Tabs.prototype._syncOverflow = function() {
+    var overflows;
+    if (!this.viewport || this._destroyed) return;
+    overflows = this.viewport.scrollWidth > this.viewport.clientWidth + 1;
+    this.element.classList.toggle('fui-tabs-overflow', overflows);
+    this.previousButton.disabled = !overflows || this.viewport.scrollLeft <= 0;
+    this.nextButton.disabled = !overflows || this.viewport.scrollLeft + this.viewport.clientWidth >= this.viewport.scrollWidth - 1;
+  };
+
+  Tabs.prototype._invoke = function(name) {
+    var callback = this._options[name];
+    if (typeof callback === 'function') {
+      return callback.apply(this.element, Array.prototype.slice.call(arguments, 1));
+    }
+    return undefined;
+  };
+
+  Tabs.prototype._getText = function(key) {
+    var locale = localePacks[normalizeLocale(this._options && this._options.locale)] || localePacks.en;
+    return locale[key] == null ? localePacks.en[key] : locale[key];
+  };
+
+  Tabs.prototype._emit = function(name, detail) {
+    name = String(name || '').toLowerCase();
+    (this._listeners[name] || []).slice().forEach(function(listener) {
+      listener.call(this, detail);
+    }, this);
+  };
+
+  Tabs.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  Tabs.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    var list = this._listeners[name] || [];
+    if (!listener) {
+      this._listeners[name] = [];
+      return this;
+    }
+    var index = list.indexOf(listener);
+    if (index >= 0) list.splice(index, 1);
+    return this;
+  };
+
+  Tabs.prototype.select = function(which, silent) {
+    var index = this._resolveIndex(which);
+    var current = this._tabs[this._selectedIndex];
+    var next = this._tabs[index];
+    if (!next || next.options.disabled || index === this._selectedIndex) return next ? next.panel : null;
+    if (!silent && this._invoke('onBeforeSelect', next.options.title, index, next.panel) === false) return null;
+    if (current) {
+      current.tab.classList.remove('fui-tabs-selected');
+      current.tab.setAttribute('aria-selected', 'false');
+      current.tab.tabIndex = -1;
+      current.panel.hidden = true;
+      if (!silent) this._invoke('onUnselect', current.options.title, this._selectedIndex, current.panel);
+    }
+    this._selectedIndex = index;
+    next.tab.classList.add('fui-tabs-selected');
+    next.tab.setAttribute('aria-selected', 'true');
+    next.tab.tabIndex = 0;
+    next.panel.hidden = false;
+    this._load(next);
+    if (next.tab.scrollIntoView) next.tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (!silent) {
+      this._invoke('onSelect', next.options.title, index, next.panel);
+      this._emit('select', { title: next.options.title, index: index, tab: next.panel });
+    }
+    this._syncOverflow();
+    return next.panel;
+  };
+
+  Tabs.prototype.add = function(options, silent) {
+    var panel = document.createElement('div');
+    var record;
+    var index;
+    options = assign({}, options || {});
+    if (isElementNode(options.content)) panel.appendChild(options.content);
+    else if (options.content != null) panel.innerHTML = String(options.content);
+    record = this._createRecord(panel, options);
+    index = this._resolveIndex(record);
+    if (options.style && typeof options.style === 'object') assign(panel.style, options.style);
+    if (options.id) panel.id = String(options.id);
+    if (options.selected !== false || this._selectedIndex < 0) this.select(index, silent);
+    this._syncOverflow();
+    if (!silent) {
+      this._invoke('onAdd', record.options.title, index, panel);
+      this._emit('add', { title: record.options.title, index: index, tab: panel });
+    }
+    return panel;
+  };
+
+  Tabs.prototype.close = function(which) {
+    var index = this._resolveIndex(which);
+    var record = this._tabs[index];
+    var wasSelected = index === this._selectedIndex;
+    var nextIndex;
+    if (!record) return false;
+    if (this._invoke('onBeforeClose', record.options.title, index, record.panel) === false) return false;
+    record.tab.remove();
+    record.panel.remove();
+    this._tabs.splice(index, 1);
+    if (wasSelected) this._selectedIndex = -1;
+    else if (index < this._selectedIndex) this._selectedIndex -= 1;
+    this._syncIndexes();
+    if (wasSelected && this._tabs.length) {
+      nextIndex = Math.min(index, this._tabs.length - 1);
+      if (this._tabs[nextIndex].options.disabled) nextIndex = this._findEnabled(nextIndex, 1);
+      if (nextIndex >= 0) this.select(nextIndex, true);
+    }
+    this._syncOverflow();
+    this._invoke('onClose', record.options.title, index);
+    this._emit('close', { title: record.options.title, index: index });
+    return true;
+  };
+
+  Tabs.prototype.update = function(which, options) {
+    if (which && typeof which === 'object' && which.tab) {
+      options = which.options || {};
+      which = which.tab;
+    }
+    var index = this._resolveIndex(which);
+    var record = this._tabs[index];
+    if (!record) return null;
+    options = options || {};
+    assign(record.options, options);
+    if (Object.prototype.hasOwnProperty.call(options, 'content')) {
+      record.panel.innerHTML = '';
+      if (isElementNode(options.content)) record.panel.appendChild(options.content);
+      else record.panel.innerHTML = String(options.content == null ? '' : options.content);
+    }
+    if (Object.prototype.hasOwnProperty.call(options, 'href')) record.loaded = false;
+    this._renderRecord(record, index);
+    this._invoke('onUpdate', record.options.title, index, record.panel);
+    this._emit('update', { title: record.options.title, index: index, tab: record.panel });
+    this._syncOverflow();
+    return record.panel;
+  };
+
+  Tabs.prototype.disableTab = function(which) {
+    var index = this._resolveIndex(which);
+    if (index < 0) return this;
+    this._tabs[index].options.disabled = true;
+    this._renderRecord(this._tabs[index], index);
+    if (index === this._selectedIndex) {
+      index = this._findEnabled(index, 1);
+      if (index >= 0) this.select(index);
+    }
+    return this;
+  };
+
+  Tabs.prototype.enableTab = function(which) {
+    var index = this._resolveIndex(which);
+    if (index < 0) return this;
+    this._tabs[index].options.disabled = false;
+    this._renderRecord(this._tabs[index], index);
+    return this;
+  };
+
+  Tabs.prototype.getSelected = function() {
+    return this._tabs[this._selectedIndex] ? this._tabs[this._selectedIndex].panel : null;
+  };
+
+  Tabs.prototype.getTab = function(which) {
+    var index = this._resolveIndex(which);
+    return index >= 0 ? this._tabs[index].panel : null;
+  };
+
+  Tabs.prototype.getTabOptions = function(which) {
+    var index = this._resolveIndex(which);
+    return index >= 0 ? this._tabs[index].options : null;
+  };
+
+  Tabs.prototype.getTabIndex = function(tab) {
+    return this._resolveIndex(tab);
+  };
+
+  Tabs.prototype.getTabs = function() {
+    return this._tabs.map(function(record) { return record.panel; });
+  };
+
+  Tabs.prototype.tabs = Tabs.prototype.getTabs;
+
+  Tabs.prototype.exists = function(which) {
+    return this._resolveIndex(which) >= 0;
+  };
+
+  Tabs.prototype.resize = function(width, height) {
+    if (width && typeof width === 'object') {
+      height = width.height;
+      width = width.width;
+    }
+    if (width != null) this._options.width = width;
+    if (height != null) this._options.height = height;
+    this.element.style.width = this._options.fit ? '100%' : cssSize(this._options.width);
+    this.element.style.height = this._options.fit ? '100%' : cssSize(this._options.height);
+    this.element.classList.toggle('fui-tabs-auto-height', this.element.style.height === 'auto');
+    this._syncOverflow();
+    return this;
+  };
+
+  Tabs.prototype.unselect = function(which) {
+    var index = this._resolveIndex(which);
+    var record = this._tabs[index];
+    if (!record || index !== this._selectedIndex) return this;
+    record.tab.classList.remove('fui-tabs-selected');
+    record.tab.setAttribute('aria-selected', 'false');
+    record.tab.tabIndex = -1;
+    record.panel.hidden = true;
+    this._selectedIndex = -1;
+    this._invoke('onUnselect', record.options.title, index, record.panel);
+    this._emit('unselect', {
+      title: record.options.title,
+      index: index,
+      tab: record.panel
+    });
+    return this;
+  };
+
+  Tabs.prototype.showHeader = function() {
+    this._options.showHeader = true;
+    this.header.hidden = false;
+    return this.resize();
+  };
+
+  Tabs.prototype.hideHeader = function() {
+    this._options.showHeader = false;
+    this.header.hidden = true;
+    return this.resize();
+  };
+
+  Tabs.prototype.showTool = function() {
+    this._toolVisible = true;
+    this._renderTools();
+    return this.resize();
+  };
+
+  Tabs.prototype.hideTool = function() {
+    this._toolVisible = false;
+    this.tools.hidden = true;
+    return this.resize();
+  };
+
+  Tabs.prototype.scrollBy = function(deltaX) {
+    deltaX = Number(deltaX) || 0;
+    this._scrollTabs(-deltaX);
+    return this;
+  };
+
+  Tabs.prototype.setLocale = function(locale, messages) {
+    if (messages && locale) {
+      localePacks[String(locale)] = assign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeLocale(locale);
+    this.previousButton.setAttribute('aria-label', this._getText('previous'));
+    this.nextButton.setAttribute('aria-label', this._getText('next'));
+    this._tabs.forEach(function(record, index) {
+      this._renderRecord(record, index);
+    }, this);
+    this._renderTools();
+    return this;
+  };
+
+  Tabs.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findTabsTheme(this._themeSource) :
+      normalizeTabsTheme(this._options.theme);
+    for (index = 0; index < TABS_THEMES.length; index += 1) {
+      this.element.classList.remove('fg-theme-' + TABS_THEMES[index]);
+    }
+    this.element.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  Tabs.prototype.setOptions = function(options) {
+    assign(this._options, options || {});
+    this._options.locale = normalizeLocale(this._options.locale);
+    this._options.tabPosition = normalizePosition(this._options.tabPosition);
+    this._options.toolPosition = normalizeToolPosition(this._options.toolPosition);
+    this.setLocale(this._options.locale);
+    this._applyOptions();
+    this.setTheme(this._options.theme);
+    return this;
+  };
+
+  Tabs.prototype.options = function() {
+    return this._options;
+  };
+
+  Tabs.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._clearTabDrag();
+    this._destroyed = true;
+    this.removeEventListener();
+    this.element.innerHTML = this._originalHtml;
+    this.element.className = this._originalClassName;
+    if (this._originalStyle == null) this.element.removeAttribute('style');
+    else this.element.setAttribute('style', this._originalStyle);
+    unregisterControl(this.element, this);
+    delete this.element.__fabuiTabs;
+    this._tabs = [];
+    this._selectedIndex = -1;
+    this._listeners = {};
+  };
+
+  Tabs._nextId = 1;
+  Tabs.defaults = defaults;
+  Tabs.locales = localePacks;
+  Tabs.addLocale = function(name, messages) {
+    if (name && messages) localePacks[String(name)] = assign({}, localePacks.en, messages);
+    return Tabs;
+  };
+  Tabs.getControl = function(element) {
+    element = resolveElement(element);
+    return element && element.__fabuiTabs ? element.__fabuiTabs : null;
+  };
+  Tabs.normalizeTheme = normalizeTabsTheme;
+  return Tabs;
+}
+
+var TREE_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function treeAssign(target) {
+  var source;
+  var key;
+  var index;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function treeBoolean(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    value = value.trim().toLowerCase();
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    if (value === 'true' || value === '1' || value === 'yes' || value === '') return true;
+  }
+  return Boolean(value);
+}
+
+function treeNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function resolveTreeElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function normalizeTreeLocale(value) {
+  value = String(value || 'en');
+  return value === 'zh-TW' || value === 'zh-CN' ? value : 'en';
+}
+
+function normalizeTreeTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return TREE_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function findTreeTheme(element) {
+  var current = resolveTreeElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < TREE_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + TREE_THEMES[index])) {
+        return TREE_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function copyTreeNode(source, parent, sequence) {
+  var node = {};
+  var key;
+  var children;
+  var index;
+  source = source && typeof source === 'object' ? source : { text: source };
+  for (key in source) {
+    if (
+      Object.prototype.hasOwnProperty.call(source, key) &&
+      key !== 'children' &&
+      key !== 'target' &&
+      key.charAt(0) !== '_'
+    ) {
+      node[key] = source[key];
+    }
+  }
+  node.id = source.id != null ? source.id : 'fui-tree-node-' + sequence.value;
+  sequence.value += 1;
+  node.text = source.text == null ? '' : String(source.text);
+  node.state = String(source.state || 'open').toLowerCase() === 'closed' ? 'closed' : 'open';
+  node.checked = source.checked === true;
+  node.attributes = source.attributes && typeof source.attributes === 'object' ?
+    treeAssign({}, source.attributes) :
+    {};
+  node.children = [];
+  node._parent = parent || null;
+  node._loaded = source._loaded !== false;
+  node._loading = false;
+  node._hidden = false;
+  node._matched = true;
+  node._checkState = node.checked ? 'checked' : 'unchecked';
+  node.target = null;
+  children = Array.isArray(source.children) ? source.children : [];
+  for (index = 0; index < children.length; index += 1) {
+    node.children.push(copyTreeNode(children[index], node, sequence));
+  }
+  if (!children.length && node.state === 'closed' && source.children == null) {
+    node._loaded = false;
+  }
+  return node;
+}
+
+function normalizeTreeData(data) {
+  var sequence = { value: 1 };
+  return (Array.isArray(data) ? data : []).map(function(item) {
+    return copyTreeNode(item, null, sequence);
+  });
+}
+
+function flattenTreeData(roots, visibleOnly) {
+  var result = [];
+  function visit(nodes, level) {
+    nodes.forEach(function(node) {
+      if (!node._hidden) {
+        result.push({ node: node, level: level });
+        if (!visibleOnly || node.state !== 'closed') visit(node.children || [], level + 1);
+      }
+    });
+  }
+  visit(Array.isArray(roots) ? roots : [], 1);
+  return result;
+}
+
+function getNodeCollection(roots, node) {
+  return node && node._parent ? node._parent.children : roots;
+}
+
+function isTreeDescendant(node, possibleAncestor) {
+  var current = node;
+  while (current) {
+    if (current === possibleAncestor) return true;
+    current = current._parent;
+  }
+  return false;
+}
+
+function moveTreeDataNode(roots, source, target, point) {
+  var sourceCollection;
+  var targetCollection;
+  var sourceIndex;
+  var targetIndex;
+  if (!source || !target || source === target || isTreeDescendant(target, source)) return false;
+  point = point === 'top' || point === 'before' ?
+    'before' :
+    point === 'bottom' || point === 'after' ? 'after' : 'append';
+  sourceCollection = getNodeCollection(roots, source);
+  sourceIndex = sourceCollection.indexOf(source);
+  if (sourceIndex < 0) return false;
+  sourceCollection.splice(sourceIndex, 1);
+  if (point === 'append') {
+    target.children.push(source);
+    source._parent = target;
+    target.state = 'open';
+    target._loaded = true;
+    return true;
+  }
+  targetCollection = getNodeCollection(roots, target);
+  targetIndex = targetCollection.indexOf(target);
+  if (targetIndex < 0) {
+    sourceCollection.splice(sourceIndex, 0, source);
+    return false;
+  }
+  if (point === 'after') targetIndex += 1;
+  targetCollection.splice(targetIndex, 0, source);
+  source._parent = target._parent || null;
+  return true;
+}
+
+function createTreeFactory(Control, registerControl, unregisterControl) {
+  var defaults = {
+    url: null,
+    method: 'post',
+    animate: false,
+    checkbox: false,
+    cascadeCheck: true,
+    onlyLeafCheck: false,
+    lines: false,
+    dnd: false,
+    data: null,
+    queryParams: {},
+    formatter: null,
+    filter: null,
+    loader: null,
+    loadFilter: null,
+    locale: 'en',
+    theme: 'inherit',
+    ariaLabel: '',
+    onClick: null,
+    onDblClick: null,
+    onBeforeLoad: null,
+    onLoadSuccess: null,
+    onLoadError: null,
+    onBeforeExpand: null,
+    onExpand: null,
+    onBeforeCollapse: null,
+    onCollapse: null,
+    onBeforeCheck: null,
+    onCheck: null,
+    onBeforeSelect: null,
+    onSelect: null,
+    onContextMenu: null,
+    onBeforeDrag: null,
+    onStartDrag: null,
+    onStopDrag: null,
+    onDragEnter: null,
+    onDragOver: null,
+    onDragLeave: null,
+    onBeforeDrop: null,
+    onDrop: null,
+    onBeforeEdit: null,
+    onAfterEdit: null,
+    onCancelEdit: null
+  };
+  var localePacks = {
+    en: {
+      tree: 'Tree',
+      expand: 'Expand {text}',
+      collapse: 'Collapse {text}',
+      check: 'Check {text}',
+      uncheck: 'Uncheck {text}',
+      loading: 'Loading',
+      edit: 'Edit {text}'
+    },
+    'zh-TW': {
+      tree: '樹狀清單',
+      expand: '展開{text}',
+      collapse: '收合{text}',
+      check: '勾選{text}',
+      uncheck: '取消勾選{text}',
+      loading: '載入中',
+      edit: '編輯{text}'
+    },
+    'zh-CN': {
+      tree: '树状列表',
+      expand: '展开{text}',
+      collapse: '收起{text}',
+      check: '勾选{text}',
+      uncheck: '取消勾选{text}',
+      loading: '加载中',
+      edit: '编辑{text}'
+    }
+  };
+
+  function formatTreeText(text, values) {
+    return String(text || '').replace(/\{([^}]+)\}/g, function(match, key) {
+      return values && values[key] != null ? values[key] : match;
+    });
+  }
+
+  function restoreTreeAttribute(element, name, value) {
+    if (value == null) element.removeAttribute(name);
+    else element.setAttribute(name, value);
+  }
+
+  function readMarkupData(host) {
+    var sequence = { value: 1 };
+    function directChildren(element, tagName) {
+      return Array.prototype.filter.call(element.children || [], function(child) {
+        return child.tagName === tagName;
+      });
+    }
+    function readList(list, parent) {
+      return directChildren(list, 'LI').map(function(item) {
+        var nested = directChildren(item, 'UL')[0] || null;
+        var label = directChildren(item, 'SPAN')[0] || null;
+        var source = {};
+        var node;
+        source.id = item.getAttribute('data-id') || item.id || undefined;
+        source.text = label ? label.textContent.trim() : Array.prototype.reduce.call(
+          item.childNodes,
+          function(text, child) {
+            return child.nodeType === 3 ? text + child.nodeValue : text;
+          },
+          ''
+        ).trim();
+        source.state = item.getAttribute('data-state') || item.getAttribute('state') || 'open';
+        source.checked = treeBoolean(
+          item.getAttribute('data-checked') || item.getAttribute('checked'),
+          false
+        );
+        source.iconCls = item.getAttribute('data-icon-cls') || item.getAttribute('iconCls') || '';
+        node = copyTreeNode(source, parent, sequence);
+        if (nested) {
+          node.children = readList(nested, node);
+          node._loaded = true;
+        }
+        return node;
+      });
+    }
+    return readList(host, null);
+  }
+
+  function FabTree(element, options) {
+    var markupData;
+    if (!(this instanceof FabTree)) return new FabTree(element, options);
+    this.hostElement = resolveTreeElement(element);
+    if (!this.hostElement) throw new Error('fabui.Tree requires a host element.');
+    if (this.hostElement.__fabuiTree) return this.hostElement.__fabuiTree;
+    Control.call(this);
+    this._listeners = {};
+    this._selectedNode = null;
+    this._editingNode = null;
+    this._dragNode = null;
+    this._dragTarget = null;
+    this._dragPoint = null;
+    this._destroyed = false;
+    this._loadSequence = 0;
+    this._themeSource = this.hostElement.parentElement || document.body;
+    this._original = {
+      html: this.hostElement.innerHTML,
+      className: this.hostElement.getAttribute('class'),
+      style: this.hostElement.getAttribute('style'),
+      role: this.hostElement.getAttribute('role'),
+      tabIndex: this.hostElement.getAttribute('tabindex'),
+      ariaLabel: this.hostElement.getAttribute('aria-label')
+    };
+    this._options = treeAssign({}, defaults, this._readElementOptions(), options || {});
+    this._normalizeOptions();
+    markupData = readMarkupData(this.hostElement);
+    this._roots = normalizeTreeData(
+      Array.isArray(this._options.data) ? this._options.data : markupData
+    );
+    this._syncAllCheckStates();
+    this._build();
+    this._bind();
+    this.render();
+    this.hostElement.__fabuiTree = this;
+    registerControl(this.hostElement, this);
+    this.setTheme(this._options.theme);
+    if (!this._roots.length && (this._options.url || this._options.loader)) this.reload();
+  }
+
+  FabTree.prototype = Object.create(Control.prototype);
+  FabTree.prototype.constructor = FabTree;
+
+  FabTree.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var result = {};
+    var value;
+    value = host.getAttribute('data-theme') || host.getAttribute('theme');
+    if (value) result.theme = value;
+    value = host.getAttribute('data-locale') || host.getAttribute('locale');
+    if (value) result.locale = value;
+    value = host.getAttribute('data-url') || host.getAttribute('url');
+    if (value) result.url = value;
+    value = host.getAttribute('aria-label');
+    if (value) result.ariaLabel = value;
+    ['animate', 'checkbox', 'cascadeCheck', 'onlyLeafCheck', 'lines', 'dnd'].forEach(function(name) {
+      var attribute = host.getAttribute('data-' + name.replace(/[A-Z]/g, function(letter) {
+        return '-' + letter.toLowerCase();
+      }));
+      if (attribute == null) attribute = host.getAttribute(name);
+      if (attribute != null) result[name] = treeBoolean(attribute, false);
+    });
+    return result;
+  };
+
+  FabTree.prototype._normalizeOptions = function() {
+    this._options.animate = treeBoolean(this._options.animate, false);
+    this._options.cascadeCheck = treeBoolean(this._options.cascadeCheck, true);
+    this._options.onlyLeafCheck = treeBoolean(this._options.onlyLeafCheck, false);
+    this._options.lines = treeBoolean(this._options.lines, false);
+    this._options.dnd = treeBoolean(this._options.dnd, false);
+    this._options.locale = normalizeTreeLocale(this._options.locale);
+    this._options.method = String(this._options.method || 'post').toLowerCase();
+  };
+
+  FabTree.prototype._getText = function(key, values) {
+    return formatTreeText(
+      (localePacks[this._options.locale] || localePacks.en)[key] || localePacks.en[key] || key,
+      values
+    );
+  };
+
+  FabTree.prototype._build = function() {
+    this.hostElement.textContent = '';
+    this.hostElement.classList.add('fui-tree');
+    this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
+    this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
+    this.hostElement.setAttribute('role', 'tree');
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._getText('tree')
+    );
+    if (!this.hostElement.hasAttribute('tabindex')) this.hostElement.tabIndex = 0;
+  };
+
+  FabTree.prototype._bind = function() {
+    this.addEventListener(this.hostElement, 'click', this._handleClick.bind(this));
+    this.addEventListener(this.hostElement, 'dblclick', this._handleDblClick.bind(this));
+    this.addEventListener(this.hostElement, 'contextmenu', this._handleContextMenu.bind(this));
+    this.addEventListener(this.hostElement, 'keydown', this._handleKeyDown.bind(this));
+    this.addEventListener(this.hostElement, 'dragstart', this._handleDragStart.bind(this));
+    this.addEventListener(this.hostElement, 'dragover', this._handleDragOver.bind(this));
+    this.addEventListener(this.hostElement, 'dragleave', this._handleDragLeave.bind(this));
+    this.addEventListener(this.hostElement, 'drop', this._handleDrop.bind(this));
+    this.addEventListener(this.hostElement, 'dragend', this._handleDragEnd.bind(this));
+  };
+
+  FabTree.prototype._rowFromTarget = function(target) {
+    var row = target && target.closest ? target.closest('.fui-tree-node') : null;
+    return row && this.hostElement.contains(row) ? row : null;
+  };
+
+  FabTree.prototype._nodeFromTarget = function(target) {
+    var row = this._rowFromTarget(target);
+    return row ? this.getNode(row) : null;
+  };
+
+  FabTree.prototype._invoke = function(name) {
+    var handler = this._options[name];
+    var args = Array.prototype.slice.call(arguments, 1);
+    return typeof handler === 'function' ? handler.apply(this, args) : undefined;
+  };
+
+  FabTree.prototype._emit = function(type, detail, cancelable) {
+    var listeners = (this._listeners[type] || []).slice();
+    var event = {
+      type: type,
+      target: this,
+      detail: detail,
+      defaultPrevented: false,
+      preventDefault: function() {
+        if (cancelable) this.defaultPrevented = true;
+      }
+    };
+    listeners.forEach(function(listener) {
+      listener.call(this, event);
+    }, this);
+    return !event.defaultPrevented;
+  };
+
+  FabTree.prototype.on = function(type, listener) {
+    if (!type || typeof listener !== 'function') return this;
+    (this._listeners[String(type)] || (this._listeners[String(type)] = [])).push(listener);
+    return this;
+  };
+
+  FabTree.prototype.off = function(type, listener) {
+    var list = this._listeners[String(type)] || [];
+    var index;
+    if (!listener) {
+      delete this._listeners[String(type)];
+      return this;
+    }
+    for (index = list.length - 1; index >= 0; index -= 1) {
+      if (list[index] === listener) list.splice(index, 1);
+    }
+    return this;
+  };
+
+  FabTree.prototype._canShowCheckbox = function(node) {
+    if (typeof this._options.checkbox === 'function') return this._options.checkbox.call(this, node);
+    if (!this._options.checkbox) return false;
+    return !this._options.onlyLeafCheck || this.isLeaf(node);
+  };
+
+  FabTree.prototype._createIndent = function(container, node) {
+    var ancestors = [];
+    var parent = node._parent;
+    var indent;
+    while (parent) {
+      ancestors.unshift(parent);
+      parent = parent._parent;
+    }
+    ancestors.forEach(function(ancestor) {
+      indent = document.createElement('span');
+      indent.className = 'fui-tree-indent';
+      if (ancestor._parent && ancestor !== ancestor._parent.children[ancestor._parent.children.length - 1]) {
+        indent.classList.add('fui-tree-indent-line');
+      }
+      container.appendChild(indent);
+    });
+  };
+
+  FabTree.prototype._createRow = function(node, level) {
+    var item = document.createElement('li');
+    var row = document.createElement('div');
+    var expander = document.createElement('button');
+    var checkbox;
+    var icon = document.createElement('span');
+    var title = document.createElement('span');
+    var hasChildren = node.children.length > 0 || node._loaded === false;
+    var isClosed = node.state === 'closed';
+    var formatted;
+    item.className = 'fui-tree-item';
+    item.setAttribute('role', 'none');
+    row.className = 'fui-tree-node';
+    row.setAttribute('role', 'treeitem');
+    row.setAttribute('aria-level', String(level));
+    row.setAttribute('aria-selected', node === this._selectedNode ? 'true' : 'false');
+    row.tabIndex = node === this._selectedNode ? 0 : -1;
+    row.draggable = this._options.dnd;
+    if (hasChildren) row.setAttribute('aria-expanded', isClosed ? 'false' : 'true');
+    if (node._checkState !== 'unchecked' && this._canShowCheckbox(node)) {
+      row.setAttribute('aria-checked', node._checkState === 'mixed' ? 'mixed' : 'true');
+    } else if (this._canShowCheckbox(node)) {
+      row.setAttribute('aria-checked', 'false');
+    }
+    if (node === this._selectedNode) row.classList.add('fui-tree-node-selected');
+    if (node._loading) row.classList.add('fui-tree-node-loading');
+    this._createIndent(row, node);
+    expander.type = 'button';
+    expander.className = 'fui-tree-expander';
+    expander.tabIndex = -1;
+    expander.setAttribute('aria-hidden', hasChildren ? 'false' : 'true');
+    expander.setAttribute(
+      'aria-label',
+      this._getText(isClosed ? 'expand' : 'collapse', { text: node.text })
+    );
+    if (!hasChildren) expander.classList.add('fui-tree-expander-empty');
+    else expander.classList.add(isClosed ? 'fui-tree-expander-closed' : 'fui-tree-expander-open');
+    row.appendChild(expander);
+    if (this._canShowCheckbox(node)) {
+      checkbox = document.createElement('button');
+      checkbox.type = 'button';
+      checkbox.className = 'fui-tree-checkbox fui-tree-checkbox-' + node._checkState;
+      checkbox.tabIndex = -1;
+      checkbox.setAttribute(
+        'aria-label',
+        this._getText(node._checkState === 'checked' ? 'uncheck' : 'check', { text: node.text })
+      );
+      row.appendChild(checkbox);
+    }
+    icon.className = 'fui-tree-icon ' + (
+      node.iconCls ||
+      (hasChildren ? (isClosed ? 'fui-tree-icon-folder' : 'fui-tree-icon-folder-open') : 'fui-tree-icon-file')
+    );
+    icon.setAttribute('aria-hidden', 'true');
+    row.appendChild(icon);
+    title.className = 'fui-tree-title';
+    if (typeof this._options.formatter === 'function') {
+      formatted = this._options.formatter.call(this, node);
+      if (formatted && formatted.nodeType) title.appendChild(formatted);
+      else title.innerHTML = formatted == null ? '' : String(formatted);
+    } else {
+      title.textContent = node.text;
+    }
+    row.appendChild(title);
+    item.appendChild(row);
+    node.target = row;
+    if (node._loading) {
+      title.setAttribute('aria-label', node.text + ' ' + this._getText('loading'));
+    }
+    return item;
+  };
+
+  FabTree.prototype._renderList = function(nodes, level) {
+    var list = document.createElement('ul');
+    list.className = level === 1 ? 'fui-tree-root' : 'fui-tree-children';
+    list.setAttribute('role', level === 1 ? 'none' : 'group');
+    nodes.forEach(function(node) {
+      var item;
+      var children;
+      if (node._hidden) return;
+      item = this._createRow(node, level);
+      if (node.children.length) {
+        children = this._renderList(node.children, level + 1);
+        children.hidden = node.state === 'closed';
+        item.appendChild(children);
+      }
+      list.appendChild(item);
+    }, this);
+    return list;
+  };
+
+  FabTree.prototype.render = function() {
+    var activeId = this._selectedNode && this._selectedNode.id;
+    this.hostElement.textContent = '';
+    this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
+    this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
+    this.hostElement.classList.toggle('fui-tree-dnd', this._options.dnd);
+    this.hostElement.appendChild(this._renderList(this._roots, 1));
+    if (activeId != null) {
+      this._selectedNode = this.find(activeId) || null;
+    }
+    return this;
+  };
+
+  FabTree.prototype._handleClick = function(event) {
+    var row = this._rowFromTarget(event.target);
+    var node;
+    if (!row) return;
+    node = this.getNode(row);
+    if (!node) return;
+    if (event.target.closest('.fui-tree-expander')) {
+      this.toggle(node);
+      return;
+    }
+    if (event.target.closest('.fui-tree-checkbox')) {
+      if (node._checkState === 'checked') this.uncheck(node);
+      else this.check(node);
+      return;
+    }
+    this.select(node);
+    this._invoke('onClick', node);
+    this._emit('click', { node: node, originalEvent: event });
+  };
+
+  FabTree.prototype._handleDblClick = function(event) {
+    var node = this._nodeFromTarget(event.target);
+    if (!node || event.target.closest('button')) return;
+    this._invoke('onDblClick', node);
+    this._emit('dblclick', { node: node, originalEvent: event });
+  };
+
+  FabTree.prototype._handleContextMenu = function(event) {
+    var node = this._nodeFromTarget(event.target);
+    if (!node) return;
+    this._invoke('onContextMenu', event, node);
+    this._emit('contextmenu', { node: node, originalEvent: event });
+  };
+
+  FabTree.prototype._visibleNodes = function() {
+    return flattenTreeData(this._roots, true).map(function(record) {
+      return record.node;
+    });
+  };
+
+  FabTree.prototype._handleKeyDown = function(event) {
+    var node = this._nodeFromTarget(event.target) || this._selectedNode;
+    var visible = this._visibleNodes();
+    var index = visible.indexOf(node);
+    var target;
+    if (this._editingNode) return;
+    if (!node && visible.length) node = visible[0];
+    if (!node) return;
+    if (event.key === 'ArrowDown') target = visible[Math.min(visible.length - 1, index + 1)];
+    else if (event.key === 'ArrowUp') target = visible[Math.max(0, index - 1)];
+    else if (event.key === 'Home') target = visible[0];
+    else if (event.key === 'End') target = visible[visible.length - 1];
+    else if (event.key === 'ArrowRight') {
+      if (!this.isLeaf(node) && node.state === 'closed') this.expand(node);
+      else if (node.children.length) target = node.children[0];
+    } else if (event.key === 'ArrowLeft') {
+      if (!this.isLeaf(node) && node.state !== 'closed') this.collapse(node);
+      else if (node._parent) target = node._parent;
+    } else if (event.key === 'Enter') {
+      this.select(node);
+    } else if (event.key === ' ' && this._canShowCheckbox(node)) {
+      if (node._checkState === 'checked') this.uncheck(node);
+      else this.check(node);
+    } else if (event.key === 'F2') {
+      this.beginEdit(node);
+    } else {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (target) {
+      this.select(target);
+      if (target.target) target.target.focus();
+    }
+  };
+
+  FabTree.prototype._updateNodeExpansion = function(node, expanded) {
+    var row = node && node.target;
+    var item = row && row.parentElement;
+    var children = item && row.nextElementSibling;
+    var expander = row && row.querySelector('.fui-tree-expander');
+    var icon = row && row.querySelector('.fui-tree-icon');
+    var animation;
+    var height;
+    if (!row || !children || !children.classList.contains('fui-tree-children')) {
+      this.render();
+      return;
+    }
+    row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    if (expander) {
+      expander.classList.toggle('fui-tree-expander-open', expanded);
+      expander.classList.toggle('fui-tree-expander-closed', !expanded);
+      expander.setAttribute(
+        'aria-label',
+        this._getText(expanded ? 'collapse' : 'expand', { text: node.text })
+      );
+    }
+    if (icon && !node.iconCls) {
+      icon.classList.toggle('fui-tree-icon-folder-open', expanded);
+      icon.classList.toggle('fui-tree-icon-folder', !expanded);
+    }
+    if (!this._options.animate || typeof children.animate !== 'function') {
+      children.hidden = !expanded;
+      return;
+    }
+    if (children.getAnimations) {
+      children.getAnimations().forEach(function(current) {
+        current.cancel();
+      });
+    }
+    if (expanded) {
+      children.hidden = false;
+      height = children.scrollHeight;
+      animation = children.animate([
+        { height: '0px', opacity: 0, overflow: 'hidden' },
+        { height: height + 'px', opacity: 1, overflow: 'hidden' }
+      ], {
+        duration: 180,
+        easing: 'ease-out'
+      });
+      animation.onfinish = function() {
+        children.style.height = '';
+        children.style.opacity = '';
+        children.style.overflow = '';
+      };
+      return;
+    }
+    height = children.scrollHeight;
+    animation = children.animate([
+      { height: height + 'px', opacity: 1, overflow: 'hidden' },
+      { height: '0px', opacity: 0, overflow: 'hidden' }
+    ], {
+      duration: 180,
+      easing: 'ease-in'
+    });
+    animation.onfinish = function() {
+      if (node.state === 'closed') children.hidden = true;
+      children.style.height = '';
+      children.style.opacity = '';
+      children.style.overflow = '';
+    };
+  };
+
+  FabTree.prototype._dropPoint = function(row, clientY) {
+    var rect = row.getBoundingClientRect();
+    var ratio = rect.height ? (clientY - rect.top) / rect.height : 0.5;
+    return ratio < 0.25 ? 'top' : ratio > 0.75 ? 'bottom' : 'append';
+  };
+
+  FabTree.prototype._clearDropState = function() {
+    var rows = this.hostElement.querySelectorAll(
+      '.fui-tree-drop-before,.fui-tree-drop-after,.fui-tree-drop-append'
+    );
+    Array.prototype.forEach.call(rows, function(row) {
+      row.classList.remove('fui-tree-drop-before', 'fui-tree-drop-after', 'fui-tree-drop-append');
+    });
+    this._dragTarget = null;
+    this._dragPoint = null;
+  };
+
+  FabTree.prototype._handleDragStart = function(event) {
+    var node = this._nodeFromTarget(event.target);
+    if (!this._options.dnd || !node) return;
+    if (
+      this._invoke('onBeforeDrag', node) === false ||
+      !this._emit('beforedrag', { node: node, originalEvent: event }, true)
+    ) {
+      event.preventDefault();
+      return;
+    }
+    this._dragNode = node;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', String(node.id));
+    }
+    node.target.classList.add('fui-tree-node-dragging');
+    this._invoke('onStartDrag', node);
+    this._emit('startdrag', { node: node, originalEvent: event });
+  };
+
+  FabTree.prototype._handleDragOver = function(event) {
+    var row = this._rowFromTarget(event.target);
+    var node;
+    var point;
+    if (!row || !this._dragNode) return;
+    node = this.getNode(row);
+    if (!node || node === this._dragNode || isTreeDescendant(node, this._dragNode)) return;
+    point = this._dropPoint(row, event.clientY);
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    if (this._dragTarget !== node) {
+      this._invoke('onDragEnter', node, this._dragNode);
+      this._emit('dragenter', { target: node, source: this._dragNode, originalEvent: event });
+    }
+    this._clearDropState();
+    this._dragTarget = node;
+    this._dragPoint = point;
+    row.classList.add(
+      point === 'top' ?
+        'fui-tree-drop-before' :
+        point === 'bottom' ? 'fui-tree-drop-after' : 'fui-tree-drop-append'
+    );
+    this._invoke('onDragOver', node, this._dragNode);
+    this._emit('dragover', {
+      target: node,
+      source: this._dragNode,
+      point: point,
+      originalEvent: event
+    });
+  };
+
+  FabTree.prototype._handleDragLeave = function(event) {
+    var row = this._rowFromTarget(event.target);
+    if (!row || row.contains(event.relatedTarget)) return;
+    if (this._dragTarget) {
+      this._invoke('onDragLeave', this._dragTarget, this._dragNode);
+      this._emit('dragleave', {
+        target: this._dragTarget,
+        source: this._dragNode,
+        originalEvent: event
+      });
+    }
+  };
+
+  FabTree.prototype._handleDrop = function(event) {
+    var source = this._dragNode;
+    var target = this._dragTarget;
+    var point = this._dragPoint;
+    var moved;
+    if (!source || !target || !point) return;
+    event.preventDefault();
+    if (
+      this._invoke('onBeforeDrop', target, source, point) === false ||
+      !this._emit('beforedrop', {
+        target: target,
+        source: source,
+        point: point,
+        originalEvent: event
+      }, true)
+    ) {
+      this._clearDropState();
+      return;
+    }
+    moved = moveTreeDataNode(this._roots, source, target, point);
+    this._clearDropState();
+    if (!moved) return;
+    this.render();
+    this.select(source);
+    this._invoke('onDrop', target, source, point);
+    this._emit('drop', {
+      target: target,
+      source: source,
+      point: point,
+      originalEvent: event
+    });
+  };
+
+  FabTree.prototype._handleDragEnd = function(event) {
+    var node = this._dragNode;
+    if (node && node.target) node.target.classList.remove('fui-tree-node-dragging');
+    this._clearDropState();
+    this._dragNode = null;
+    if (node) {
+      this._invoke('onStopDrag', node);
+      this._emit('stopdrag', { node: node, originalEvent: event });
+    }
+  };
+
+  FabTree.prototype._syncNodeCheckState = function(node) {
+    var states;
+    if (!node.children.length) {
+      node._checkState = node.checked ? 'checked' : 'unchecked';
+      return node._checkState;
+    }
+    states = node.children.map(function(child) {
+      return this._syncNodeCheckState(child);
+    }, this);
+    if (states.every(function(state) { return state === 'checked'; })) {
+      node._checkState = 'checked';
+      node.checked = true;
+    } else if (states.every(function(state) { return state === 'unchecked'; }) && !node.checked) {
+      node._checkState = 'unchecked';
+      node.checked = false;
+    } else {
+      node._checkState = 'mixed';
+      node.checked = false;
+    }
+    return node._checkState;
+  };
+
+  FabTree.prototype._syncAllCheckStates = function() {
+    if (this._options.cascadeCheck) {
+      this._roots.forEach(function visit(node) {
+        if (node.checked) {
+          this._setDescendantCheck(node, true);
+          return;
+        }
+        node.children.forEach(visit.bind(this));
+      }, this);
+    }
+    this._roots.forEach(function(node) {
+      this._syncNodeCheckState(node);
+    }, this);
+  };
+
+  FabTree.prototype._setDescendantCheck = function(node, checked) {
+    node.checked = checked;
+    node._checkState = checked ? 'checked' : 'unchecked';
+    node.children.forEach(function(child) {
+      this._setDescendantCheck(child, checked);
+    }, this);
+  };
+
+  FabTree.prototype._syncAncestorChecks = function(node) {
+    var parent = node._parent;
+    while (parent) {
+      this._syncNodeCheckState(parent);
+      parent = parent._parent;
+    }
+  };
+
+  FabTree.prototype._setCheck = function(target, checked) {
+    var node = this._resolveNode(target);
+    if (!node || !this._canShowCheckbox(node)) return this;
+    if (
+      this._invoke('onBeforeCheck', node, checked) === false ||
+      !this._emit('beforecheck', { node: node, checked: checked }, true)
+    ) return this;
+    if (this._options.cascadeCheck) this._setDescendantCheck(node, checked);
+    else {
+      node.checked = checked;
+      node._checkState = checked ? 'checked' : 'unchecked';
+    }
+    this._syncAncestorChecks(node);
+    this.render();
+    this._invoke('onCheck', node, checked);
+    this._emit('check', { node: node, checked: checked });
+    return this;
+  };
+
+  FabTree.prototype._resolveNode = function(target) {
+    if (!target) return null;
+    if (target.nodeType === 1) return this.getNode(target);
+    if (typeof target === 'object' && target.id != null) {
+      return this.find(target.id) || target;
+    }
+    return this.find(target);
+  };
+
+  FabTree.prototype._load = function(node) {
+    var sequence = ++this._loadSequence;
+    var param = treeAssign({}, this._options.queryParams || {});
+    var parent = node || null;
+    var loader = this._options.loader || this._defaultLoader.bind(this);
+    var completed = false;
+    var result;
+    if (node) param.id = node.id;
+    if (
+      this._invoke('onBeforeLoad', parent, param) === false ||
+      !this._emit('beforeload', { node: parent, param: param }, true)
+    ) return Promise.resolve(false);
+    if (node) {
+      node._loading = true;
+      this.render();
+    }
+    return new Promise(function(resolve) {
+      function success(data) {
+        var normalized;
+        if (completed || sequence !== this._loadSequence || this._destroyed) return;
+        completed = true;
+        if (typeof this._options.loadFilter === 'function') {
+          data = this._options.loadFilter.call(this, data, parent);
+        }
+        normalized = normalizeTreeData(Array.isArray(data) ? data : []);
+        normalized.forEach(function(child) {
+          child._parent = parent;
+        });
+        if (parent) {
+          parent.children = normalized;
+          parent._loaded = true;
+          parent._loading = false;
+          parent.state = 'open';
+        } else {
+          this._roots = normalized;
+        }
+        this._syncAllCheckStates();
+        this.render();
+        this._invoke('onLoadSuccess', parent, data);
+        this._emit('loadsuccess', { node: parent, data: data });
+        resolve(true);
+      }
+      function failure(error) {
+        if (completed || sequence !== this._loadSequence || this._destroyed) return;
+        completed = true;
+        if (parent) parent._loading = false;
+        this.render();
+        this._invoke('onLoadError', error, parent);
+        this._emit('loaderror', { node: parent, error: error });
+        resolve(false);
+      }
+      try {
+        result = loader.call(this, param, success.bind(this), failure.bind(this));
+        if (result && typeof result.then === 'function') {
+          result.then(success.bind(this), failure.bind(this));
+        }
+      } catch (error) {
+        failure.call(this, error);
+      }
+    }.bind(this));
+  };
+
+  FabTree.prototype._defaultLoader = function(param, success, error) {
+    var url = this._options.url;
+    var method = this._options.method === 'get' ? 'GET' : 'POST';
+    var query = new URLSearchParams();
+    var fetchUrl = url;
+    var fetchOptions = { method: method, headers: {} };
+    if (!url || typeof fetch !== 'function') {
+      error(new Error('Tree loader requires url or a custom loader.'));
+      return false;
+    }
+    Object.keys(param || {}).forEach(function(key) {
+      if (param[key] != null) query.append(key, String(param[key]));
+    });
+    if (method === 'GET') {
+      fetchUrl += (fetchUrl.indexOf('?') >= 0 ? '&' : '?') + query.toString();
+    } else {
+      fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
+      fetchOptions.body = query.toString();
+    }
+    return fetch(fetchUrl, fetchOptions).then(function(response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.json();
+    }).then(success, error);
+  };
+
+  FabTree.prototype.options = function() {
+    return this._options;
+  };
+
+  FabTree.prototype.setOptions = function(options) {
+    treeAssign(this._options, options || {});
+    this._normalizeOptions();
+    this.hostElement.classList.toggle('fui-tree-animate', this._options.animate);
+    this.hostElement.classList.toggle('fui-tree-lines', this._options.lines);
+    this.setTheme(this._options.theme);
+    return this.render();
+  };
+
+  FabTree.prototype.loadData = function(data) {
+    this._selectedNode = null;
+    this._roots = normalizeTreeData(data);
+    this._syncAllCheckStates();
+    this.render();
+    this._invoke('onLoadSuccess', null, data);
+    this._emit('loadsuccess', { node: null, data: data });
+    return this;
+  };
+
+  FabTree.prototype.getNode = function(target) {
+    var row = this._rowFromTarget(target);
+    var found = null;
+    if (!row) return null;
+    flattenTreeData(this._roots, false).some(function(record) {
+      if (record.node.target === row) {
+        found = record.node;
+        return true;
+      }
+      return false;
+    });
+    return found;
+  };
+
+  FabTree.prototype.getData = function(target) {
+    var node = this._resolveNode(target);
+    return node || null;
+  };
+
+  FabTree.prototype.reload = function(target) {
+    var node = target ? this._resolveNode(target) : null;
+    if (target && !node) return Promise.resolve(false);
+    if (node) {
+      node.children = [];
+      node._loaded = false;
+    }
+    return this._load(node);
+  };
+
+  FabTree.prototype.getRoot = function() {
+    return this._roots[0] || null;
+  };
+
+  FabTree.prototype.getRoots = function() {
+    return this._roots.slice();
+  };
+
+  FabTree.prototype.getParent = function(target) {
+    var node = this._resolveNode(target);
+    return node ? node._parent : null;
+  };
+
+  FabTree.prototype.getChildren = function(target) {
+    var node = target ? this._resolveNode(target) : null;
+    if (target && !node) return [];
+    return flattenTreeData(node ? node.children : this._roots, false).map(function(record) {
+      return record.node;
+    });
+  };
+
+  FabTree.prototype.getChecked = function(state) {
+    var accepted = Array.isArray(state) ? state : [state || 'checked'];
+    accepted = accepted.map(function(item) {
+      item = String(item || 'checked').toLowerCase();
+      return item === 'indeterminate' ? 'mixed' : item;
+    });
+    return flattenTreeData(this._roots, false).map(function(record) {
+      return record.node;
+    }).filter(function(node) {
+      return accepted.indexOf(node._checkState) >= 0;
+    });
+  };
+
+  FabTree.prototype.getSelected = function() {
+    return this._selectedNode;
+  };
+
+  FabTree.prototype.isLeaf = function(target) {
+    var node = this._resolveNode(target);
+    return Boolean(node && node._loaded !== false && !node.children.length);
+  };
+
+  FabTree.prototype.find = function(id) {
+    var found = null;
+    flattenTreeData(this._roots, false).some(function(record) {
+      if (String(record.node.id) === String(id)) {
+        found = record.node;
+        return true;
+      }
+      return false;
+    });
+    return found;
+  };
+
+  FabTree.prototype.findBy = function(field, value) {
+    var found = null;
+    flattenTreeData(this._roots, false).some(function(record) {
+      if (record.node[field] === value) {
+        found = record.node;
+        return true;
+      }
+      return false;
+    });
+    return found;
+  };
+
+  FabTree.prototype.select = function(target) {
+    var node = this._resolveNode(target);
+    if (!node || node === this._selectedNode) return this;
+    if (
+      this._invoke('onBeforeSelect', node) === false ||
+      !this._emit('beforeselect', { node: node }, true)
+    ) return this;
+    this._selectedNode = node;
+    this.render();
+    if (node.target) node.target.tabIndex = 0;
+    this._invoke('onSelect', node);
+    this._emit('select', { node: node });
+    return this;
+  };
+
+  FabTree.prototype.check = function(target) {
+    return this._setCheck(target, true);
+  };
+
+  FabTree.prototype.uncheck = function(target) {
+    return this._setCheck(target, false);
+  };
+
+  FabTree.prototype.expand = function(target) {
+    var node = this._resolveNode(target);
+    if (!node || (this.isLeaf(node) && node._loaded !== false) || node.state !== 'closed') return this;
+    if (
+      this._invoke('onBeforeExpand', node) === false ||
+      !this._emit('beforeexpand', { node: node }, true)
+    ) return this;
+    if (node._loaded === false) {
+      this._load(node).then(function(loaded) {
+        if (!loaded) return;
+        this._invoke('onExpand', node);
+        this._emit('expand', { node: node });
+      }.bind(this));
+      return this;
+    }
+    node.state = 'open';
+    this._updateNodeExpansion(node, true);
+    this._invoke('onExpand', node);
+    this._emit('expand', { node: node });
+    return this;
+  };
+
+  FabTree.prototype.collapse = function(target) {
+    var node = this._resolveNode(target);
+    if (!node || this.isLeaf(node) || node.state === 'closed') return this;
+    if (
+      this._invoke('onBeforeCollapse', node) === false ||
+      !this._emit('beforecollapse', { node: node }, true)
+    ) return this;
+    node.state = 'closed';
+    this._updateNodeExpansion(node, false);
+    this._invoke('onCollapse', node);
+    this._emit('collapse', { node: node });
+    return this;
+  };
+
+  FabTree.prototype.toggle = function(target) {
+    var node = this._resolveNode(target);
+    if (!node) return this;
+    return node.state === 'closed' ? this.expand(node) : this.collapse(node);
+  };
+
+  FabTree.prototype.collapseAll = function(target) {
+    var node = target ? this._resolveNode(target) : null;
+    var nodes = node ? [node].concat(this.getChildren(node)) : this.getChildren();
+    nodes.forEach(function(item) {
+      if (item.children.length || item._loaded === false) item.state = 'closed';
+    });
+    return this.render();
+  };
+
+  FabTree.prototype.expandAll = function(target) {
+    var node = target ? this._resolveNode(target) : null;
+    var nodes = node ? [node].concat(this.getChildren(node)) : this.getChildren();
+    nodes.forEach(function(item) {
+      if (item.children.length) item.state = 'open';
+    });
+    return this.render();
+  };
+
+  FabTree.prototype.expandTo = function(target) {
+    var node = this._resolveNode(target);
+    var parent;
+    if (!node) return this;
+    parent = node._parent;
+    while (parent) {
+      parent.state = 'open';
+      parent = parent._parent;
+    }
+    return this.render();
+  };
+
+  FabTree.prototype.scrollTo = function(target) {
+    var node = this._resolveNode(target);
+    if (!node) return this;
+    this.expandTo(node);
+    if (node.target && typeof node.target.scrollIntoView === 'function') {
+      node.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    return this;
+  };
+
+  FabTree.prototype.append = function(param) {
+    var parent = param && param.parent ? this._resolveNode(param.parent) : null;
+    var data = param && Array.isArray(param.data) ? param.data : [];
+    var nodes = normalizeTreeData(data);
+    nodes.forEach(function(node) {
+      node._parent = parent;
+      if (parent) parent.children.push(node);
+      else this._roots.push(node);
+    }, this);
+    if (parent) {
+      parent._loaded = true;
+      parent.state = 'open';
+    }
+    this._syncAllCheckStates();
+    return this.render();
+  };
+
+  FabTree.prototype.insert = function(param) {
+    var reference = param && (param.before || param.after);
+    var target = this._resolveNode(reference);
+    var collection;
+    var index;
+    var node;
+    if (!target || !param || !param.data) return this;
+    node = normalizeTreeData([param.data])[0];
+    collection = getNodeCollection(this._roots, target);
+    index = collection.indexOf(target);
+    if (param.after) index += 1;
+    node._parent = target._parent;
+    collection.splice(index, 0, node);
+    this._syncAllCheckStates();
+    return this.render();
+  };
+
+  FabTree.prototype.remove = function(target) {
+    var node = this._resolveNode(target);
+    var collection;
+    var index;
+    if (!node) return this;
+    collection = getNodeCollection(this._roots, node);
+    index = collection.indexOf(node);
+    if (index >= 0) collection.splice(index, 1);
+    if (this._selectedNode === node || isTreeDescendant(this._selectedNode, node)) {
+      this._selectedNode = null;
+    }
+    this._syncAllCheckStates();
+    return this.render();
+  };
+
+  FabTree.prototype.pop = function(target) {
+    var node = this._resolveNode(target);
+    var snapshot;
+    if (!node) return null;
+    snapshot = this._serializeNode(node);
+    this.remove(node);
+    return snapshot;
+  };
+
+  FabTree.prototype._serializeNode = function(node) {
+    var result = {};
+    var key;
+    for (key in node) {
+      if (
+        Object.prototype.hasOwnProperty.call(node, key) &&
+        key.charAt(0) !== '_' &&
+        key !== 'target' &&
+        key !== 'children'
+      ) {
+        result[key] = node[key];
+      }
+    }
+    result.children = node.children.map(this._serializeNode.bind(this));
+    return result;
+  };
+
+  FabTree.prototype.update = function(param) {
+    var node = param && this._resolveNode(param.target || param.id);
+    var key;
+    if (!node || !param) return this;
+    for (key in param) {
+      if (
+        Object.prototype.hasOwnProperty.call(param, key) &&
+        key !== 'target' &&
+        key !== 'children' &&
+        key.charAt(0) !== '_'
+      ) {
+        node[key] = param[key];
+      }
+    }
+    if (Array.isArray(param.children)) {
+      node.children = normalizeTreeData(param.children);
+      node.children.forEach(function(child) { child._parent = node; });
+      node._loaded = true;
+    }
+    node.text = node.text == null ? '' : String(node.text);
+    node.state = node.state === 'closed' ? 'closed' : 'open';
+    node.checked = node.checked === true;
+    this._syncAllCheckStates();
+    return this.render();
+  };
+
+  FabTree.prototype.enableDnd = function() {
+    this._options.dnd = true;
+    return this.render();
+  };
+
+  FabTree.prototype.disableDnd = function() {
+    this._options.dnd = false;
+    this._handleDragEnd({});
+    return this.render();
+  };
+
+  FabTree.prototype.beginEdit = function(target) {
+    var node = this._resolveNode(target);
+    var title;
+    var input;
+    if (!node || this._editingNode) return this;
+    if (
+      this._invoke('onBeforeEdit', node) === false ||
+      !this._emit('beforeedit', { node: node }, true)
+    ) return this;
+    this.expandTo(node);
+    title = node.target && node.target.querySelector('.fui-tree-title');
+    if (!title) return this;
+    this._editingNode = node;
+    input = document.createElement('input');
+    input.className = 'fui-tree-editor';
+    input.type = 'text';
+    input.value = node.text;
+    input.setAttribute('aria-label', this._getText('edit', { text: node.text }));
+    title.textContent = '';
+    title.appendChild(input);
+    input.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        this.endEdit(node);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        this.cancelEdit(node);
+      }
+    }.bind(this));
+    input.addEventListener('blur', function() {
+      if (this._editingNode === node) this.endEdit(node);
+    }.bind(this), { once: true });
+    input.focus();
+    input.select();
+    return this;
+  };
+
+  FabTree.prototype.endEdit = function(target) {
+    var node = this._resolveNode(target);
+    var input;
+    if (!node || this._editingNode !== node) return this;
+    input = node.target && node.target.querySelector('.fui-tree-editor');
+    if (input) node.text = input.value;
+    this._editingNode = null;
+    this.render();
+    this.select(node);
+    this._invoke('onAfterEdit', node);
+    this._emit('afteredit', { node: node });
+    return this;
+  };
+
+  FabTree.prototype.cancelEdit = function(target) {
+    var node = this._resolveNode(target);
+    if (!node || this._editingNode !== node) return this;
+    this._editingNode = null;
+    this.render();
+    this.select(node);
+    this._invoke('onCancelEdit', node);
+    this._emit('canceledit', { node: node });
+    return this;
+  };
+
+  FabTree.prototype.doFilter = function(query) {
+    var filter = typeof this._options.filter === 'function' ?
+      this._options.filter :
+      function(value, node) {
+        return String(node.text || '').toLowerCase().indexOf(String(value || '').toLowerCase()) >= 0;
+      };
+    function visit(node) {
+      var childMatched = false;
+      var selfMatched;
+      node.children.forEach(function(child) {
+        if (visit(child)) childMatched = true;
+      });
+      selfMatched = filter.call(this, query, node) !== false;
+      node._matched = selfMatched;
+      node._hidden = !(selfMatched || childMatched);
+      if (childMatched) node.state = 'open';
+      return !node._hidden;
+    }
+    this._roots.forEach(visit.bind(this));
+    return this.render();
+  };
+
+  FabTree.prototype.setLocale = function(locale, messages) {
+    if (messages && locale) {
+      localePacks[String(locale)] = treeAssign({}, localePacks.en, messages);
+    }
+    this._options.locale = normalizeTreeLocale(locale);
+    this.hostElement.setAttribute(
+      'aria-label',
+      this._options.ariaLabel || this._getText('tree')
+    );
+    return this.render();
+  };
+
+  FabTree.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findTreeTheme(this._themeSource) :
+      normalizeTreeTheme(this._options.theme);
+    for (index = 0; index < TREE_THEMES.length; index += 1) {
+      this.hostElement.classList.remove('fg-theme-' + TREE_THEMES[index]);
+    }
+    this.hostElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  FabTree.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._loadSequence += 1;
+    this.removeEventListener();
+    this.hostElement.innerHTML = this._original.html;
+    restoreTreeAttribute(this.hostElement, 'class', this._original.className);
+    restoreTreeAttribute(this.hostElement, 'style', this._original.style);
+    restoreTreeAttribute(this.hostElement, 'role', this._original.role);
+    restoreTreeAttribute(this.hostElement, 'tabindex', this._original.tabIndex);
+    restoreTreeAttribute(this.hostElement, 'aria-label', this._original.ariaLabel);
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiTree;
+    this._roots = [];
+    this._selectedNode = null;
+    this._listeners = {};
+  };
+
+  FabTree.defaults = defaults;
+  FabTree.locales = localePacks;
+  FabTree.addLocale = function(name, messages) {
+    if (name && messages) localePacks[String(name)] = treeAssign({}, localePacks.en, messages);
+    return FabTree;
+  };
+  FabTree.getControl = function(element) {
+    element = resolveTreeElement(element);
+    return element && element.__fabuiTree ? element.__fabuiTree : null;
+  };
+  FabTree.normalizeTheme = normalizeTreeTheme;
+  return FabTree;
+}
+
+var TOOLTIP_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function assignTooltipOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveTooltipElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function tooltipNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function tooltipBooleanAttribute(element, name) {
+  var value = element.getAttribute(name);
+  if (value == null) return undefined;
+  return value === '' || value === name || value === 'true' || value === '1';
+}
+
+function restoreTooltipAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function normalizeTooltipTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return TOOLTIP_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function normalizeTooltipPosition(value) {
+  value = String(value || 'bottom').toLowerCase();
+  return ['left', 'right', 'top', 'bottom'].indexOf(value) >= 0 ? value : 'bottom';
+}
+
+function normalizeTooltipValign(value) {
+  return String(value || 'middle').toLowerCase() === 'top' ? 'top' : 'middle';
+}
+
+function findTooltipTheme(element) {
+  var current = resolveTooltipElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < TOOLTIP_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + TOOLTIP_THEMES[index])) {
+        return TOOLTIP_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function createTooltipFactory(Control, registerControl, unregisterControl) {
+  var activeTooltip = null;
+
+  function FabTooltip(element, options) {
+    var host = resolveTooltipElement(element);
+    if (!(this instanceof FabTooltip)) return new FabTooltip(element, options);
+    if (!host) throw new Error('fabui.Tooltip requires a host element.');
+    if (host.__fabuiTooltip) return host.__fabuiTooltip;
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._visible = false;
+    this._showTimer = null;
+    this._hideTimer = null;
+    this._positionFrame = null;
+    this._trackPoint = null;
+    this._openEventsBound = false;
+    this._original = {
+      title: host.getAttribute('title'),
+      ariaDescribedBy: host.getAttribute('aria-describedby'),
+      className: host.getAttribute('class')
+    };
+    this._themeSource = host.parentElement || document.body;
+    this._options = assignTooltipOptions(
+      {},
+      FabTooltip.defaults,
+      this._readElementOptions(),
+      options || {}
+    );
+    this._options.position = normalizeTooltipPosition(this._options.position);
+    this._options.valign = normalizeTooltipValign(this._options.valign);
+    this._options.showDelay = Math.max(0, tooltipNumber(this._options.showDelay, 200));
+    this._options.hideDelay = Math.max(0, tooltipNumber(this._options.hideDelay, 100));
+    this._options.deltaX = this._options.deltaX == null ? 0 : this._options.deltaX;
+    this._options.deltaY = this._options.deltaY == null ? 0 : this._options.deltaY;
+    this._build();
+    this._bind();
+    host.__fabuiTooltip = this;
+    registerControl(host, this);
+    this.setTheme(this._options.theme);
+  }
+
+  FabTooltip.prototype = Object.create(Control.prototype);
+  FabTooltip.prototype.constructor = FabTooltip;
+
+  FabTooltip.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var options = {};
+    var value;
+    var parsed;
+    value = host.getAttribute('position') || host.getAttribute('data-position');
+    if (value) options.position = value;
+    value = host.getAttribute('valign') || host.getAttribute('data-valign');
+    if (value) options.valign = value;
+    value = host.getAttribute('content') || host.getAttribute('data-content');
+    if (value != null) options.content = value;
+    value = host.getAttribute('showEvent') || host.getAttribute('data-show-event');
+    if (value) options.showEvent = value;
+    value = host.getAttribute('hideEvent') || host.getAttribute('data-hide-event');
+    if (value) options.hideEvent = value;
+    value = host.getAttribute('theme') || host.getAttribute('data-theme');
+    if (value) options.theme = value;
+    parsed = tooltipBooleanAttribute(host, 'trackMouse');
+    if (parsed == null) parsed = tooltipBooleanAttribute(host, 'data-track-mouse');
+    if (parsed != null) options.trackMouse = parsed;
+    [
+      ['deltaX', 'data-delta-x'],
+      ['deltaY', 'data-delta-y'],
+      ['showDelay', 'data-show-delay'],
+      ['hideDelay', 'data-hide-delay']
+    ].forEach(function(names) {
+      var attribute = host.getAttribute(names[0]);
+      if (attribute == null) attribute = host.getAttribute(names[1]);
+      if (attribute != null && attribute !== '') options[names[0]] = Number(attribute);
+    });
+    if (options.content == null) options.content = this._original.title;
+    return options;
+  };
+
+  FabTooltip.prototype._build = function() {
+    this.hostElement.classList.add('fui-tooltip-target');
+    if (this._original.title != null) this.hostElement.removeAttribute('title');
+  };
+
+  FabTooltip.prototype._bindEventNames = function(value, handler) {
+    var self = this;
+    String(value || '').split(/\s+/).forEach(function(name) {
+      if (name) self.addEventListener(self.hostElement, name, handler);
+    });
+  };
+
+  FabTooltip.prototype._bind = function() {
+    var self = this;
+    this._onShowEvent = function(event) {
+      self.show(event);
+    };
+    this._onHideEvent = function(event) {
+      self.hide(event);
+    };
+    this._onMouseMove = function(event) {
+      self._trackPoint = {
+        pageX: event.pageX,
+        pageY: event.pageY
+      };
+      if (self._options.trackMouse && self._visible) self._scheduleReposition();
+    };
+    this._onDocumentPointerDown = function(event) {
+      if (
+        self.hostElement.contains(event.target) ||
+        (self.tipElement && self.tipElement.contains(event.target))
+      ) {
+        return;
+      }
+      self._hideNow(event);
+    };
+    this._onDocumentKeyDown = function(event) {
+      if (event.key === 'Escape') self._hideNow(event);
+    };
+    this._onViewportChange = function() {
+      if (self._visible) self._scheduleReposition();
+    };
+    this._bindEventNames(this._options.showEvent, this._onShowEvent);
+    this._bindEventNames(this._options.hideEvent, this._onHideEvent);
+    this.addEventListener(this.hostElement, 'mousemove', this._onMouseMove);
+  };
+
+  FabTooltip.prototype._bindOpenEvents = function() {
+    if (this._openEventsBound) return;
+    this._openEventsBound = true;
+    this.addEventListener(document, 'pointerdown', this._onDocumentPointerDown, true);
+    this.addEventListener(document, 'keydown', this._onDocumentKeyDown);
+    this.addEventListener(window, 'resize', this._onViewportChange);
+    this.addEventListener(window, 'scroll', this._onViewportChange, true);
+  };
+
+  FabTooltip.prototype._unbindOpenEvents = function() {
+    if (!this._openEventsBound) return;
+    this._openEventsBound = false;
+    this.removeEventListener(document, 'pointerdown', this._onDocumentPointerDown, true);
+    this.removeEventListener(document, 'keydown', this._onDocumentKeyDown);
+    this.removeEventListener(window, 'resize', this._onViewportChange);
+    this.removeEventListener(window, 'scroll', this._onViewportChange, true);
+  };
+
+  FabTooltip.prototype._ensureTip = function() {
+    var tip;
+    var content;
+    var outer;
+    var arrow;
+    if (this.tipElement) return this.tipElement;
+    tip = document.createElement('div');
+    content = document.createElement('div');
+    outer = document.createElement('div');
+    arrow = document.createElement('div');
+    tip.id = 'fui-tooltip-' + FabTooltip._nextId;
+    FabTooltip._nextId += 1;
+    tip.className = 'fui-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    tip.tabIndex = -1;
+    tip.hidden = true;
+    content.className = 'fui-tooltip-content';
+    outer.className = 'fui-tooltip-arrow-outer';
+    arrow.className = 'fui-tooltip-arrow';
+    tip.appendChild(content);
+    tip.appendChild(outer);
+    tip.appendChild(arrow);
+    document.body.appendChild(tip);
+    this.tipElement = tip;
+    this.contentElement = content;
+    this.arrowOuterElement = outer;
+    this.arrowElement = arrow;
+    this.hostElement.setAttribute('aria-describedby', tip.id);
+    registerControl(tip, this);
+    this.setTheme(this._options.theme);
+    return tip;
+  };
+
+  FabTooltip.prototype._clearTimers = function() {
+    if (this._showTimer != null) {
+      clearTimeout(this._showTimer);
+      this._showTimer = null;
+    }
+    if (this._hideTimer != null) {
+      clearTimeout(this._hideTimer);
+      this._hideTimer = null;
+    }
+  };
+
+  FabTooltip.prototype._scheduleReposition = function() {
+    var self = this;
+    if (this._positionFrame != null) return;
+    this._positionFrame = requestAnimationFrame(function() {
+      self._positionFrame = null;
+      if (self._visible) self.reposition();
+    });
+  };
+
+  FabTooltip.prototype._resolveContent = function() {
+    return typeof this._options.content === 'function' ?
+      this._options.content.call(this.hostElement) :
+      this._options.content;
+  };
+
+  FabTooltip.prototype._resolveDelta = function(value, position) {
+    if (typeof value === 'function') value = value.call(this.hostElement, position);
+    return tooltipNumber(value, 0);
+  };
+
+  FabTooltip.prototype._measurePosition = function(position) {
+    var tipRect = this.tipElement.getBoundingClientRect();
+    var hostRect = this.hostElement.getBoundingClientRect();
+    var trackMouse = this._options.trackMouse && this._trackPoint;
+    var deltaX = this._resolveDelta(this._options.deltaX, position);
+    var deltaY = this._resolveDelta(this._options.deltaY, position);
+    var pageLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+    var pageTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+    var hostLeft = trackMouse ? this._trackPoint.pageX : hostRect.left + pageLeft;
+    var hostTop = trackMouse ? this._trackPoint.pageY : hostRect.top + pageTop;
+    var hostWidth = trackMouse ? 0 : hostRect.width;
+    var hostHeight = trackMouse ? 0 : hostRect.height;
+    var gap = 12 + (trackMouse ? 12 : 0);
+    var left = hostLeft + deltaX;
+    var top = hostTop + deltaY;
+    if (position === 'right') {
+      left += hostWidth + gap;
+      if (this._options.valign === 'middle') top -= (tipRect.height - hostHeight) / 2;
+    } else if (position === 'left') {
+      left -= tipRect.width + gap;
+      if (this._options.valign === 'middle') top -= (tipRect.height - hostHeight) / 2;
+    } else if (position === 'top') {
+      left -= (tipRect.width - hostWidth) / 2;
+      top -= tipRect.height + gap;
+    } else {
+      left -= (tipRect.width - hostWidth) / 2;
+      top += hostHeight + gap;
+    }
+    return {
+      left: left,
+      top: top,
+      width: tipRect.width,
+      height: tipRect.height,
+      anchorX: hostLeft + hostWidth / 2,
+      anchorY: hostTop + hostHeight / 2
+    };
+  };
+
+  FabTooltip.prototype._choosePosition = function(position) {
+    var pageLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+    var pageTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+    var viewportRight = pageLeft + document.documentElement.clientWidth;
+    var viewportBottom = pageTop + document.documentElement.clientHeight;
+    var measured = this._measurePosition(position);
+    var opposite;
+    if (position === 'top' && measured.top < pageTop) opposite = 'bottom';
+    if (position === 'bottom' && measured.top + measured.height > viewportBottom) opposite = 'top';
+    if (position === 'left' && measured.left < pageLeft) opposite = 'right';
+    if (position === 'right' && measured.left + measured.width > viewportRight) opposite = 'left';
+    if (opposite) {
+      position = opposite;
+      measured = this._measurePosition(position);
+    }
+    measured.left = Math.max(pageLeft, Math.min(measured.left, viewportRight - measured.width));
+    measured.top = Math.max(pageTop, Math.min(measured.top, viewportBottom - measured.height));
+    measured.position = position;
+    return measured;
+  };
+
+  FabTooltip.prototype._applyArrowPosition = function(measured) {
+    var tip = this.tipElement;
+    var offset;
+    tip.classList.remove(
+      'fui-tooltip-left',
+      'fui-tooltip-right',
+      'fui-tooltip-top',
+      'fui-tooltip-bottom'
+    );
+    tip.classList.add('fui-tooltip-' + measured.position);
+    this.arrowOuterElement.style.left = '';
+    this.arrowOuterElement.style.top = '';
+    this.arrowElement.style.left = '';
+    this.arrowElement.style.top = '';
+    if (measured.position === 'top' || measured.position === 'bottom') {
+      offset = measured.anchorX - measured.left;
+      offset = Math.max(7, Math.min(offset, measured.width - 7));
+      this.arrowOuterElement.style.left = offset + 'px';
+      this.arrowElement.style.left = offset + 'px';
+    } else {
+      offset = measured.anchorY - measured.top;
+      offset = Math.max(7, Math.min(offset, measured.height - 7));
+      this.arrowOuterElement.style.top = offset + 'px';
+      this.arrowElement.style.top = offset + 'px';
+    }
+  };
+
+  FabTooltip.prototype._fire = function(name, detail) {
+    var callback = this._options['on' + name];
+    var eventName = name.toLowerCase();
+    var args = assignTooltipOptions({ tooltip: this }, detail || {});
+    if (typeof callback === 'function') {
+      if (name === 'Update') callback.call(this.hostElement, args.content);
+      else if (name === 'Position') callback.call(this.hostElement, args.left, args.top);
+      else if (name === 'Destroy') callback.call(this.hostElement);
+      else callback.call(this.hostElement, args.originalEvent);
+    }
+    (this._listeners[eventName] || []).slice().forEach(function(listener) {
+      listener.call(this, args);
+    }, this);
+  };
+
+  FabTooltip.prototype.show = function(event) {
+    var self = this;
+    var performShow;
+    if (this._destroyed || !this.hostElement.isConnected) return this;
+    if (event && event.pageX != null && event.pageY != null) {
+      this._trackPoint = { pageX: event.pageX, pageY: event.pageY };
+    }
+    this._clearTimers();
+    if (activeTooltip && activeTooltip !== this) activeTooltip._hideNow(event);
+    activeTooltip = this;
+    performShow = function() {
+      self._showTimer = null;
+      self._ensureTip();
+      self.update();
+      self.tipElement.hidden = false;
+      self.tipElement.style.visibility = 'hidden';
+      self.reposition();
+      self.tipElement.style.visibility = '';
+      self._visible = true;
+      self._bindOpenEvents();
+      self._fire('Show', {
+        originalEvent: event || null,
+        tip: self.tipElement
+      });
+    };
+    if (this._options.showDelay > 0) {
+      this._showTimer = setTimeout(performShow, this._options.showDelay);
+    } else {
+      performShow();
+    }
+    return this;
+  };
+
+  FabTooltip.prototype.hide = function(event) {
+    var self = this;
+    var performHide;
+    if (this._destroyed) return this;
+    if (this._showTimer != null) {
+      clearTimeout(this._showTimer);
+      this._showTimer = null;
+    }
+    if (!this.tipElement || !this._visible) {
+      if (activeTooltip === this) activeTooltip = null;
+      return this;
+    }
+    if (this._hideTimer != null) clearTimeout(this._hideTimer);
+    performHide = function() {
+      self._hideTimer = null;
+      self._hideNow(event);
+    };
+    if (this._options.hideDelay > 0) {
+      this._hideTimer = setTimeout(performHide, this._options.hideDelay);
+    } else {
+      performHide();
+    }
+    return this;
+  };
+
+  FabTooltip.prototype._hideNow = function(event) {
+    this._clearTimers();
+    if (this._positionFrame != null) {
+      cancelAnimationFrame(this._positionFrame);
+      this._positionFrame = null;
+    }
+    if (!this.tipElement || !this._visible) {
+      if (activeTooltip === this) activeTooltip = null;
+      return this;
+    }
+    this.tipElement.hidden = true;
+    this._visible = false;
+    this._unbindOpenEvents();
+    if (activeTooltip === this) activeTooltip = null;
+    this._fire('Hide', {
+      originalEvent: event || null,
+      tip: this.tipElement
+    });
+    return this;
+  };
+
+  FabTooltip.prototype.update = function(content) {
+    var resolved;
+    if (arguments.length) this._options.content = content;
+    if (!this.tipElement) return this;
+    resolved = this._resolveContent();
+    this.contentElement.innerHTML = resolved == null ? '' : String(resolved);
+    this._fire('Update', {
+      content: resolved,
+      tip: this.tipElement
+    });
+    if (this._visible) this.reposition();
+    return this;
+  };
+
+  FabTooltip.prototype.reposition = function() {
+    var measured;
+    if (!this.tipElement || this.tipElement.hidden || !this.hostElement.isConnected) return this;
+    measured = this._choosePosition(normalizeTooltipPosition(this._options.position));
+    this._applyArrowPosition(measured);
+    this.tipElement.style.left = Math.round(measured.left) + 'px';
+    this.tipElement.style.top = Math.round(measured.top) + 'px';
+    this.tipElement.style.zIndex = String(tooltipNumber(this._options.zIndex, 9900000));
+    this.position = measured.position;
+    this._fire('Position', {
+      left: Math.round(measured.left),
+      top: Math.round(measured.top),
+      position: measured.position,
+      tip: this.tipElement
+    });
+    return this;
+  };
+
+  FabTooltip.prototype.tip = function() {
+    return this.tipElement || null;
+  };
+
+  FabTooltip.prototype.arrow = function() {
+    if (!this.tipElement) return null;
+    return {
+      outer: this.arrowOuterElement,
+      inner: this.arrowElement
+    };
+  };
+
+  FabTooltip.prototype.options = function() {
+    return this._options;
+  };
+
+  FabTooltip.prototype.setTheme = function(theme) {
+    var index;
+    this._options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this._options.theme === 'inherit' ?
+      findTooltipTheme(this._themeSource) :
+      normalizeTooltipTheme(this._options.theme);
+    if (!this.tipElement) return this;
+    for (index = 0; index < TOOLTIP_THEMES.length; index += 1) {
+      this.tipElement.classList.remove('fg-theme-' + TOOLTIP_THEMES[index]);
+    }
+    this.tipElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  FabTooltip.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabTooltip.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabTooltip.prototype.destroy = function() {
+    var host = this.hostElement;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this._hideNow();
+    this.removeEventListener();
+    unregisterControl(host, this);
+    if (this.tipElement) {
+      unregisterControl(this.tipElement, this);
+      this.tipElement.remove();
+    }
+    delete host.__fabuiTooltip;
+    restoreTooltipAttribute(host, 'class', this._original.className);
+    restoreTooltipAttribute(host, 'title', this._original.title);
+    restoreTooltipAttribute(host, 'aria-describedby', this._original.ariaDescribedBy);
+    this._fire('Destroy');
+    this._listeners = {};
+    this.tipElement = null;
+    this.contentElement = null;
+    this.arrowOuterElement = null;
+    this.arrowElement = null;
+  };
+
+  FabTooltip.prototype.dispose = FabTooltip.prototype.destroy;
+
+  FabTooltip._nextId = 1;
+  FabTooltip.defaults = {
+    position: 'bottom',
+    valign: 'middle',
+    content: null,
+    trackMouse: false,
+    deltaX: 0,
+    deltaY: 0,
+    showEvent: 'mouseenter',
+    hideEvent: 'mouseleave',
+    showDelay: 200,
+    hideDelay: 100,
+    zIndex: 9900000,
+    theme: 'inherit',
+    onShow: null,
+    onHide: null,
+    onUpdate: null,
+    onPosition: null,
+    onDestroy: null
+  };
+  FabTooltip.getControl = function(element) {
+    element = resolveTooltipElement(element);
+    return element && element.__fabuiTooltip ? element.__fabuiTooltip : null;
+  };
+  FabTooltip.normalizeTheme = normalizeTooltipTheme;
+  return FabTooltip;
+}
+
+var LAYOUT_REGIONS = ['north', 'south', 'east', 'west', 'center'];
+var LAYOUT_EDGE_REGIONS = ['north', 'south', 'east', 'west'];
+var LAYOUT_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function assignLayoutOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveLayoutElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function layoutNumber(value, fallback) {
+  value = parseFloat(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function clampLayoutValue(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function findLayoutTheme(element) {
+  var current = resolveLayoutElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < LAYOUT_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + LAYOUT_THEMES[index])) {
+        return LAYOUT_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function normalizeLayoutRegion(value) {
+  value = String(value || '').toLowerCase();
+  return LAYOUT_REGIONS.indexOf(value) >= 0 ? value : null;
+}
+
+function calculateLayoutRects(size, regions) {
+  var width = Math.max(0, layoutNumber(size && size.width, 0));
+  var height = Math.max(0, layoutNumber(size && size.height, 0));
+  var top = 0;
+  var bottom = height;
+  var left = 0;
+  var right = width;
+  var result = {};
+
+  function getRegion(name) {
+    var region = regions && regions[name];
+    var splitter = region && region.split && !region.collapsed ?
+      Math.max(0, layoutNumber(region.splitSize, 5)) :
+      0;
+    var extent = region && region.collapsed ?
+      Math.max(0, layoutNumber(region.collapsedSize, 28)) :
+      Math.max(0, layoutNumber(region && region.size, 0));
+    return {
+      exists: Boolean(region && region.exists !== false),
+      collapsed: Boolean(region && region.collapsed),
+      extent: extent,
+      splitter: splitter
+    };
+  }
+
+  function setVertical(name, edge) {
+    var region = getRegion(name);
+    if (!region.exists) return;
+    region.extent = Math.min(region.extent, Math.max(0, bottom - top));
+    if (edge === 'top') {
+      result[name] = { left: 0, top: top, width: width, height: region.extent };
+      top += region.extent;
+      if (region.splitter) {
+        result[name + 'Splitter'] = {
+          left: 0,
+          top: top,
+          width: width,
+          height: region.splitter
+        };
+        top += region.splitter;
+      }
+    } else {
+      result[name] = {
+        left: 0,
+        top: bottom - region.extent,
+        width: width,
+        height: region.extent
+      };
+      bottom -= region.extent;
+      if (region.splitter) {
+        bottom -= region.splitter;
+        result[name + 'Splitter'] = {
+          left: 0,
+          top: bottom,
+          width: width,
+          height: region.splitter
+        };
+      }
+    }
+  }
+
+  function setHorizontal(name, edge) {
+    var region = getRegion(name);
+    if (!region.exists) return;
+    region.extent = Math.min(region.extent, Math.max(0, right - left));
+    if (edge === 'left') {
+      result[name] = {
+        left: left,
+        top: top,
+        width: region.extent,
+        height: Math.max(0, bottom - top)
+      };
+      left += region.extent;
+      if (region.splitter) {
+        result[name + 'Splitter'] = {
+          left: left,
+          top: top,
+          width: region.splitter,
+          height: Math.max(0, bottom - top)
+        };
+        left += region.splitter;
+      }
+    } else {
+      result[name] = {
+        left: right - region.extent,
+        top: top,
+        width: region.extent,
+        height: Math.max(0, bottom - top)
+      };
+      right -= region.extent;
+      if (region.splitter) {
+        right -= region.splitter;
+        result[name + 'Splitter'] = {
+          left: right,
+          top: top,
+          width: region.splitter,
+          height: Math.max(0, bottom - top)
+        };
+      }
+    }
+  }
+
+  setVertical('north', 'top');
+  setVertical('south', 'bottom');
+  setHorizontal('west', 'left');
+  setHorizontal('east', 'right');
+  result.center = {
+    left: left,
+    top: top,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top)
+  };
+  return result;
+}
+
+function createLayoutFactory(Control, registerControl, unregisterControl, Panel) {
+  var localePacks = {
+    en: {
+      collapseNorth: 'Collapse north',
+      collapseSouth: 'Collapse south',
+      collapseEast: 'Collapse east',
+      collapseWest: 'Collapse west',
+      expandNorth: 'Expand north',
+      expandSouth: 'Expand south',
+      expandEast: 'Expand east',
+      expandWest: 'Expand west'
+    },
+    'zh-TW': {
+      collapseNorth: '收合上方區域',
+      collapseSouth: '收合下方區域',
+      collapseEast: '收合右方區域',
+      collapseWest: '收合左方區域',
+      expandNorth: '展開上方區域',
+      expandSouth: '展開下方區域',
+      expandEast: '展開右方區域',
+      expandWest: '展開左方區域'
+    },
+    'zh-CN': {
+      collapseNorth: '收合上方区域',
+      collapseSouth: '收合下方区域',
+      collapseEast: '收合右方区域',
+      collapseWest: '收合左方区域',
+      expandNorth: '展开上方区域',
+      expandSouth: '展开下方区域',
+      expandEast: '展开右方区域',
+      expandWest: '展开左方区域'
+    }
+  };
+
+  function normalizeLocale(value) {
+    if (localePacks[value]) return value;
+    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
+    if (/^zh/i.test(value || '')) return 'zh-CN';
+    return 'en';
+  }
+
+  function titleCase(value) {
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  function FabLayout(element, options) {
+    var host = resolveLayoutElement(element);
+    if (!(this instanceof FabLayout)) return new FabLayout(element, options);
+    if (!host) throw new Error('fabui.Layout requires a host element.');
+    if (host.__fabuiLayout) return host.__fabuiLayout;
+    Control.call(this);
+    this.hostElement = host;
+    this.options = assignLayoutOptions({}, FabLayout.defaults, options || {});
+    this.options.locale = normalizeLocale(this.options.locale);
+    this.regions = {};
+    this._listeners = {};
+    this._splitters = {};
+    this._expandBars = {};
+    this._interaction = null;
+    this._animationState = null;
+    this._destroyed = false;
+    this._createdElements = [];
+    this._originalStyle = host.getAttribute('style');
+    this._originalClass = host.getAttribute('class');
+    this._build();
+    host.__fabuiLayout = this;
+    registerControl(host, this);
+    this.setLocale(this.options.locale, this.options.messages);
+    this.setTheme(this.options.theme);
+    this._initializeRegions();
+    if (!this.regions.center) {
+      this.destroy();
+      throw new Error('fabui.Layout requires a center region.');
+    }
+    this._bindResizeObserver();
+    this.resize({
+      width: this.options.width,
+      height: this.options.height
+    });
+  }
+
+  FabLayout.prototype = Object.create(Control.prototype);
+  FabLayout.prototype.constructor = FabLayout;
+
+  FabLayout.prototype._build = function() {
+    this.hostElement.classList.add('fui-layout');
+    if (this.options.cls) this.hostElement.classList.add(this.options.cls);
+    if (this.options.fit || this.hostElement === document.body) {
+      this.hostElement.classList.add('fui-layout-fit');
+    }
+  };
+
+  FabLayout.prototype._initializeRegions = function() {
+    var self = this;
+    var configured = this.options.regions || {};
+    var elements = Array.prototype.slice.call(this.hostElement.children);
+    var seen = {};
+    elements.forEach(function(element) {
+      var region = normalizeLayoutRegion(element.getAttribute('data-region'));
+      var config;
+      if (!region || seen[region]) return;
+      config = assignLayoutOptions({}, configured[region] || {}, {
+        region: region,
+        element: element
+      });
+      self.add(config, true);
+      seen[region] = true;
+    });
+    LAYOUT_REGIONS.forEach(function(region) {
+      var config = configured[region];
+      if (!config || seen[region]) return;
+      self.add(assignLayoutOptions({}, config, { region: region }), true);
+      seen[region] = true;
+    });
+  };
+
+  FabLayout.prototype._readRegionElementOptions = function(element, region) {
+    var horizontal = region === 'east' || region === 'west';
+    return {
+      title: element.getAttribute('title') || '',
+      width: horizontal ? (element.style.width || null) : null,
+      height: horizontal ? null : (element.style.height || null),
+      split: element.getAttribute('data-split') === 'true',
+      collapsed: element.getAttribute('data-collapsed') === 'true'
+    };
+  };
+
+  FabLayout.prototype._normalizeRegionOptions = function(options, element) {
+    var region = normalizeLayoutRegion(options.region);
+    var defaults = assignLayoutOptions({}, FabLayout.regionDefaults);
+    defaults.collapseDelay = this.options.collapseDelay;
+    var elementOptions = this._readRegionElementOptions(element, region);
+    var result = assignLayoutOptions({}, defaults, elementOptions, options);
+    var horizontal = region === 'east' || region === 'west';
+    result.region = region;
+    result.split = region === 'center' ? false : result.split === true;
+    result.collapsible = region === 'center' ? false : result.collapsible !== false;
+    result.width = horizontal ?
+      layoutNumber(result.width, 180) :
+      result.width;
+    result.height = horizontal ?
+      result.height :
+      layoutNumber(result.height, region === 'center' ? 0 : 100);
+    result.minWidth = Math.max(10, layoutNumber(result.minWidth, 10));
+    result.minHeight = Math.max(10, layoutNumber(result.minHeight, 10));
+    result.maxWidth = Math.max(result.minWidth, layoutNumber(result.maxWidth, 10000));
+    result.maxHeight = Math.max(result.minHeight, layoutNumber(result.maxHeight, 10000));
+    result.collapsedSize = Math.max(18, layoutNumber(result.collapsedSize, 28));
+    result.splitSize = Math.max(3, layoutNumber(result.splitSize, this.options.splitSize));
+    return result;
+  };
+
+  FabLayout.prototype._collapseTool = function(region) {
+    var self = this;
+    var direction = {
+      north: 'up',
+      south: 'down',
+      east: 'right',
+      west: 'left'
+    }[region];
+    return {
+      iconCls: 'fui-layout-button-' + direction,
+      ariaLabel: this.messages['collapse' + titleCase(region)],
+      title: this.messages['collapse' + titleCase(region)],
+      onClick: function() {
+        self.collapse(region);
+      }
+    };
+  };
+
+  FabLayout.prototype.add = function(options, silent) {
+    var self = this;
+    var region = normalizeLayoutRegion(options && options.region);
+    var element = resolveLayoutElement(options && options.element);
+    var regionOptions;
+    var panelOptions;
+    var panel;
+    var record;
+    if (!region) throw new Error('Layout region must be north, south, east, west, or center.');
+    if (this.regions[region]) return this.regions[region].panel;
+    if (!element) {
+      element = document.createElement('div');
+      this.hostElement.appendChild(element);
+      this._createdElements.push(element);
+    }
+    element.setAttribute('data-region', region);
+    regionOptions = this._normalizeRegionOptions(options || {}, element);
+    panelOptions = assignLayoutOptions({}, regionOptions);
+    panelOptions.cls = ((panelOptions.cls || '') + ' fui-layout-region fui-layout-region-' + region).trim();
+    panelOptions.bodyCls = ((panelOptions.bodyCls || '') + ' fui-layout-body').trim();
+    panelOptions.fit = false;
+    panelOptions.left = 0;
+    panelOptions.top = 0;
+    panelOptions.collapsible = false;
+    panelOptions.minimizable = false;
+    panelOptions.maximizable = false;
+    panelOptions.closable = false;
+    panelOptions.collapsed = false;
+    panelOptions.theme = this.options.theme;
+    panelOptions.locale = this.options.locale;
+    panelOptions.tools = Array.isArray(panelOptions.tools) ? panelOptions.tools.slice() : [];
+    if (regionOptions.collapsible !== false && region !== 'center') {
+      panelOptions.tools.push(this._collapseTool(region));
+    }
+    panel = new Panel(element, panelOptions);
+    record = {
+      element: element,
+      panel: panel,
+      options: regionOptions,
+      collapsed: regionOptions.collapsed === true,
+      floating: false
+    };
+    if (region !== 'center') {
+      record.onFloatEnter = function() {
+        self.stopCollapsing();
+      };
+      record.onFloatLeave = function() {
+        if (!record.floating) return;
+        self.stopCollapsing();
+        self._collapseTimer = setTimeout(function() {
+          record.floating = false;
+          record.panel.options.collapsed = true;
+          record.panel.close(true);
+          record.panel.panel().classList.remove('fui-layout-region-floating');
+        }, Math.max(0, layoutNumber(record.options.collapseDelay, 100)));
+      };
+      panel.panel().addEventListener('mouseenter', record.onFloatEnter);
+      panel.panel().addEventListener('mouseleave', record.onFloatLeave);
+    }
+    this.regions[region] = record;
+    this._createSplitter(region);
+    this._createExpandBar(region);
+    if (!silent) {
+      this.resize();
+      this._fire('Add', { region: region, panel: panel });
+    }
+    return panel;
+  };
+
+  FabLayout.prototype._createSplitter = function(region) {
+    var self = this;
+    var record = this.regions[region];
+    var splitter;
+    if (!record || region === 'center') return;
+    splitter = document.createElement('div');
+    splitter.className = 'fui-layout-splitter fui-layout-splitter-' + region;
+    splitter.tabIndex = 0;
+    splitter.setAttribute('role', 'separator');
+    splitter.setAttribute(
+      'aria-orientation',
+      region === 'north' || region === 'south' ? 'horizontal' : 'vertical'
+    );
+    splitter.addEventListener('pointerdown', function(event) {
+      self._startSplit(event, region);
+    });
+    splitter.addEventListener('keydown', function(event) {
+      self._handleSplitterKey(event, region);
+    });
+    this.hostElement.appendChild(splitter);
+    this._splitters[region] = splitter;
+  };
+
+  FabLayout.prototype._createExpandBar = function(region) {
+    var self = this;
+    var record = this.regions[region];
+    var bar;
+    var title;
+    var button;
+    if (!record || region === 'center') return;
+    bar = document.createElement('div');
+    bar.className = 'fui-layout-expand fui-layout-expand-' + region;
+    bar.hidden = true;
+    bar.setAttribute('data-layout-expand', region);
+    title = document.createElement('span');
+    title.className = 'fui-layout-expand-title';
+    title.textContent = record.options.hideCollapsedContent ?
+      '' :
+      (typeof record.options.collapsedContent === 'function' ?
+        record.options.collapsedContent.call(record.element, record.options.title) :
+        (record.options.collapsedContent || record.options.title || ''));
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fui-layout-expand-button fui-layout-button-' + ({
+      north: 'down',
+      south: 'up',
+      east: 'left',
+      west: 'right'
+    }[region]);
+    button.title = this.messages['expand' + titleCase(region)];
+    button.setAttribute('aria-label', this.messages['expand' + titleCase(region)]);
+    button.addEventListener('click', function(event) {
+      event.stopPropagation();
+      self.expand(region);
+    });
+    bar.addEventListener('click', function() {
+      if (record.options.expandMode === 'dock') self.expand(region);
+      else if (record.options.expandMode === 'float') self._floatRegion(region);
+    });
+    bar.appendChild(title);
+    if (!record.options.hideExpandTool) bar.appendChild(button);
+    this.hostElement.appendChild(bar);
+    this._expandBars[region] = bar;
+  };
+
+  FabLayout.prototype._regionGeometry = function() {
+    var geometry = {};
+    var self = this;
+    LAYOUT_REGIONS.forEach(function(region) {
+      var record = self.regions[region];
+      if (!record) return;
+      geometry[region] = {
+        exists: true,
+        collapsed: record.collapsed,
+        size: region === 'north' || region === 'south' ?
+          record.options.height :
+          record.options.width,
+        split: record.options.split,
+        splitSize: record.options.splitSize,
+        collapsedSize: record.options.collapsedSize
+      };
+    });
+    return geometry;
+  };
+
+  FabLayout.prototype._applyRect = function(element, rect) {
+    if (!element || !rect) return;
+    element.style.left = Math.round(rect.left) + 'px';
+    element.style.top = Math.round(rect.top) + 'px';
+    element.style.width = Math.max(0, Math.round(rect.width)) + 'px';
+    element.style.height = Math.max(0, Math.round(rect.height)) + 'px';
+  };
+
+  FabLayout.prototype._getAnimationDuration = function() {
+    if (this.options.animate === false) return 0;
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) return 0;
+    return Math.max(0, layoutNumber(this.options.animationDuration, 180));
+  };
+
+  FabLayout.prototype._measureLayoutRects = function() {
+    var hostRect = this.hostElement.getBoundingClientRect();
+    var rects = {};
+    var self = this;
+    LAYOUT_REGIONS.forEach(function(region) {
+      var record = self.regions[region];
+      var panelElement;
+      var panelRect;
+      var splitter;
+      var splitterRect;
+      if (!record) return;
+      panelElement = record.panel.panel();
+      if (!panelElement.hidden) {
+        panelRect = panelElement.getBoundingClientRect();
+        rects[region] = {
+          left: panelRect.left - hostRect.left,
+          top: panelRect.top - hostRect.top,
+          width: panelRect.width,
+          height: panelRect.height
+        };
+      } else if (self._rects && self._rects[region]) {
+        rects[region] = assignLayoutOptions({}, self._rects[region]);
+      }
+      splitter = self._splitters[region];
+      if (splitter && !splitter.hidden) {
+        splitterRect = splitter.getBoundingClientRect();
+        rects[region + 'Splitter'] = {
+          left: splitterRect.left - hostRect.left,
+          top: splitterRect.top - hostRect.top,
+          width: splitterRect.width,
+          height: splitterRect.height
+        };
+      }
+    });
+    return rects;
+  };
+
+  FabLayout.prototype._freezeLayoutRects = function(rects) {
+    var self = this;
+    LAYOUT_REGIONS.forEach(function(region) {
+      var record = self.regions[region];
+      var splitter = self._splitters[region];
+      if (record && rects[region] && !record.panel.panel().hidden) {
+        record.panel.resize(rects[region], true);
+      }
+      if (splitter && rects[region + 'Splitter'] && !splitter.hidden) {
+        self._applyRect(splitter, rects[region + 'Splitter']);
+      }
+    });
+  };
+
+  FabLayout.prototype._finishRegionAnimation = function(runComplete, applyFinalState) {
+    var state = this._animationState;
+    var expandBar;
+    var splitter;
+    if (!state) return;
+    if (state.startTimer != null) clearTimeout(state.startTimer);
+    if (state.endTimer != null) clearTimeout(state.endTimer);
+    this._animationState = null;
+    this.hostElement.classList.remove('fui-layout-animating');
+    this.hostElement.style.removeProperty('--fui-layout-animation-duration');
+    expandBar = this._expandBars[state.region];
+    splitter = this._splitters[state.region];
+    if (expandBar) {
+      expandBar.style.removeProperty('opacity');
+      expandBar.style.removeProperty('pointer-events');
+    }
+    if (splitter) splitter.style.removeProperty('opacity');
+    if (applyFinalState !== false) this._layoutRegions();
+    if (runComplete !== false && state.complete) state.complete();
+  };
+
+  FabLayout.prototype._cancelRegionAnimation = function(runComplete, applyFinalState) {
+    if (this._animationState) {
+      this._finishRegionAnimation(runComplete, applyFinalState);
+    }
+  };
+
+  FabLayout.prototype._animateRegionState = function(region, collapsed, complete) {
+    var self = this;
+    var record = this.regions[region];
+    var duration;
+    var startRects;
+    var targetRects;
+    var expandBar;
+    var splitter;
+    if (!record) return;
+    if (this._animationState) {
+      startRects = this._measureLayoutRects();
+      this._freezeLayoutRects(startRects);
+      this._cancelRegionAnimation(false, false);
+    } else {
+      startRects = this._rects || calculateLayoutRects(
+        {
+          width: this.hostElement.clientWidth,
+          height: this.hostElement.clientHeight
+        },
+        this._regionGeometry()
+      );
+    }
+    record.collapsed = collapsed;
+    record.floating = false;
+    record.panel.options.collapsed = collapsed;
+    targetRects = calculateLayoutRects(
+      {
+        width: this.hostElement.clientWidth,
+        height: this.hostElement.clientHeight
+      },
+      this._regionGeometry()
+    );
+    duration = this._getAnimationDuration();
+    if (!duration) {
+      this._rects = targetRects;
+      this._layoutRegions();
+      if (complete) complete();
+      return;
+    }
+
+    expandBar = this._expandBars[region];
+    splitter = this._splitters[region];
+    record.panel.hostElement.hidden = false;
+    if (!record.panel.isOpen()) record.panel.open(true);
+    record.panel.resize(startRects[region], true);
+    if (expandBar) {
+      expandBar.hidden = false;
+      this._applyRect(expandBar, collapsed ? targetRects[region] : startRects[region]);
+      expandBar.style.opacity = collapsed ? '0' : '1';
+      expandBar.style.pointerEvents = 'none';
+    }
+    if (splitter) {
+      splitter.hidden = false;
+      if (startRects[region + 'Splitter']) {
+        this._applyRect(splitter, startRects[region + 'Splitter']);
+      } else if (targetRects[region + 'Splitter']) {
+        this._applyRect(splitter, targetRects[region + 'Splitter']);
+      }
+      splitter.style.opacity = collapsed ? '1' : '0';
+    }
+
+    this.hostElement.style.setProperty('--fui-layout-animation-duration', duration + 'ms');
+    this.hostElement.classList.add('fui-layout-animating');
+    this.hostElement.offsetWidth;
+    this._animationState = {
+      region: region,
+      collapsed: collapsed,
+      complete: complete,
+      startTimer: null,
+      endTimer: null
+    };
+    this._animationState.startTimer = setTimeout(function() {
+      var state = self._animationState;
+      if (!state || state.region !== region || state.collapsed !== collapsed) return;
+      state.startTimer = null;
+      LAYOUT_REGIONS.forEach(function(name) {
+        var item = self.regions[name];
+        var rect = targetRects[name];
+        if (!item || !rect || (item.collapsed && name !== region)) return;
+        item.panel.resize(rect, true);
+      });
+      if (expandBar) expandBar.style.opacity = collapsed ? '1' : '0';
+      if (splitter) splitter.style.opacity = collapsed ? '0' : '1';
+      self._rects = targetRects;
+      state.endTimer = setTimeout(function() {
+        self._finishRegionAnimation(true);
+      }, duration + 34);
+    }, 16);
+  };
+
+  FabLayout.prototype._layoutRegions = function() {
+    var width = this.hostElement.clientWidth;
+    var height = this.hostElement.clientHeight;
+    var rects = calculateLayoutRects({ width: width, height: height }, this._regionGeometry());
+    var self = this;
+    if (this._animationState) return;
+    LAYOUT_REGIONS.forEach(function(region) {
+      var record = self.regions[region];
+      var rect = rects[region];
+      var splitter = self._splitters[region];
+      var expandBar = self._expandBars[region];
+      if (!record || !rect) return;
+      if (record.collapsed) {
+        record.panel.options.collapsed = true;
+        if (record.panel.isOpen()) record.panel.close(true);
+        if (expandBar) {
+          expandBar.hidden = false;
+          self._applyRect(expandBar, rect);
+        }
+      } else {
+        if (expandBar) expandBar.hidden = true;
+        record.panel.options.collapsed = false;
+        record.panel.hostElement.hidden = false;
+        if (!record.panel.isOpen()) record.panel.open(true);
+        record.panel.resize({
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height
+        }, true);
+      }
+      if (splitter) {
+        splitter.hidden = !record.options.split || record.collapsed;
+        if (!splitter.hidden) self._applyRect(splitter, rects[region + 'Splitter']);
+      }
+    });
+    this._rects = rects;
+    this._fire('Resize', { width: width, height: height });
+  };
+
+  FabLayout.prototype._startSplit = function(event, region) {
+    var record = this.regions[region];
+    var rect;
+    if (
+      event.button !== 0 ||
+      !record ||
+      !record.options.split ||
+      record.collapsed
+    ) return;
+    event.preventDefault();
+    rect = record.panel.panel().getBoundingClientRect();
+    this._interaction = {
+      region: region,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      size: region === 'north' || region === 'south' ? rect.height : rect.width
+    };
+    this.hostElement.classList.add('fui-layout-resizing');
+    this._bindDocumentSplit();
+  };
+
+  FabLayout.prototype._bindDocumentSplit = function() {
+    var self = this;
+    this._unbindDocumentSplit();
+    this._onDocumentPointerMove = function(event) { self._handleSplitMove(event); };
+    this._onDocumentPointerEnd = function(event) { self._finishSplit(event); };
+    document.addEventListener('pointermove', this._onDocumentPointerMove);
+    document.addEventListener('pointerup', this._onDocumentPointerEnd);
+    document.addEventListener('pointercancel', this._onDocumentPointerEnd);
+  };
+
+  FabLayout.prototype._unbindDocumentSplit = function() {
+    if (!this._onDocumentPointerMove) return;
+    document.removeEventListener('pointermove', this._onDocumentPointerMove);
+    document.removeEventListener('pointerup', this._onDocumentPointerEnd);
+    document.removeEventListener('pointercancel', this._onDocumentPointerEnd);
+    this._onDocumentPointerMove = null;
+    this._onDocumentPointerEnd = null;
+  };
+
+  FabLayout.prototype._setRegionSize = function(region, size) {
+    var record = this.regions[region];
+    var vertical = region === 'north' || region === 'south';
+    if (!record) return;
+    size = clampLayoutValue(
+      size,
+      vertical ? record.options.minHeight : record.options.minWidth,
+      vertical ? record.options.maxHeight : record.options.maxWidth
+    );
+    if (vertical) record.options.height = size;
+    else record.options.width = size;
+    this._layoutRegions();
+  };
+
+  FabLayout.prototype._handleSplitMove = function(event) {
+    var state = this._interaction;
+    var delta;
+    var size;
+    if (!state || event.pointerId !== state.pointerId) return;
+    if (state.region === 'north' || state.region === 'south') {
+      delta = event.clientY - state.startY;
+      size = state.size + (state.region === 'north' ? delta : -delta);
+    } else {
+      delta = event.clientX - state.startX;
+      size = state.size + (state.region === 'west' ? delta : -delta);
+    }
+    this._setRegionSize(state.region, size);
+  };
+
+  FabLayout.prototype._finishSplit = function(event) {
+    var state = this._interaction;
+    var record;
+    if (!state || event.pointerId !== state.pointerId) return;
+    record = this.regions[state.region];
+    this._interaction = null;
+    this.hostElement.classList.remove('fui-layout-resizing');
+    this._unbindDocumentSplit();
+    this._fire('RegionResize', {
+      region: state.region,
+      width: record.panel.panel().offsetWidth,
+      height: record.panel.panel().offsetHeight
+    });
+  };
+
+  FabLayout.prototype._handleSplitterKey = function(event, region) {
+    var record = this.regions[region];
+    var vertical = region === 'north' || region === 'south';
+    var size = vertical ? record.options.height : record.options.width;
+    var delta = 0;
+    if (vertical && event.key === 'ArrowUp') delta = region === 'north' ? -10 : 10;
+    if (vertical && event.key === 'ArrowDown') delta = region === 'north' ? 10 : -10;
+    if (!vertical && event.key === 'ArrowLeft') delta = region === 'west' ? -10 : 10;
+    if (!vertical && event.key === 'ArrowRight') delta = region === 'west' ? 10 : -10;
+    if (!delta) return;
+    event.preventDefault();
+    this._setRegionSize(region, size + delta);
+    this._fire('RegionResize', {
+      region: region,
+      width: record.panel.panel().offsetWidth,
+      height: record.panel.panel().offsetHeight
+    });
+  };
+
+  FabLayout.prototype._floatRegion = function(region) {
+    var record = this.regions[region];
+    var rect;
+    var center = this._rects && this._rects.center;
+    if (!record || !record.collapsed || !center) return this;
+    rect = assignLayoutOptions({}, center);
+    if (region === 'west') rect.width = record.options.width;
+    if (region === 'east') {
+      rect.left = center.left + center.width - record.options.width;
+      rect.width = record.options.width;
+    }
+    if (region === 'north') rect.height = record.options.height;
+    if (region === 'south') {
+      rect.top = center.top + center.height - record.options.height;
+      rect.height = record.options.height;
+    }
+    record.floating = true;
+    record.panel.options.collapsed = false;
+    record.panel.hostElement.hidden = false;
+    record.panel.open(true);
+    record.panel.panel().classList.add('fui-layout-region-floating');
+    record.panel.resize(rect, true);
+    return this;
+  };
+
+  FabLayout.prototype.collapse = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    var self = this;
+    if (!record || normalized === 'center' || record.collapsed || record.options.collapsible === false) return this;
+    if (record.panel._fireBefore && !record.panel._fireBefore('Collapse')) return this;
+    record.panel.panel().classList.remove('fui-layout-region-floating');
+    this._animateRegionState(normalized, true, function() {
+      record.panel._fire('Collapse');
+      self._fire('Collapse', { region: normalized, panel: record.panel });
+    });
+    return this;
+  };
+
+  FabLayout.prototype.expand = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    var self = this;
+    if (!record || normalized === 'center' || !record.collapsed) return this;
+    if (record.panel._fireBefore && !record.panel._fireBefore('Expand')) return this;
+    record.panel.panel().classList.remove('fui-layout-region-floating');
+    this._animateRegionState(normalized, false, function() {
+      record.panel._fire('Expand');
+      self._fire('Expand', { region: normalized, panel: record.panel });
+    });
+    return this;
+  };
+
+  FabLayout.prototype.remove = function(region) {
+    var normalized = normalizeLayoutRegion(region);
+    var record = this.regions[normalized];
+    var element;
+    if (!record || normalized === 'center') return this;
+    this._cancelRegionAnimation(true);
+    element = record.element;
+    if (record.onFloatEnter) {
+      record.panel.panel().removeEventListener('mouseenter', record.onFloatEnter);
+      record.panel.panel().removeEventListener('mouseleave', record.onFloatLeave);
+    }
+    record.panel.destroy(true);
+    if (element.parentNode) element.parentNode.removeChild(element);
+    if (this._splitters[normalized] && this._splitters[normalized].parentNode) {
+      this._splitters[normalized].parentNode.removeChild(this._splitters[normalized]);
+    }
+    if (this._expandBars[normalized] && this._expandBars[normalized].parentNode) {
+      this._expandBars[normalized].parentNode.removeChild(this._expandBars[normalized]);
+    }
+    delete this.regions[normalized];
+    delete this._splitters[normalized];
+    delete this._expandBars[normalized];
+    this.resize();
+    this._fire('Remove', { region: normalized });
+    return this;
+  };
+
+  FabLayout.prototype.split = function(region) {
+    var record = this.regions[normalizeLayoutRegion(region)];
+    if (!record || region === 'center') return this;
+    record.options.split = true;
+    this.resize();
+    return this;
+  };
+
+  FabLayout.prototype.unsplit = function(region) {
+    var record = this.regions[normalizeLayoutRegion(region)];
+    if (!record || region === 'center') return this;
+    record.options.split = false;
+    this.resize();
+    return this;
+  };
+
+  FabLayout.prototype.stopCollapsing = function() {
+    if (this._collapseTimer) clearTimeout(this._collapseTimer);
+    this._collapseTimer = null;
+    return this;
+  };
+
+  FabLayout.prototype.panel = function(region) {
+    var record = this.regions[normalizeLayoutRegion(region)];
+    return record ? record.panel : null;
+  };
+
+  FabLayout.prototype.resize = function(options) {
+    options = options || {};
+    this._cancelRegionAnimation(true);
+    if (options.width != null) this.options.width = options.width;
+    if (options.height != null) this.options.height = options.height;
+    if (this.options.fit || this.hostElement === document.body) {
+      this.hostElement.style.width = '100%';
+      this.hostElement.style.height = '100%';
+    } else {
+      if (this.options.width != null) {
+        this.hostElement.style.width = typeof this.options.width === 'number' ?
+          this.options.width + 'px' :
+          this.options.width;
+      }
+      if (this.options.height != null) {
+        this.hostElement.style.height = typeof this.options.height === 'number' ?
+          this.options.height + 'px' :
+          this.options.height;
+      }
+    }
+    this._layoutRegions();
+    return this;
+  };
+
+  FabLayout.prototype._bindResizeObserver = function() {
+    var self = this;
+    if (typeof ResizeObserver !== 'function') return;
+    this._resizeObserver = new ResizeObserver(function() {
+      if (!self._destroyed && !self._interaction && !self._animationState) {
+        self._layoutRegions();
+      }
+    });
+    this._resizeObserver.observe(this.hostElement);
+  };
+
+  FabLayout.prototype.setTheme = function(theme) {
+    var self = this;
+    var previous = this._themeClass;
+    this.options.theme = theme == null ? 'inherit' : theme;
+    if (previous) this.hostElement.classList.remove(previous);
+    this._themeClass = 'fg-theme-' + (
+      this.options.theme === 'inherit' ?
+        findLayoutTheme(this.hostElement.parentElement) :
+        (LAYOUT_THEMES.indexOf(this.options.theme) >= 0 ? this.options.theme : 'default')
+    );
+    this.hostElement.classList.add(this._themeClass);
+    LAYOUT_REGIONS.forEach(function(region) {
+      if (self.regions[region]) self.regions[region].panel.setTheme(self.options.theme);
+    });
+    return this;
+  };
+
+  FabLayout.prototype.setLocale = function(locale, messages) {
+    var self = this;
+    this.options.locale = normalizeLocale(locale);
+    this.options.messages = messages || this.options.messages;
+    this.messages = assignLayoutOptions({}, localePacks[this.options.locale], this.options.messages || {});
+    LAYOUT_EDGE_REGIONS.forEach(function(region) {
+      var record = self.regions[region];
+      var bar = self._expandBars[region];
+      var button = bar && bar.querySelector('.fui-layout-expand-button');
+      if (record) record.panel.setLocale(self.options.locale);
+      if (record) {
+        var collapseTool = record.panel.toolsElement.querySelector(
+          '.fui-layout-button-' + ({
+            north: 'up',
+            south: 'down',
+            east: 'right',
+            west: 'left'
+          }[region])
+        );
+        if (collapseTool) {
+          collapseTool.title = self.messages['collapse' + titleCase(region)];
+          collapseTool.setAttribute('aria-label', self.messages['collapse' + titleCase(region)]);
+        }
+      }
+      if (button) {
+        button.title = self.messages['expand' + titleCase(region)];
+        button.setAttribute('aria-label', self.messages['expand' + titleCase(region)]);
+      }
+    });
+    if (this.regions.center) this.regions.center.panel.setLocale(this.options.locale);
+    return this;
+  };
+
+  FabLayout.prototype._fire = function(name, detail) {
+    var callback = this.options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var eventDetail = assignLayoutOptions({ layout: this }, detail || {});
+    if (typeof callback === 'function') callback.call(this.hostElement, this, eventDetail);
+    listeners.forEach(function(listener) { listener.call(this, eventDetail); }, this);
+  };
+
+  FabLayout.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabLayout.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabLayout.prototype.destroy = function() {
+    var self = this;
+    if (this._destroyed) return;
+    this._destroyed = true;
+    this.stopCollapsing();
+    this._cancelRegionAnimation(false, false);
+    this._unbindDocumentSplit();
+    if (this._resizeObserver) this._resizeObserver.disconnect();
+    LAYOUT_REGIONS.forEach(function(region) {
+      var record = self.regions[region];
+      if (!record) return;
+      if (record.onFloatEnter) {
+        record.panel.panel().removeEventListener('mouseenter', record.onFloatEnter);
+        record.panel.panel().removeEventListener('mouseleave', record.onFloatLeave);
+      }
+      record.panel.destroy(true);
+    });
+    Object.keys(this._splitters).forEach(function(region) {
+      var splitter = self._splitters[region];
+      if (splitter.parentNode) splitter.parentNode.removeChild(splitter);
+    });
+    Object.keys(this._expandBars).forEach(function(region) {
+      var bar = self._expandBars[region];
+      if (bar.parentNode) bar.parentNode.removeChild(bar);
+    });
+    this._createdElements.forEach(function(element) {
+      if (element.parentNode) element.parentNode.removeChild(element);
+    });
+    unregisterControl(this.hostElement, this);
+    delete this.hostElement.__fabuiLayout;
+    if (this._originalClass == null) this.hostElement.removeAttribute('class');
+    else this.hostElement.setAttribute('class', this._originalClass);
+    if (this._originalStyle == null) this.hostElement.removeAttribute('style');
+    else this.hostElement.setAttribute('style', this._originalStyle);
+    this._fire('Destroy');
+    this.regions = {};
+    this._splitters = {};
+    this._expandBars = {};
+    this._createdElements = [];
+    this._listeners = {};
+  };
+
+  FabLayout.prototype.dispose = FabLayout.prototype.destroy;
+
+  FabLayout.defaults = {
+    width: null,
+    height: null,
+    fit: false,
+    cls: '',
+    splitSize: 5,
+    collapseDelay: 100,
+    animate: true,
+    animationDuration: 180,
+    regions: null,
+    theme: 'inherit',
+    locale: 'en',
+    messages: null
+  };
+  FabLayout.regionDefaults = {
+    title: '',
+    border: true,
+    split: false,
+    collapsible: true,
+    minWidth: 10,
+    minHeight: 10,
+    maxWidth: 10000,
+    maxHeight: 10000,
+    expandMode: 'float',
+    collapseDelay: 100,
+    collapsedSize: 28,
+    hideExpandTool: false,
+    hideCollapsedContent: true,
+    collapsedContent: '',
+    width: null,
+    height: null,
+    tools: null,
+    collapsed: false
+  };
+  FabLayout.locales = localePacks;
+  FabLayout.getControl = function(element) {
+    element = resolveLayoutElement(element);
+    return element && element.__fabuiLayout ? element.__fabuiLayout : null;
+  };
+  return FabLayout;
+}
+
+var WINDOW_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+var nextWindowZIndex = 9000;
+
+function assignWindowOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function resolveWindowElement(element) {
+  if (typeof element === 'string' && typeof document !== 'undefined') {
+    try {
+      return document.querySelector(element);
+    } catch (error) {
+      return null;
+    }
+  }
+  return element && element.nodeType === 1 ? element : null;
+}
+
+function toNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function restoreWindowAttribute(element, name, value) {
+  if (value == null) element.removeAttribute(name);
+  else element.setAttribute(name, value);
+}
+
+function normalizeWindowTheme(value) {
+  var theme = String(value == null ? '' : value).trim().toLowerCase();
+  if (theme === 'pepper') theme = 'pepper-grinder';
+  return WINDOW_THEMES.indexOf(theme) >= 0 ? theme : 'default';
+}
+
+function constrainWindowRect(rect, bounds, minimums) {
+  var result = assignWindowOptions({}, rect);
+  var maxWidth = Math.max(0, toNumber(bounds && bounds.width, result.width));
+  var maxHeight = Math.max(0, toNumber(bounds && bounds.height, result.height));
+  var minWidth = Math.min(maxWidth, Math.max(80, toNumber(minimums && minimums.width, 200)));
+  var minHeight = Math.min(maxHeight, Math.max(48, toNumber(minimums && minimums.height, 100)));
+  result.width = clamp(toNumber(result.width, minWidth), minWidth, maxWidth);
+  result.height = clamp(toNumber(result.height, minHeight), minHeight, maxHeight);
+  result.left = clamp(toNumber(result.left, 0), 0, Math.max(0, maxWidth - result.width));
+  result.top = clamp(toNumber(result.top, 0), 0, Math.max(0, maxHeight - result.height));
+  return result;
+}
+
+function findWindowTheme(element) {
+  var current = resolveWindowElement(element);
+  var index;
+  while (current && current.classList) {
+    for (index = 0; index < WINDOW_THEMES.length; index += 1) {
+      if (current.classList.contains('fg-theme-' + WINDOW_THEMES[index])) {
+        return WINDOW_THEMES[index];
+      }
+    }
+    current = current.parentElement;
+  }
+  return 'default';
+}
+
+function createWindowFactory(Control, registerControl, unregisterControl) {
+  var localePacks = {
+    en: {
+      close: 'Close',
+      collapse: 'Collapse',
+      expand: 'Expand',
+      minimize: 'Minimize',
+      maximize: 'Maximize',
+      restore: 'Restore'
+    },
+    'zh-TW': {
+      close: '關閉',
+      collapse: '收合',
+      expand: '展開',
+      minimize: '最小化',
+      maximize: '最大化',
+      restore: '還原'
+    },
+    'zh-CN': {
+      close: '关闭',
+      collapse: '收合',
+      expand: '展开',
+      minimize: '最小化',
+      maximize: '最大化',
+      restore: '还原'
+    }
+  };
+
+  function normalizeLocale(value) {
+    if (localePacks[value]) return value;
+    if (/^zh(?:-|_)?tw/i.test(value || '')) return 'zh-TW';
+    if (/^zh/i.test(value || '')) return 'zh-CN';
+    return 'en';
+  }
+
+  function FabWindow(element, options) {
+    var host = resolveWindowElement(element);
+    var initiallyCollapsed;
+    var initiallyMaximized;
+    var initiallyMinimized;
+    if (!(this instanceof FabWindow)) return new FabWindow(element, options);
+    if (!host) throw new Error('fabui.Window requires a host element.');
+    if (host.__fabuiWindow) return host.__fabuiWindow;
+    Control.call(this);
+    this.hostElement = host;
+    this._listeners = {};
+    this._destroyed = false;
+    this._interaction = null;
+    this._animationStartTimer = null;
+    this._animationEndTimer = null;
+    this._normalRect = null;
+    this._originalParent = host.parentNode;
+    this._originalNextSibling = host.nextSibling;
+    this._originalStyle = host.getAttribute('style');
+    this._originalClass = host.getAttribute('class');
+    this._originalTitle = host.getAttribute('title');
+    this._themeSource = this._originalParent && this._originalParent.nodeType === 1 ?
+      this._originalParent :
+      document.body;
+    this.options = assignWindowOptions({}, FabWindow.defaults, this._readElementOptions(), options || {});
+    this.options.locale = normalizeLocale(this.options.locale);
+    initiallyCollapsed = this.options.collapsed === true;
+    initiallyMaximized = this.options.maximized === true;
+    initiallyMinimized = this.options.minimized === true;
+    this.options.collapsed = false;
+    this.options.maximized = false;
+    this.options.minimized = false;
+    this._build();
+    this._bind();
+    host.__fabuiWindow = this;
+    registerControl(host, this);
+    registerControl(this.windowElement, this);
+    this.setTitle(this.options.title);
+    this.setLocale(this.options.locale, this.options.messages);
+    this.setTheme(this.options.theme);
+    this.resize(this.options.width, this.options.height, true);
+    if (this.options.left == null || this.options.top == null) {
+      this.center(true);
+    } else {
+      this.move({ left: this.options.left, top: this.options.top }, true);
+    }
+    if (this.options.closed) {
+      this._setVisible(false);
+    } else {
+      this.open(true);
+      if (initiallyCollapsed) this.collapse();
+      if (initiallyMaximized) this.maximize();
+      if (initiallyMinimized) this.minimize();
+    }
+  }
+
+  FabWindow.prototype = Object.create(Control.prototype);
+  FabWindow.prototype.constructor = FabWindow;
+
+  FabWindow.prototype._readElementOptions = function() {
+    var host = this.hostElement;
+    var options = {};
+    var title = host.getAttribute('title');
+    var width = parseFloat(host.style.width);
+    var height = parseFloat(host.style.height);
+    if (title) options.title = title;
+    if (isFinite(width)) options.width = width;
+    if (isFinite(height)) options.height = height;
+    return options;
+  };
+
+  FabWindow.prototype._build = function() {
+    var wrapper = document.createElement('div');
+    var mask = document.createElement('div');
+    var header = document.createElement('div');
+    var icon = document.createElement('span');
+    var title = document.createElement('div');
+    var tools = document.createElement('div');
+    var footer = document.createElement('div');
+    var container = this.options.inline && this._originalParent ?
+      this._originalParent :
+      document.body;
+    wrapper.className = 'fui-window' + (this.options.cls ? ' ' + this.options.cls : '');
+    wrapper.tabIndex = -1;
+    wrapper.setAttribute('role', 'dialog');
+    mask.className = 'fui-window-mask';
+    header.className = 'fui-window-header';
+    icon.className = 'fui-window-icon';
+    title.className = 'fui-window-title';
+    tools.className = 'fui-window-tools';
+    footer.className = 'fui-window-footer';
+    header.appendChild(icon);
+    header.appendChild(title);
+    header.appendChild(tools);
+    wrapper.appendChild(header);
+    wrapper.appendChild(this.hostElement);
+    wrapper.appendChild(footer);
+    container.appendChild(mask);
+    container.appendChild(wrapper);
+    this.hostElement.classList.add('fui-window-body');
+    this.hostElement.removeAttribute('title');
+    this.hostElement.style.display = '';
+    this.windowElement = wrapper;
+    this.maskElement = mask;
+    this.headerElement = header;
+    this.iconElement = icon;
+    this.titleElement = title;
+    this.toolsElement = tools;
+    this.footerElement = footer;
+    this._renderTools();
+    this._renderFooter();
+    this._renderResizeHandles();
+    this._applyStructureOptions();
+  };
+
+  FabWindow.prototype._applyStructureOptions = function() {
+    var border = this.options.border;
+    this.windowElement.classList.toggle('fui-window-no-border', border === false);
+    this.windowElement.classList.toggle('fui-window-thin-border', border === 'thin');
+    this.windowElement.classList.toggle('fui-window-shadow', this.options.shadow !== false);
+    this.windowElement.classList.toggle('fui-window-inline', this.options.inline === true);
+    this.maskElement.classList.toggle('fui-window-inline', this.options.inline === true);
+    this.windowElement.classList.toggle('fui-window-fixed', this.options.fixed === true);
+    this.windowElement.setAttribute('aria-modal', this.options.modal === true ? 'true' : 'false');
+    this.headerElement.hidden = this.options.noheader === true;
+    this.setIcon(this.options.iconCls);
+  };
+
+  FabWindow.prototype._createTool = function(type, enabled, handler) {
+    var self = this;
+    var button;
+    if (!enabled) return;
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fui-window-tool fui-window-tool-' + type;
+    button.setAttribute('data-window-tool', type);
+    button.addEventListener('click', function(event) {
+      event.stopPropagation();
+      handler.call(self);
+    });
+    this.toolsElement.appendChild(button);
+  };
+
+  FabWindow.prototype._renderTools = function() {
+    var self = this;
+    var customTools = Array.isArray(this.options.tools) ? this.options.tools : [];
+    this.toolsElement.textContent = '';
+    customTools.forEach(function(tool, index) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = ('fui-window-tool fui-window-tool-custom ' + (tool.iconCls || '')).trim();
+      button.textContent = tool.text || '';
+      button.title = tool.title || tool.text || '';
+      button.setAttribute('aria-label', tool.ariaLabel || tool.title || tool.text || ('Tool ' + (index + 1)));
+      button.addEventListener('click', function(event) {
+        event.stopPropagation();
+        if (typeof tool.onClick === 'function') tool.onClick.call(self, event, self);
+        else if (typeof tool.handler === 'function') tool.handler.call(self, event, self);
+      });
+      self.toolsElement.appendChild(button);
+    });
+    this._createTool('collapse', this.options.collapsible, function() {
+      if (this.options.collapsed) this.expand();
+      else this.collapse();
+    });
+    this._createTool('minimize', this.options.minimizable, this.minimize);
+    this._createTool('maximize', this.options.maximizable, function() {
+      if (this.options.maximized) this.restore();
+      else this.maximize();
+    });
+    this._createTool('close', this.options.closable, this.close);
+    this.headerElement.style.setProperty(
+      '--fui-window-tools-width',
+      Math.max(0, this.toolsElement.childNodes.length * 20 + 4) + 'px'
+    );
+  };
+
+  FabWindow.prototype._renderFooter = function() {
+    var footer = this.options.footer;
+    this.footerElement.textContent = '';
+    if (footer && footer.nodeType === 1) {
+      this.footerElement.appendChild(footer);
+    } else if (footer != null && footer !== '') {
+      this.footerElement.textContent = String(footer);
+    }
+    this.footerElement.hidden = !this.footerElement.childNodes.length;
+  };
+
+  FabWindow.prototype._renderResizeHandles = function() {
+    var self = this;
+    ['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw'].forEach(function(direction) {
+      var handle = document.createElement('div');
+      handle.className = 'fui-window-resize fui-window-resize-' + direction;
+      handle.setAttribute('data-resize-direction', direction);
+      self.windowElement.appendChild(handle);
+    });
+  };
+
+  FabWindow.prototype._bind = function() {
+    var self = this;
+    this._onHeaderPointerDown = function(event) {
+      if (event.button !== 0 || event.target.closest('.fui-window-tool')) return;
+      self._startInteraction(event, 'move', '');
+    };
+    this._onWindowPointerDown = function(event) {
+      var handle = event.target.closest('[data-resize-direction]');
+      self.bringToFront();
+      if (handle) self._startInteraction(event, 'resize', handle.getAttribute('data-resize-direction'));
+    };
+    this.headerElement.addEventListener('pointerdown', this._onHeaderPointerDown);
+    this.windowElement.addEventListener('pointerdown', this._onWindowPointerDown);
+  };
+
+  FabWindow.prototype._startInteraction = function(event, type, direction) {
+    var rect;
+    if (
+      (type === 'move' && (!this.options.draggable || this.options.maximized)) ||
+      (type === 'resize' && (!this.options.resizable || this.options.maximized || this.options.collapsed))
+    ) return;
+    event.preventDefault();
+    this._cancelStateAnimation(true);
+    rect = this._getRect();
+    this._interaction = {
+      type: type,
+      direction: direction,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      rect: rect
+    };
+    this.windowElement.classList.add('fui-window-interacting');
+    this._bindDocumentInteraction();
+  };
+
+  FabWindow.prototype._bindDocumentInteraction = function() {
+    var self = this;
+    this._unbindDocumentInteraction();
+    this._onDocumentPointerMove = function(event) { self._handleInteractionMove(event); };
+    this._onDocumentPointerEnd = function(event) { self._finishInteraction(event); };
+    document.addEventListener('pointermove', this._onDocumentPointerMove);
+    document.addEventListener('pointerup', this._onDocumentPointerEnd);
+    document.addEventListener('pointercancel', this._onDocumentPointerEnd);
+  };
+
+  FabWindow.prototype._unbindDocumentInteraction = function() {
+    if (!this._onDocumentPointerMove) return;
+    document.removeEventListener('pointermove', this._onDocumentPointerMove);
+    document.removeEventListener('pointerup', this._onDocumentPointerEnd);
+    document.removeEventListener('pointercancel', this._onDocumentPointerEnd);
+    this._onDocumentPointerMove = null;
+    this._onDocumentPointerEnd = null;
+  };
+
+  FabWindow.prototype._handleInteractionMove = function(event) {
+    var state = this._interaction;
+    var dx;
+    var dy;
+    var rect;
+    var direction;
+    if (!state || event.pointerId !== state.pointerId) return;
+    dx = event.clientX - state.startX;
+    dy = event.clientY - state.startY;
+    rect = assignWindowOptions({}, state.rect);
+    direction = state.direction;
+    if (state.type === 'move') {
+      rect.left += dx;
+      rect.top += dy;
+    } else {
+      if (direction.indexOf('e') >= 0) rect.width += dx;
+      if (direction.indexOf('s') >= 0) rect.height += dy;
+      if (direction.indexOf('w') >= 0) {
+        rect.left += dx;
+        rect.width -= dx;
+      }
+      if (direction.indexOf('n') >= 0) {
+        rect.top += dy;
+        rect.height -= dy;
+      }
+    }
+    rect = this._normalizeRect(rect);
+    this._applyRect(rect);
+  };
+
+  FabWindow.prototype._finishInteraction = function(event) {
+    var state = this._interaction;
+    var rect;
+    if (!state || event.pointerId !== state.pointerId) return;
+    rect = this._getRect();
+    this._interaction = null;
+    this.windowElement.classList.remove('fui-window-interacting');
+    this._unbindDocumentInteraction();
+    if (state.type === 'move') this._fire('Move', { left: rect.left, top: rect.top });
+    else this._fire('Resize', { width: rect.width, height: rect.height });
+  };
+
+  FabWindow.prototype._getBounds = function() {
+    var container = this.options.inline ? this.windowElement.parentElement : null;
+    return {
+      width: container ? container.clientWidth : document.documentElement.clientWidth,
+      height: container ? container.clientHeight : document.documentElement.clientHeight
+    };
+  };
+
+  FabWindow.prototype._normalizeRect = function(rect) {
+    if (!this.options.constrain) {
+      rect.width = Math.max(this.options.minWidth, rect.width);
+      rect.height = Math.max(this.options.minHeight, rect.height);
+      return rect;
+    }
+    return constrainWindowRect(rect, this._getBounds(), {
+      width: this.options.minWidth,
+      height: this.options.minHeight
+    });
+  };
+
+  FabWindow.prototype._getRect = function() {
+    return {
+      left: toNumber(this.options.left, 0),
+      top: toNumber(this.options.top, 0),
+      width: toNumber(this.options.width, this.windowElement.offsetWidth),
+      height: toNumber(this.options.height, this.windowElement.offsetHeight)
+    };
+  };
+
+  FabWindow.prototype._applyRect = function(rect) {
+    this.options.left = rect.left;
+    this.options.top = rect.top;
+    this.options.width = rect.width;
+    this.options.height = rect.height;
+    this.windowElement.style.left = Math.round(rect.left) + 'px';
+    this.windowElement.style.top = Math.round(rect.top) + 'px';
+    this.windowElement.style.width = Math.round(rect.width) + 'px';
+    this.windowElement.style.height = this.options.collapsed ? 'auto' : Math.round(rect.height) + 'px';
+  };
+
+  FabWindow.prototype._setVisible = function(visible) {
+    this.windowElement.hidden = !visible;
+    this.maskElement.hidden = !visible || !this.options.modal;
+  };
+
+  FabWindow.prototype._getAnimationDuration = function() {
+    if (this.options.animate === false) return 0;
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) return 0;
+    return Math.max(0, toNumber(this.options.animationDuration, 180));
+  };
+
+  FabWindow.prototype._cancelStateAnimation = function(removeVisualState) {
+    if (this._animationStartTimer != null) clearTimeout(this._animationStartTimer);
+    if (this._animationEndTimer != null) clearTimeout(this._animationEndTimer);
+    this._animationStartTimer = null;
+    this._animationEndTimer = null;
+    if (!this.windowElement) return;
+    this.windowElement.classList.remove('fui-window-transitioning');
+    if (removeVisualState !== false) {
+      this.windowElement.classList.remove('fui-window-minimized-visual');
+    }
+  };
+
+  FabWindow.prototype._animateState = function(change, complete) {
+    var self = this;
+    var duration = this._getAnimationDuration();
+    this._cancelStateAnimation(false);
+    if (!duration) {
+      change();
+      if (complete) complete();
+      return;
+    }
+    this.windowElement.style.setProperty('--fui-window-animation-duration', duration + 'ms');
+    this.windowElement.classList.add('fui-window-transitioning');
+    this.windowElement.offsetWidth;
+    this._animationStartTimer = setTimeout(function() {
+      self._animationStartTimer = null;
+      change();
+      self._animationEndTimer = setTimeout(function() {
+        self._animationEndTimer = null;
+        self.windowElement.classList.remove('fui-window-transitioning');
+        if (complete) complete();
+      }, duration + 34);
+    }, 16);
+  };
+
+  FabWindow.prototype._animateRect = function(rect, complete) {
+    var self = this;
+    this._animateState(function() {
+      self._applyRect(rect);
+    }, complete);
+  };
+
+  FabWindow.prototype._getCollapsedHeight = function() {
+    var style = window.getComputedStyle(this.windowElement);
+    var frameHeight =
+      toNumber(style.paddingTop, 0) +
+      toNumber(style.paddingBottom, 0) +
+      toNumber(style.borderTopWidth, 0) +
+      toNumber(style.borderBottomWidth, 0);
+    return Math.max(48, this.headerElement.hidden ? 0 : this.headerElement.offsetHeight + frameHeight);
+  };
+
+  FabWindow.prototype._fireBefore = function(name, detail) {
+    var callback = this.options['onBefore' + name];
+    var listeners = (this._listeners['before' + name.toLowerCase()] || []).slice();
+    var allowed = true;
+    var index;
+    if (typeof callback === 'function' && callback.call(this.hostElement, this, detail) === false) {
+      allowed = false;
+    }
+    for (index = 0; index < listeners.length; index += 1) {
+      if (listeners[index].call(this, detail) === false) allowed = false;
+    }
+    return allowed;
+  };
+
+  FabWindow.prototype._fire = function(name, detail) {
+    var callback = this.options['on' + name];
+    var listeners = (this._listeners[name.toLowerCase()] || []).slice();
+    var eventDetail = assignWindowOptions({ window: this }, detail || {});
+    if (typeof callback === 'function') callback.call(this.hostElement, this, eventDetail);
+    listeners.forEach(function(listener) { listener.call(this, eventDetail); }, this);
+  };
+
+  FabWindow.prototype.open = function(force) {
+    var self = this;
+    var wasMinimized = this.options.minimized;
+    if (!force && !this._fireBefore('Open')) return this;
+    this._cancelStateAnimation(true);
+    this.options.closed = false;
+    this.options.minimized = false;
+    this._setVisible(true);
+    this.bringToFront();
+    this.windowElement.focus();
+    if (wasMinimized) {
+      this.windowElement.classList.add('fui-window-minimized-visual');
+      this._animateState(function() {
+        self.windowElement.classList.remove('fui-window-minimized-visual');
+      });
+    }
+    this._fire('Open');
+    return this;
+  };
+
+  FabWindow.prototype.close = function(force) {
+    if (this.options.closed) return this;
+    if (!force && !this._fireBefore('Close')) return this;
+    this._cancelStateAnimation(true);
+    this.options.closed = true;
+    this._setVisible(false);
+    this._fire('Close');
+    return this;
+  };
+
+  FabWindow.prototype.minimize = function() {
+    var self = this;
+    if (this.options.minimized) return this;
+    this._cancelStateAnimation(true);
+    this.options.minimized = true;
+    this._animateState(function() {
+      self.windowElement.classList.add('fui-window-minimized-visual');
+    }, function() {
+      self._setVisible(false);
+      self.windowElement.classList.remove('fui-window-minimized-visual');
+    });
+    this._fire('Minimize');
+    return this;
+  };
+
+  FabWindow.prototype.maximize = function() {
+    var bounds;
+    if (this.options.maximized) return this;
+    this._cancelStateAnimation(true);
+    this._normalRect = this._getRect();
+    bounds = this._getBounds();
+    this.options.maximized = true;
+    this.options.collapsed = false;
+    this.hostElement.hidden = false;
+    this.footerElement.hidden = !this.footerElement.childNodes.length;
+    this.windowElement.classList.add('fui-window-maximized');
+    this.windowElement.classList.remove('fui-window-collapsed');
+    this._animateRect({ left: 0, top: 0, width: bounds.width, height: bounds.height });
+    this._syncToolStates();
+    this._fire('Maximize');
+    return this;
+  };
+
+  FabWindow.prototype.restore = function() {
+    var normalRect;
+    if (!this.options.maximized || !this._normalRect) return this;
+    this._cancelStateAnimation(true);
+    normalRect = this._normalRect;
+    this.options.maximized = false;
+    this.windowElement.classList.remove('fui-window-maximized');
+    this._animateRect(normalRect);
+    this._normalRect = null;
+    this._syncToolStates();
+    this._fire('Restore');
+    return this;
+  };
+
+  FabWindow.prototype.collapse = function() {
+    var self = this;
+    var startHeight;
+    var collapsedHeight;
+    if (this.options.collapsed || !this._fireBefore('Collapse')) return this;
+    this._cancelStateAnimation(true);
+    startHeight = this.windowElement.offsetHeight || this.options.height;
+    collapsedHeight = this._getCollapsedHeight();
+    this.windowElement.style.height = Math.round(startHeight) + 'px';
+    this.options.collapsed = true;
+    this.hostElement.hidden = true;
+    this.footerElement.hidden = true;
+    this.windowElement.classList.add('fui-window-collapsed');
+    this._animateState(function() {
+      self.windowElement.style.height = Math.round(collapsedHeight) + 'px';
+    }, function() {
+      self.windowElement.style.height = 'auto';
+    });
+    this._syncToolStates();
+    this._fire('Collapse');
+    return this;
+  };
+
+  FabWindow.prototype.expand = function() {
+    var self = this;
+    var startHeight;
+    if (!this.options.collapsed || !this._fireBefore('Expand')) return this;
+    this._cancelStateAnimation(true);
+    startHeight = this.windowElement.offsetHeight || this._getCollapsedHeight();
+    this.windowElement.style.height = Math.round(startHeight) + 'px';
+    this.options.collapsed = false;
+    this.hostElement.hidden = false;
+    this.footerElement.hidden = !this.footerElement.childNodes.length;
+    this.windowElement.classList.remove('fui-window-collapsed');
+    this._animateState(function() {
+      self.windowElement.style.height = Math.round(self.options.height) + 'px';
+    });
+    this._syncToolStates();
+    this._fire('Expand');
+    return this;
+  };
+
+  FabWindow.prototype._syncToolStates = function() {
+    var collapse = this.toolsElement.querySelector('[data-window-tool="collapse"]');
+    var maximize = this.toolsElement.querySelector('[data-window-tool="maximize"]');
+    if (collapse) {
+      collapse.classList.toggle('fui-window-tool-expand', this.options.collapsed);
+      collapse.setAttribute('aria-label', this.options.collapsed ? this.messages.expand : this.messages.collapse);
+      collapse.title = this.options.collapsed ? this.messages.expand : this.messages.collapse;
+    }
+    if (maximize) {
+      maximize.classList.toggle('fui-window-tool-restore', this.options.maximized);
+      maximize.setAttribute('aria-label', this.options.maximized ? this.messages.restore : this.messages.maximize);
+      maximize.title = this.options.maximized ? this.messages.restore : this.messages.maximize;
+    }
+  };
+
+  FabWindow.prototype.bringToFront = function() {
+    var zIndex = Math.max(nextWindowZIndex, toNumber(this.options.zIndex, 9000));
+    nextWindowZIndex = zIndex + 2;
+    this.options.zIndex = zIndex + 1;
+    this.maskElement.style.zIndex = zIndex;
+    this.windowElement.style.zIndex = zIndex + 1;
+    return this;
+  };
+
+  FabWindow.prototype.move = function(position, silent) {
+    var rect = this._getRect();
+    position = position || {};
+    rect.left = toNumber(position.left, rect.left);
+    rect.top = toNumber(position.top, rect.top);
+    rect = this._normalizeRect(rect);
+    this._applyRect(rect);
+    if (!silent) this._fire('Move', { left: rect.left, top: rect.top });
+    return this;
+  };
+
+  FabWindow.prototype.resize = function(width, height, silent) {
+    var rect = this._getRect();
+    if (width && typeof width === 'object') {
+      height = width.height;
+      width = width.width;
+    }
+    rect.width = Math.max(this.options.minWidth, toNumber(width, rect.width));
+    rect.height = Math.max(this.options.minHeight, toNumber(height, rect.height));
+    rect = this._normalizeRect(rect);
+    this._applyRect(rect);
+    if (!silent) this._fire('Resize', { width: rect.width, height: rect.height });
+    return this;
+  };
+
+  FabWindow.prototype.hcenter = function(silent) {
+    var bounds = this._getBounds();
+    return this.move({ left: Math.max(0, (bounds.width - this.options.width) / 2) }, silent);
+  };
+
+  FabWindow.prototype.vcenter = function(silent) {
+    var bounds = this._getBounds();
+    return this.move({ top: Math.max(0, (bounds.height - this.options.height) / 2) }, silent);
+  };
+
+  FabWindow.prototype.center = function(silent) {
+    var bounds = this._getBounds();
+    return this.move({
+      left: Math.max(0, (bounds.width - this.options.width) / 2),
+      top: Math.max(0, (bounds.height - this.options.height) / 2)
+    }, silent);
+  };
+
+  FabWindow.prototype.setTitle = function(title) {
+    this.options.title = title == null ? '' : String(title);
+    this.titleElement.textContent = this.options.title;
+    this.windowElement.setAttribute('aria-label', this.options.title || 'Window');
+    return this;
+  };
+
+  FabWindow.prototype.setIcon = function(iconCls) {
+    this.options.iconCls = iconCls == null ? '' : String(iconCls).trim();
+    this.iconElement.className = ('fui-window-icon ' + this.options.iconCls).trim();
+    this.iconElement.hidden = !this.options.iconCls;
+    this.titleElement.classList.toggle('fui-window-title-with-icon', Boolean(this.options.iconCls));
+    return this;
+  };
+
+  FabWindow.prototype.setContent = function(content) {
+    if (content && content.nodeType) {
+      this.hostElement.textContent = '';
+      this.hostElement.appendChild(content);
+    } else {
+      this.hostElement.textContent = content == null ? '' : String(content);
+    }
+    return this;
+  };
+
+  FabWindow.prototype.setLocale = function(locale, messages) {
+    this.options.locale = normalizeLocale(locale);
+    this.options.messages = messages || this.options.messages;
+    this.messages = assignWindowOptions({}, localePacks[this.options.locale], this.options.messages || {});
+    this._syncToolStates();
+    var minimize = this.toolsElement.querySelector('[data-window-tool="minimize"]');
+    var close = this.toolsElement.querySelector('[data-window-tool="close"]');
+    if (minimize) {
+      minimize.title = this.messages.minimize;
+      minimize.setAttribute('aria-label', this.messages.minimize);
+    }
+    if (close) {
+      close.title = this.messages.close;
+      close.setAttribute('aria-label', this.messages.close);
+    }
+    return this;
+  };
+
+  FabWindow.prototype.setTheme = function(theme) {
+    var index;
+    this.options.theme = theme == null ? 'inherit' : theme;
+    this.theme = this.options.theme === 'inherit' ?
+      findWindowTheme(this._themeSource) :
+      normalizeWindowTheme(this.options.theme);
+    for (index = 0; index < WINDOW_THEMES.length; index += 1) {
+      this.windowElement.classList.remove('fg-theme-' + WINDOW_THEMES[index]);
+      this.maskElement.classList.remove('fg-theme-' + WINDOW_THEMES[index]);
+    }
+    this.windowElement.classList.add('fg-theme-' + this.theme);
+    this.maskElement.classList.add('fg-theme-' + this.theme);
+    return this;
+  };
+
+  FabWindow.prototype.window = function() { return this.windowElement; };
+  FabWindow.prototype.panel = FabWindow.prototype.window;
+  FabWindow.prototype.header = function() { return this.headerElement; };
+  FabWindow.prototype.body = function() { return this.hostElement; };
+  FabWindow.prototype.footer = function() { return this.footerElement; };
+  FabWindow.prototype.isOpen = function() { return !this.options.closed && !this.options.minimized; };
+
+  FabWindow.prototype.on = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!name || typeof listener !== 'function') return this;
+    if (!this._listeners[name]) this._listeners[name] = [];
+    this._listeners[name].push(listener);
+    return this;
+  };
+
+  FabWindow.prototype.off = function(name, listener) {
+    name = String(name || '').toLowerCase();
+    if (!this._listeners[name]) return this;
+    this._listeners[name] = listener ?
+      this._listeners[name].filter(function(item) { return item !== listener; }) :
+      [];
+    return this;
+  };
+
+  FabWindow.prototype.destroy = function(force) {
+    if (this._destroyed || (!force && !this._fireBefore('Destroy'))) return;
+    this._destroyed = true;
+    this._cancelStateAnimation(true);
+    this._unbindDocumentInteraction();
+    this.headerElement.removeEventListener('pointerdown', this._onHeaderPointerDown);
+    this.windowElement.removeEventListener('pointerdown', this._onWindowPointerDown);
+    unregisterControl(this.hostElement, this);
+    unregisterControl(this.windowElement, this);
+    delete this.hostElement.__fabuiWindow;
+    restoreWindowAttribute(this.hostElement, 'class', this._originalClass);
+    restoreWindowAttribute(this.hostElement, 'style', this._originalStyle);
+    restoreWindowAttribute(this.hostElement, 'title', this._originalTitle);
+    if (this._originalParent) {
+      this._originalParent.insertBefore(this.hostElement, this._originalNextSibling);
+    }
+    if (this.maskElement.parentNode) this.maskElement.parentNode.removeChild(this.maskElement);
+    if (this.windowElement.parentNode) this.windowElement.parentNode.removeChild(this.windowElement);
+    this._fire('Destroy');
+    this._listeners = {};
+  };
+
+  FabWindow.prototype.dispose = FabWindow.prototype.destroy;
+
+  FabWindow.defaults = {
+    title: 'New Window',
+    width: 600,
+    height: 400,
+    left: null,
+    top: null,
+    minWidth: 200,
+    minHeight: 100,
+    zIndex: 9000,
+    draggable: true,
+    resizable: true,
+    shadow: true,
+    modal: false,
+    border: true,
+    inline: false,
+    fixed: false,
+    constrain: false,
+    collapsible: false,
+    minimizable: false,
+    maximizable: true,
+    closable: true,
+    closed: false,
+    collapsed: false,
+    minimized: false,
+    maximized: false,
+    noheader: false,
+    iconCls: '',
+    cls: '',
+    animate: true,
+    animationDuration: 180,
+    tools: null,
+    footer: null,
+    theme: 'inherit',
+    locale: 'en',
+    messages: null
+  };
+  FabWindow.locales = localePacks;
+  FabWindow.getControl = function(element) {
+    element = resolveWindowElement(element);
+    return element && element.__fabuiWindow ? element.__fabuiWindow : null;
+  };
+  return FabWindow;
+}
+
+var MESSAGER_THEMES = [
+  'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+  'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
+  'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
+  'black'
+];
+
+function assignMessagerOptions(target) {
+  var index;
+  var source;
+  var key;
+  for (index = 1; index < arguments.length; index += 1) {
+    source = arguments[index] || {};
+    for (key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+function messagerNumber(value, fallback) {
+  value = Number(value);
+  return isFinite(value) ? value : fallback;
+}
+
+function messagerSize(value, fallback) {
+  return Math.max(0, messagerNumber(value, fallback));
+}
+
+function messagerCssPosition(value) {
+  if (value == null || value === '') return '';
+  return typeof value === 'number' ? value + 'px' : String(value);
+}
+
+function normalizeMessagerLocale(value) {
+  value = String(value || 'en');
+  if (/^zh(?:-|_)?tw/i.test(value)) return 'zh-TW';
+  if (/^zh/i.test(value)) return 'zh-CN';
+  return 'en';
+}
+
+function normalizeMessagerIcon(value) {
+  value = String(value || '').trim().toLowerCase();
+  return ['error', 'question', 'info', 'warning'].indexOf(value) >= 0 ? value : '';
+}
+
+function normalizeMessagerShowType(value) {
+  value = String(value || 'slide').trim().toLowerCase();
+  return ['slide', 'fade', 'show'].indexOf(value) >= 0 ? value : 'slide';
+}
+
+function createMessagerFactory(Window, Button) {
+  var localePacks = {
+    en: {
+      ok: 'Ok',
+      cancel: 'Cancel',
+      alert: 'Alert',
+      confirm: 'Confirm',
+      prompt: 'Prompt',
+      progress: 'Please wait'
+    },
+    'zh-TW': {
+      ok: '確定',
+      cancel: '取消',
+      alert: '提示',
+      confirm: '確認',
+      prompt: '輸入',
+      progress: '請稍候'
+    },
+    'zh-CN': {
+      ok: '确定',
+      cancel: '取消',
+      alert: '提示',
+      confirm: '确认',
+      prompt: '输入',
+      progress: '请稍候'
+    }
+  };
+  var dialogs = [];
+  var toasts = [];
+  var progressState = null;
+  var toastResizeBound = false;
+
+  if (typeof Window !== 'function' || typeof Button !== 'function') {
+    throw new Error('fabui.Messager requires fabui.Window and fabui.Button.');
+  }
+
+  function localeMessages(options, callOptions) {
+    var locale = normalizeMessagerLocale(options.locale);
+    var pack = localePacks[locale];
+    var defaults = Messager.defaults;
+    var explicitOk = callOptions && Object.prototype.hasOwnProperty.call(callOptions, 'ok');
+    var explicitCancel = callOptions && Object.prototype.hasOwnProperty.call(callOptions, 'cancel');
+    return {
+      ok: explicitOk || defaults.ok !== 'Ok' ? String(options.ok) : pack.ok,
+      cancel: explicitCancel || defaults.cancel !== 'Cancel' ? String(options.cancel) : pack.cancel,
+      alert: pack.alert,
+      confirm: pack.confirm,
+      prompt: pack.prompt,
+      progress: pack.progress
+    };
+  }
+
+  function normalizeCallOptions(type, title, msg, extra, fn) {
+    var callOptions;
+    var options;
+    if (title && typeof title === 'object') {
+      callOptions = assignMessagerOptions({}, title);
+    } else {
+      callOptions = {
+        title: title,
+        msg: msg
+      };
+      if (type === 'alert') {
+        callOptions.icon = extra;
+        callOptions.fn = fn;
+      } else {
+        callOptions.fn = extra;
+      }
+    }
+    options = assignMessagerOptions({}, Messager.defaults, callOptions);
+    options.locale = normalizeMessagerLocale(options.locale);
+    options.theme = options.theme == null ? 'inherit' : options.theme;
+    options.width = Math.max(240, messagerSize(options.width, 360));
+    options.height = Math.max(130, messagerSize(options.height, 180));
+    options.icon = normalizeMessagerIcon(options.icon);
+    options.messages = localeMessages(options, callOptions);
+    if (options.title == null || options.title === '') {
+      options.title = options.messages[type] || '';
+    }
+    return options;
+  }
+
+  function createMessageContent(options, type) {
+    var content = document.createElement('div');
+    var icon;
+    var message = document.createElement('div');
+    var input;
+    content.className = 'fui-messager-content fui-messager-content-' + type;
+    if (options.icon) {
+      content.classList.add('fui-messager-content-icon');
+      icon = document.createElement('span');
+      icon.className = 'fui-messager-icon icon-' + options.icon;
+      icon.setAttribute('aria-hidden', 'true');
+      content.appendChild(icon);
+    }
+    message.className = 'fui-messager-message';
+    if (options.html === true) message.innerHTML = String(options.msg == null ? '' : options.msg);
+    else message.textContent = options.msg == null ? '' : String(options.msg);
+    content.appendChild(message);
+    if (type === 'prompt') {
+      input = document.createElement('input');
+      input.type = options.inputType || 'text';
+      input.className = 'fui-messager-input';
+      input.value = options.value == null ? '' : String(options.value);
+      input.placeholder = options.placeholder == null ? '' : String(options.placeholder);
+      input.setAttribute('aria-label', options.inputLabel || options.msg || options.messages.prompt);
+      content.appendChild(input);
+    }
+    return {
+      element: content,
+      input: input || null
+    };
+  }
+
+  function createDialogButtons(options, type, resolve) {
+    var footer = document.createElement('div');
+    var buttons = [];
+    var okElement = document.createElement('button');
+    var cancelElement;
+    footer.className = 'fui-messager-buttons';
+    okElement.type = 'button';
+    footer.appendChild(okElement);
+    buttons.push(new Button(okElement, {
+      text: options.messages.ok,
+      iconCls: options.okIconCls || 'icon-ok',
+      theme: options.theme,
+      onClick: function() {
+        resolve(true);
+      }
+    }));
+    if (type === 'confirm' || type === 'prompt') {
+      cancelElement = document.createElement('button');
+      cancelElement.type = 'button';
+      footer.appendChild(cancelElement);
+      buttons.push(new Button(cancelElement, {
+        text: options.messages.cancel,
+        iconCls: options.cancelIconCls || 'icon-cancel',
+        theme: options.theme,
+        onClick: function() {
+          resolve(false);
+        }
+      }));
+    }
+    return {
+      element: footer,
+      buttons: buttons
+    };
+  }
+
+  function focusableElements(element) {
+    return Array.prototype.filter.call(
+      element.querySelectorAll('button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'),
+      function(item) {
+        return !item.hidden && item.offsetParent !== null;
+      }
+    );
+  }
+
+  function bindDialogKeyboard(state) {
+    state.onKeyDown = function(event) {
+      var focusable;
+      var index;
+      if (event.key === 'Escape' && state.options.closable !== false) {
+        event.preventDefault();
+        state.resolve(false);
+        return;
+      }
+      if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') {
+        event.preventDefault();
+        state.resolve(true);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      focusable = focusableElements(state.window.window());
+      if (!focusable.length) return;
+      index = focusable.indexOf(document.activeElement);
+      if (event.shiftKey && index <= 0) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && index === focusable.length - 1) {
+        event.preventDefault();
+        focusable[0].focus();
+      }
+    };
+    state.window.window().addEventListener('keydown', state.onKeyDown);
+  }
+
+  function destroyTransientWindow(state) {
+    state.window.destroy(true);
+    if (state.host && state.host.parentNode) {
+      state.host.parentNode.removeChild(state.host);
+    }
+  }
+
+  function removeDialog(state) {
+    var index = dialogs.indexOf(state);
+    if (index >= 0) dialogs.splice(index, 1);
+    state.window.window().removeEventListener('keydown', state.onKeyDown);
+    state.buttons.forEach(function(button) {
+      button.destroy();
+    });
+    destroyTransientWindow(state);
+  }
+
+  function createDialog(type, title, msg, extra, fn) {
+    var options = normalizeCallOptions(type, title, msg, extra, fn);
+    var content = createMessageContent(options, type);
+    var host = document.createElement('div');
+    var state = {
+      type: type,
+      options: options,
+      input: content.input,
+      settled: false,
+      buttons: [],
+      host: host,
+      window: null,
+      resolve: null
+    };
+    var footer;
+    host.className = 'fui-messager-host';
+    host.appendChild(content.element);
+    document.body.appendChild(host);
+    state.resolve = function(accepted) {
+      var value;
+      if (state.settled) return;
+      state.settled = true;
+      if (type === 'prompt') {
+        value = accepted ? state.input.value : null;
+      } else if (type === 'confirm') {
+        value = accepted === true;
+      }
+      try {
+        if (typeof options.fn === 'function') {
+          if (type === 'alert') {
+            if (accepted) options.fn();
+          } else {
+            options.fn(value);
+          }
+        }
+      } finally {
+        state.window.close(true);
+      }
+    };
+    footer = createDialogButtons(options, type, state.resolve);
+    state.buttons = footer.buttons;
+    state.window = new Window(host, {
+      title: options.title,
+      iconCls: options.windowIconCls || '',
+      width: options.width,
+      height: options.height,
+      minWidth: Math.min(options.width, options.minWidth || 240),
+      minHeight: Math.min(options.height, options.minHeight || 130),
+      modal: options.modal !== false,
+      draggable: options.draggable !== false,
+      resizable: options.resizable === true,
+      maximizable: false,
+      minimizable: false,
+      collapsible: false,
+      closable: options.closable !== false,
+      constrain: true,
+      fixed: true,
+      footer: footer.element,
+      theme: options.theme,
+      locale: options.locale,
+      animate: options.animate !== false,
+      animationDuration: options.animationDuration,
+      onClose: function() {
+        if (!state.settled) {
+          state.settled = true;
+          if (typeof options.fn === 'function' && type === 'confirm') options.fn(false);
+          if (typeof options.fn === 'function' && type === 'prompt') options.fn(null);
+        }
+        if (typeof options.onClose === 'function') options.onClose(state.window);
+        removeDialog(state);
+      }
+    });
+    state.window.window().classList.add('fui-messager-dialog', 'fui-messager-' + type);
+    state.window.messager = state;
+    state.window.closeMessage = state.resolve;
+    dialogs.push(state);
+    bindDialogKeyboard(state);
+    state.window.center();
+    if (state.input) state.input.focus();
+    else if (state.buttons[0]) state.buttons[0].hostElement.focus();
+    return state.window;
+  }
+
+  function bindToastResize() {
+    if (toastResizeBound || typeof window === 'undefined') return;
+    window.addEventListener('resize', positionToasts);
+    toastResizeBound = true;
+  }
+
+  function unbindToastResize() {
+    if (!toastResizeBound || toasts.length) return;
+    window.removeEventListener('resize', positionToasts);
+    toastResizeBound = false;
+  }
+
+  function positionToast(state, index) {
+    var style = state.options.style || {};
+    var element = state.window.window();
+    var gap = messagerNumber(state.options.gap, 10);
+    var bottom = messagerNumber(style.bottom, 16);
+    var offset = 0;
+    var itemIndex;
+    if (state.options._customPosition) {
+      ['left', 'right', 'top', 'bottom'].forEach(function(name) {
+        if (Object.prototype.hasOwnProperty.call(style, name)) {
+          element.style[name] = messagerCssPosition(style[name]);
+        }
+      });
+      return;
+    }
+    for (itemIndex = 0; itemIndex < index; itemIndex += 1) {
+      if (!toasts[itemIndex].options._customPosition) {
+        offset += toasts[itemIndex].options.height + gap;
+      }
+    }
+    element.style.left = 'auto';
+    element.style.top = 'auto';
+    element.style.right = messagerCssPosition(
+      Object.prototype.hasOwnProperty.call(style, 'right') ? style.right : 16
+    );
+    element.style.bottom = messagerCssPosition(bottom + offset);
+  }
+
+  function positionToasts() {
+    toasts.forEach(positionToast);
+  }
+
+  function removeToast(state) {
+    var index = toasts.indexOf(state);
+    if (state.timer != null) clearTimeout(state.timer);
+    if (index >= 0) toasts.splice(index, 1);
+    destroyTransientWindow(state);
+    positionToasts();
+    unbindToastResize();
+  }
+
+  function showToast(input) {
+    var callOptions = input && typeof input === 'object' ? input : { msg: input };
+    var options = assignMessagerOptions({}, Messager.showDefaults, callOptions);
+    var host = document.createElement('div');
+    var state;
+    options.theme = options.theme == null ? Messager.defaults.theme : options.theme;
+    options.locale = normalizeMessagerLocale(options.locale || Messager.defaults.locale);
+    options.width = Math.max(160, messagerSize(options.width, 250));
+    options.height = Math.max(70, messagerSize(options.height, 100));
+    options.timeout = Math.max(0, messagerNumber(options.timeout, 4000));
+    options.showSpeed = Math.max(0, messagerNumber(options.showSpeed, 600));
+    options.showType = normalizeMessagerShowType(options.showType);
+    options._customPosition = options.style && (
+      Object.prototype.hasOwnProperty.call(options.style, 'left') ||
+      Object.prototype.hasOwnProperty.call(options.style, 'top')
+    );
+    host.className = 'fui-messager-host fui-messager-toast-host';
+    if (options.html === true) host.innerHTML = String(options.msg == null ? '' : options.msg);
+    else host.textContent = options.msg == null ? '' : String(options.msg);
+    document.body.appendChild(host);
+    state = {
+      type: 'show',
+      options: options,
+      host: host,
+      timer: null,
+      window: null
+    };
+    state.window = new Window(host, {
+      title: options.title || '',
+      width: options.width,
+      height: options.height,
+      modal: false,
+      draggable: options.draggable === true,
+      resizable: false,
+      maximizable: false,
+      minimizable: false,
+      collapsible: false,
+      closable: options.closable !== false,
+      constrain: false,
+      fixed: true,
+      theme: options.theme,
+      locale: options.locale,
+      animate: false,
+      onClose: function() {
+        if (typeof options.onClose === 'function') options.onClose(state.window);
+        removeToast(state);
+      }
+    });
+    state.window.window().classList.add(
+      'fui-messager-toast',
+      'fui-messager-toast-' + options.showType
+    );
+    state.window.window().style.setProperty('--fui-messager-show-speed', options.showSpeed + 'ms');
+    state.window.messager = state;
+    toasts.push(state);
+    bindToastResize();
+    positionToasts();
+    if (options.timeout > 0) {
+      state.timer = setTimeout(function() {
+        state.timer = null;
+        state.window.close(true);
+      }, options.timeout);
+    }
+    return state.window;
+  }
+
+  function createProgressBar(options) {
+    var wrapper = document.createElement('div');
+    var track = document.createElement('div');
+    var value = document.createElement('div');
+    var text = document.createElement('div');
+    var current = options.value == null ? null : Math.max(0, Math.min(100, Number(options.value)));
+    wrapper.className = 'fui-messager-progress';
+    track.className = 'fui-messager-progress-track';
+    value.className = 'fui-messager-progress-value';
+    text.className = 'fui-messager-progress-text';
+    track.appendChild(value);
+    track.appendChild(text);
+    wrapper.appendChild(track);
+    function render() {
+      var label = options.text;
+      track.classList.toggle('fui-messager-progress-indeterminate', current == null);
+      value.style.width = current == null ? '35%' : current + '%';
+      if (typeof label === 'function') label = label(current);
+      if (label == null) label = current == null ? '' : Math.round(current) + '%';
+      text.textContent = String(label);
+    }
+    render();
+    return {
+      element: wrapper,
+      getValue: function() {
+        return current;
+      },
+      setValue: function(next) {
+        current = next == null ? null : Math.max(0, Math.min(100, Number(next)));
+        render();
+        return this;
+      },
+      setText: function(next) {
+        options.text = next;
+        render();
+        return this;
+      }
+    };
+  }
+
+  function showProgress(input) {
+    var callOptions = input && typeof input === 'object' ? input : {};
+    var options;
+    var messages;
+    var host;
+    var message;
+    var bar;
+    if (progressState) return progressState.window;
+    options = assignMessagerOptions({}, Messager.progressDefaults, {
+      theme: Messager.defaults.theme,
+      locale: Messager.defaults.locale
+    }, callOptions);
+    options.locale = normalizeMessagerLocale(options.locale);
+    options.interval = Math.max(0, messagerNumber(options.interval, 300));
+    messages = localeMessages(options, callOptions);
+    if (options.title == null || options.title === '') options.title = messages.progress;
+    options.width = Math.max(260, messagerSize(options.width, 360));
+    options.height = Math.max(120, messagerSize(options.height, 150));
+    host = document.createElement('div');
+    host.className = 'fui-messager-host fui-messager-progress-host';
+    message = document.createElement('div');
+    message.className = 'fui-messager-progress-message';
+    message.textContent = options.msg == null ? '' : String(options.msg);
+    bar = createProgressBar(options);
+    host.appendChild(message);
+    host.appendChild(bar.element);
+    document.body.appendChild(host);
+    progressState = {
+      type: 'progress',
+      options: options,
+      host: host,
+      bar: bar,
+      timer: null,
+      window: null
+    };
+    progressState.window = new Window(host, {
+      title: options.title,
+      width: options.width,
+      height: options.height,
+      modal: options.modal !== false,
+      draggable: options.draggable !== false,
+      resizable: false,
+      maximizable: false,
+      minimizable: false,
+      collapsible: false,
+      closable: options.closable === true,
+      constrain: true,
+      fixed: true,
+      theme: options.theme,
+      locale: options.locale,
+      animate: options.animate !== false,
+      animationDuration: options.animationDuration,
+      onClose: function() {
+        var state = progressState;
+        progressState = null;
+        if (state) {
+          if (state.timer != null) clearInterval(state.timer);
+          destroyTransientWindow(state);
+        }
+        if (typeof options.onClose === 'function') options.onClose();
+      }
+    });
+    progressState.window.window().classList.add('fui-messager-dialog', 'fui-messager-progress-window');
+    progressState.window.messager = progressState;
+    progressState.window.center();
+    if (options.interval > 0 && bar.getValue() != null) {
+      progressState.timer = setInterval(function() {
+        var value = bar.getValue() + 10;
+        bar.setValue(value > 100 ? 0 : value);
+      }, options.interval);
+    }
+    return progressState.window;
+  }
+
+  var Messager = {
+    defaults: {
+      ok: 'Ok',
+      cancel: 'Cancel',
+      width: 360,
+      height: 180,
+      minWidth: 240,
+      minHeight: 130,
+      modal: true,
+      draggable: true,
+      resizable: false,
+      closable: true,
+      animate: true,
+      animationDuration: 180,
+      theme: 'inherit',
+      locale: 'en',
+      html: false
+    },
+    showDefaults: {
+      showType: 'slide',
+      showSpeed: 600,
+      width: 250,
+      height: 100,
+      title: '',
+      msg: '',
+      style: {
+        right: 16,
+        bottom: 16
+      },
+      gap: 10,
+      timeout: 4000,
+      closable: true,
+      draggable: false,
+      html: false
+    },
+    progressDefaults: {
+      title: '',
+      msg: '',
+      text: null,
+      interval: 300,
+      width: 360,
+      height: 150,
+      value: 0,
+      modal: true,
+      closable: false
+    },
+    locales: localePacks,
+    themes: MESSAGER_THEMES.slice(),
+    show: showToast,
+    alert: function(title, msg, icon, fn) {
+      if (typeof icon === 'function' && fn == null) {
+        fn = icon;
+        icon = '';
+      }
+      return createDialog('alert', title, msg, icon, fn);
+    },
+    confirm: function(title, msg, fn) {
+      return createDialog('confirm', title, msg, fn);
+    },
+    prompt: function(title, msg, fn) {
+      return createDialog('prompt', title, msg, fn);
+    },
+    progress: function(options) {
+      if (typeof options === 'string') {
+        if (options === 'bar') return progressState ? progressState.bar : null;
+        if (options === 'close') {
+          if (progressState) progressState.window.close(true);
+          return null;
+        }
+      }
+      return showProgress(options);
+    },
+    close: function(handle, result) {
+      if (!handle) return Messager;
+      if (handle.messager && typeof handle.messager.resolve === 'function') {
+        handle.messager.resolve(result === true);
+      } else if (typeof handle.close === 'function') {
+        handle.close(true);
+      }
+      return Messager;
+    },
+    closeAll: function() {
+      dialogs.slice().forEach(function(state) {
+        state.resolve(false);
+      });
+      toasts.slice().forEach(function(state) {
+        state.window.close(true);
+      });
+      if (progressState) progressState.window.close(true);
+      return Messager;
+    },
+    setTheme: function(theme) {
+      Messager.defaults.theme = theme == null ? 'inherit' : theme;
+      dialogs.forEach(function(state) {
+        state.options.theme = Messager.defaults.theme;
+        state.window.setTheme(Messager.defaults.theme);
+        state.buttons.forEach(function(button) {
+          button.setTheme(Messager.defaults.theme);
+        });
+      });
+      toasts.forEach(function(state) {
+        state.window.setTheme(Messager.defaults.theme);
+      });
+      if (progressState) progressState.window.setTheme(Messager.defaults.theme);
+      return Messager;
+    },
+    setLocale: function(locale) {
+      Messager.defaults.locale = normalizeMessagerLocale(locale);
+      return Messager;
+    },
+    activeDialogs: function() {
+      return dialogs.map(function(state) {
+        return state.window;
+      });
+    },
+    activeToasts: function() {
+      return toasts.map(function(state) {
+        return state.window;
+      });
+    }
+  };
+
+  return Messager;
+}
+
+
+
+
+
 
 
 
@@ -12653,6 +27036,7 @@ function createFabGridFactory(editorDefinitions) {
   ];
 
   function FabGrid(element, options) {
+    var self = this;
     Control.call(this);
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
     if (!this.host) {
@@ -12729,11 +27113,8 @@ function createFabGridFactory(editorDefinitions) {
     this.editing = null;
     this.editorConfig = null;
     this.editorIconConfigs = [];
-    this.dateboxState = null;
     this.dateboxTarget = null;
     this.comboboxTarget = null;
-    this.colorState = null;
-    this.colorDragState = null;
     this.colorTarget = null;
     this.headerSearchFocusRequest = null;
     this.headerSearchFocusRaf = 0;
@@ -12812,12 +27193,6 @@ function createFabGridFactory(editorDefinitions) {
     this._boundHeaderSearchCompositionStart = bind(this, this.handleHeaderSearchCompositionStart);
     this._boundHeaderSearchCompositionEnd = bind(this, this.handleHeaderSearchCompositionEnd);
     this._boundEditorTriggerClick = bind(this, this.handleEditorTriggerClick);
-    this._boundDateboxClick = bind(this, this.handleDateboxClick);
-    this._boundDateboxChange = bind(this, this.handleDateboxChange);
-    this._boundComboboxMouseDown = bind(this, this.handleComboboxMouseDown);
-    this._boundColorPanelPointerDown = bind(this, this.handleColorPanelPointerDown);
-    this._boundColorPanelPointerMove = bind(this, this.handleColorPanelPointerMove);
-    this._boundColorPanelPointerUp = bind(this, this.handleColorPanelPointerUp);
     this._boundFilterMenuClick = bind(this, this.handleFilterMenuClick);
     this._boundExcelFilterMenuInput = bind(this, this.handleExcelFilterMenuInput);
     this._boundColumnChooserChange = bind(this, this.handleColumnChooserChange);
@@ -12835,6 +27210,67 @@ function createFabGridFactory(editorDefinitions) {
     this.createWijmoEvents();
     this.bindOptionEvent('updatedView');
     this.createDom();
+    this.datePopup = new DatePopup({
+      className: 'fui-grid-date-popup',
+      theme: 'inherit',
+      themeSource: this.root,
+      containsTarget: function(target) {
+        return self.editor === target ||
+          (self.editorIconHost && self.editorIconHost.contains(target)) ||
+          Boolean(closest(target, 'fg-header-search-icons'));
+      },
+      onSelect: function(date) {
+        self.applyDateboxTargetDate(date);
+      },
+      onHide: function() {
+        self.dateboxTarget = null;
+      }
+    });
+    this.dateboxPanel = this.datePopup.panel;
+    this.comboPopup = new ComboPopup({
+      className: 'fui-grid-combo-popup',
+      containsTarget: function(target) {
+        return self.editor === target ||
+          (self.editorIconHost && self.editorIconHost.contains(target)) ||
+          Boolean(closest(target, 'fg-header-search-icons'));
+      },
+      onSelect: function(descriptor, index) {
+        self.selectComboboxOption(index);
+      },
+      onActiveChange: function(index) {
+        self.comboboxActiveIndex = index;
+      },
+      onHide: function() {
+        self.comboboxTarget = null;
+        self.comboboxActiveIndex = -1;
+      }
+    });
+    this.comboboxPanel = this.comboPopup.panel;
+    this.colorPopup = new ColorPopup({
+      className: 'fui-grid-color-popup',
+      normalize: normalizeColorValue,
+      containsTarget: function(target) {
+        return self.editor === target ||
+          (self.editorIconHost && self.editorIconHost.contains(target)) ||
+          Boolean(closest(target, 'fg-header-search-icons'));
+      },
+      onInput: function(value) {
+        self.applyColorValueToTarget(value);
+      },
+      onSelect: function(value) {
+        var target = self.getColorTarget();
+        self.applyColorValueToTarget(value);
+        if (target && target.type === 'search') {
+          self.colorPopup.hide();
+          target.input.focus();
+        }
+      },
+      onHide: function() {
+        self.colorTarget = null;
+      }
+    });
+    this.colorPanel = this.colorPopup.panel;
+    this.applyLocaleToDom();
     this.bindDomEvents();
     this.bindRowDragEvents();
     this.refresh();
@@ -13155,9 +27591,6 @@ function createFabGridFactory(editorDefinitions) {
         '<div class="fg-frozen-pane-right"><div class="fg-frozen-layer-right"></div></div>' +
         '<input class="fg-editor textbox-f" type="text">' +
         '<div class="fg-editor-icons"><button class="fg-editor-trigger" type="button"></button></div>' +
-        '<div class="fg-datebox-panel" role="dialog"></div>' +
-        '<div class="fg-combobox-panel" role="listbox"></div>' +
-        '<div class="fg-color-panel" role="dialog"></div>' +
         '<div class="fg-invalid-tip" role="tooltip"></div>' +
         '<div class="fg-empty"></div>' +
         '<div class="fg-busy-overlay" aria-live="polite"><div class="fg-busy-panel"><span class="fg-busy-spinner"></span><span class="fg-busy-text"></span></div></div>' +
@@ -13207,9 +27640,6 @@ function createFabGridFactory(editorDefinitions) {
     this.editor = root.querySelector('.fg-editor');
     this.editorIconHost = root.querySelector('.fg-editor-icons');
     this.editorTrigger = root.querySelector('.fg-editor-trigger');
-    this.dateboxPanel = root.querySelector('.fg-datebox-panel');
-    this.comboboxPanel = root.querySelector('.fg-combobox-panel');
-    this.colorPanel = root.querySelector('.fg-color-panel');
     this.filterMenu = root.querySelector('.fg-filter-menu');
     this.topLeftMenu = root.querySelector('.fg-top-left-menu');
     this.columnChooser = root.querySelector('.fg-column-chooser');
@@ -13246,8 +27676,22 @@ function createFabGridFactory(editorDefinitions) {
     if (this.comboboxPanel) {
       this.comboboxPanel.setAttribute('aria-label', this.getText('aria.comboBoxOptions'));
     }
+    if (this.comboPopup) {
+      this.comboPopup.setOptions({
+        ariaLabel: this.getText('aria.comboBoxOptions'),
+        emptyText: this.getText('combobox.emptyText')
+      });
+    }
     if (this.colorPanel) {
       this.colorPanel.setAttribute('aria-label', this.getText('aria.colorPicker'));
+    }
+    if (this.colorPopup) {
+      this.colorPopup.setOptions({
+        ariaLabel: this.getText('aria.colorPicker'),
+        saturationText: this.getText('aria.colorSaturation'),
+        hueText: this.getText('aria.colorHue'),
+        alphaText: this.getText('aria.colorAlpha')
+      });
     }
     if (this.columnChooser) {
       this.columnChooser.setAttribute('aria-label', this.getText('aria.columnChooser'));
@@ -13309,13 +27753,6 @@ function createFabGridFactory(editorDefinitions) {
     this.header.addEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
     this.header.addEventListener('compositionend', this._boundHeaderSearchCompositionEnd);
     this.editorIconHost.addEventListener('click', this._boundEditorTriggerClick);
-    this.dateboxPanel.addEventListener('click', this._boundDateboxClick);
-    this.dateboxPanel.addEventListener('change', this._boundDateboxChange);
-    this.comboboxPanel.addEventListener('mousedown', this._boundComboboxMouseDown);
-    this.colorPanel.addEventListener('pointerdown', this._boundColorPanelPointerDown);
-    this.colorPanel.addEventListener('pointermove', this._boundColorPanelPointerMove);
-    this.colorPanel.addEventListener('pointerup', this._boundColorPanelPointerUp);
-    this.colorPanel.addEventListener('pointercancel', this._boundColorPanelPointerUp);
     this.filterMenu.addEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.addEventListener('click', this._boundFilterMenuClick);
@@ -13867,13 +28304,6 @@ function createFabGridFactory(editorDefinitions) {
     this.header.removeEventListener('compositionstart', this._boundHeaderSearchCompositionStart);
     this.header.removeEventListener('compositionend', this._boundHeaderSearchCompositionEnd);
     this.editorIconHost.removeEventListener('click', this._boundEditorTriggerClick);
-    this.dateboxPanel.removeEventListener('click', this._boundDateboxClick);
-    this.dateboxPanel.removeEventListener('change', this._boundDateboxChange);
-    this.comboboxPanel.removeEventListener('mousedown', this._boundComboboxMouseDown);
-    this.colorPanel.removeEventListener('pointerdown', this._boundColorPanelPointerDown);
-    this.colorPanel.removeEventListener('pointermove', this._boundColorPanelPointerMove);
-    this.colorPanel.removeEventListener('pointerup', this._boundColorPanelPointerUp);
-    this.colorPanel.removeEventListener('pointercancel', this._boundColorPanelPointerUp);
     this.filterMenu.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('mousedown', this._boundFilterMenuClick, true);
     this.filterMenu.removeEventListener('click', this._boundFilterMenuClick);
@@ -13892,6 +28322,15 @@ function createFabGridFactory(editorDefinitions) {
     document.removeEventListener('webkitfullscreenchange', this._boundFullscreenChange);
     this.editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
     window.removeEventListener('resize', this._boundResize);
+    if (this.datePopup) {
+      this.datePopup.destroy();
+    }
+    if (this.comboPopup) {
+      this.comboPopup.destroy();
+    }
+    if (this.colorPopup) {
+      this.colorPopup.destroy();
+    }
     this._autoSizeCanvas = null;
     this._autoSizeContext = null;
     this.host.innerHTML = '';
@@ -14374,42 +28813,19 @@ function createFabGridFactory(editorDefinitions) {
     }
     config = getColumnEditorConfig(column);
     if (config && isDateLikeEditorType(config.type)) {
-      return [{ iconCls: 'icon-datebox', builtin: 'date' }];
+      return normalizeIconConfigs([{ iconCls: 'icon-datebox', builtin: 'date' }]);
     }
     if (config && config.type === 'combo') {
-      return [{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combo' }];
+      return normalizeIconConfigs([{ iconCls: 'fg-editor-trigger-combobox', builtin: 'combo' }]);
     }
     if (config && config.type === 'color') {
-      return [{ iconCls: 'fg-editor-trigger-color', builtin: 'color' }];
+      return normalizeIconConfigs([{ iconCls: 'fg-editor-trigger-color', builtin: 'color' }]);
     }
     return [];
   }
 
   function normalizeIconConfigs(icons) {
-    var result = [];
-    var i;
-    var icon;
-    if (!icons) {
-      return result;
-    }
-    if (!Array.isArray(icons)) {
-      icons = [icons];
-    }
-    for (i = 0; i < icons.length; i += 1) {
-      icon = icons[i];
-      if (icon === false || icon == null) {
-        continue;
-      }
-      if (typeof icon === 'function') {
-        icon = { onClick: icon };
-      } else if (typeof icon === 'string') {
-        icon = { iconCls: icon };
-      }
-      if (typeof icon === 'object') {
-        result.push(icon);
-      }
-    }
-    return result;
+    return normalizeEditorIconDescriptors(icons);
   }
 
   function getEditorIconConfigWidth(icons, type) {
@@ -14614,28 +29030,6 @@ function createFabGridFactory(editorDefinitions) {
       return text == null ? '' : String(text);
     }
     return item == null ? '' : String(item);
-  }
-
-  function shouldShowComboboxValueInList(config) {
-    var options = config && config.options ? config.options : {};
-    return options.showValueInList === true || options.showValue === true || options.showCode === true;
-  }
-
-  function renderComboboxOptionContent(option, text, value, config) {
-    var textSpan;
-    var valueSpan;
-    option.textContent = '';
-    textSpan = document.createElement('span');
-    textSpan.className = 'fg-combobox-option-text';
-    textSpan.textContent = text;
-    option.appendChild(textSpan);
-    if (shouldShowComboboxValueInList(config) && value !== '' && value !== text) {
-      valueSpan = document.createElement('span');
-      valueSpan.className = 'fg-combobox-option-value';
-      valueSpan.textContent = '(' + value + ')';
-      option.appendChild(valueSpan);
-      option.setAttribute('aria-label', text + ' (' + value + ')');
-    }
   }
 
   function getComboboxTextByValue(value, config) {
@@ -15942,99 +30336,6 @@ function createFabGridFactory(editorDefinitions) {
     return options.showAlpha !== false;
   }
 
-  function createColorState(value) {
-    var color = normalizeColorValue(value) || '#ff0000';
-    var hex = color.slice(1);
-    var rgb;
-    var hsv;
-    if (hex.length === 6) {
-      hex += 'ff';
-    }
-    rgb = {
-      r: parseInt(hex.slice(0, 2), 16),
-      g: parseInt(hex.slice(2, 4), 16),
-      b: parseInt(hex.slice(4, 6), 16)
-    };
-    hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
-    hsv.a = parseInt(hex.slice(6, 8), 16) / 255;
-    return hsv;
-  }
-
-  function rgbToHsv(red, green, blue) {
-    var r = red / 255;
-    var g = green / 255;
-    var b = blue / 255;
-    var max = Math.max(r, g, b);
-    var min = Math.min(r, g, b);
-    var delta = max - min;
-    var hue = 0;
-    if (delta) {
-      if (max === r) {
-        hue = ((g - b) / delta) % 6;
-      } else if (max === g) {
-        hue = (b - r) / delta + 2;
-      } else {
-        hue = (r - g) / delta + 4;
-      }
-      hue *= 60;
-      if (hue < 0) hue += 360;
-    }
-    return {
-      h: hue,
-      s: max === 0 ? 0 : delta / max,
-      v: max
-    };
-  }
-
-  function hsvToRgb(hue, saturation, value) {
-    var chroma = value * saturation;
-    var section = hue / 60;
-    var x = chroma * (1 - Math.abs(section % 2 - 1));
-    var m = value - chroma;
-    var r = 0;
-    var g = 0;
-    var b = 0;
-    if (section < 1) {
-      r = chroma;
-      g = x;
-    } else if (section < 2) {
-      r = x;
-      g = chroma;
-    } else if (section < 3) {
-      g = chroma;
-      b = x;
-    } else if (section < 4) {
-      g = x;
-      b = chroma;
-    } else if (section < 5) {
-      r = x;
-      b = chroma;
-    } else {
-      r = chroma;
-      b = x;
-    }
-    return {
-      r: Math.round((r + m) * 255),
-      g: Math.round((g + m) * 255),
-      b: Math.round((b + m) * 255)
-    };
-  }
-
-  function colorStateToHex(state, showAlpha) {
-    var rgb = hsvToRgb(state.h, state.s, state.v);
-    var alpha = clamp(state.a == null ? 1 : state.a, 0, 1);
-    var value = '#' + toHexColorPart(rgb.r) + toHexColorPart(rgb.g) + toHexColorPart(rgb.b);
-    if (showAlpha && alpha < 0.999) {
-      value += toHexColorPart(Math.round(alpha * 255));
-    }
-    return value;
-  }
-
-  function toHexColorPart(value) {
-    var text = clamp(Math.round(value), 0, 255).toString(16);
-    return text.length < 2 ? '0' + text : text;
-  }
-
   function findColumnByOffset(columns, start, end, offset) {
     var low = start;
     var high = end - 1;
@@ -16095,7 +30396,6 @@ function createFabGridFactory(editorDefinitions) {
     applyMask: applyMask,
     closest: closest,
     countMaskCharactersBeforeCaret: countMaskCharactersBeforeCaret,
-    createColorState: createColorState,
     createDictionary: createDictionary,
     createFilterMenuItemHandler: createFilterMenuItemHandler,
     extractMaskCharacters: extractMaskCharacters,
@@ -16139,9 +30439,7 @@ function createFabGridFactory(editorDefinitions) {
     applyMask: applyMask,
     clamp: clamp,
     closest: closest,
-    colorStateToHex: colorStateToHex,
     countMaskCharactersBeforeCaret: countMaskCharactersBeforeCaret,
-    createColorState: createColorState,
     editorDefinitions: editorDefinitions,
     escapeHtml: escapeHtml,
     extractMaskCharacters: extractMaskCharacters,
@@ -16174,7 +30472,6 @@ function createFabGridFactory(editorDefinitions) {
     getNumberPrecision: getNumberPrecision,
     getValidationRowId: getValidationRowId,
     hasClass: hasClass,
-    hsvToRgb: hsvToRgb,
     isColorValueValid: isColorValueValid,
     isComboboxValueInList: isComboboxValueInList,
     isDateLikeEditorType: isDateLikeEditorType,
@@ -16194,7 +30491,6 @@ function createFabGridFactory(editorDefinitions) {
     parseDateboxEditorValue: parseDateboxEditorValue,
     parseValue: parseValue,
     parseYearMonthValue: parseYearMonthValue,
-    renderComboboxOptionContent: renderComboboxOptionContent,
     roundNumberValue: roundNumberValue,
     sanitizeDateEditorText: sanitizeDateEditorText,
     sanitizeNumberEditorText: sanitizeNumberEditorText,
@@ -22230,10 +36526,23 @@ function createPivotWorkspaceFactory(
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.17";
+global.fabui.version = "2026.7.18";
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.Control = Control;
+global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.Calendar = createCalendarFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Chart = createChartFactory();
+global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions);
+global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.MenuButton = createMenuButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.Menu);
+global.fabui.SplitButton = createSplitButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.MenuButton);
+global.fabui.Panel = createPanelFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.Tabs = createTabsFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.Tree = createTreeFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.Tooltip = createTooltipFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.Layout = createLayoutFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);
+global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);
+global.fabui.Messager = createMessagerFactory(global.fabui.Window, global.fabui.Button);
 global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);
 global.fabui.pivot = {};
 global.fabui.pivot.PivotAggregate = PivotAggregate;
@@ -22261,6 +36570,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
   return {
     emptyText: 'No data',
     chart: { emptyText: 'No data', value: 'Value', percent: 'Percent' },
+    combobox: { emptyText: 'No matching items' },
     exportBusyText: 'Exporting Excel...',
     workingText: 'Working...',
     loadMsg: 'Processing, please wait...',
@@ -22412,6 +36722,9 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       comboBoxOptions: 'Combo box options',
       openColorPicker: 'Open color picker',
       colorPicker: 'Color picker',
+      colorSaturation: 'Saturation and brightness',
+      colorHue: 'Hue',
+      colorAlpha: 'Alpha',
       openColumnChooser: 'Open column chooser',
       columnChooser: 'Column chooser',
       selectAllRows: 'Select all rows',
@@ -22477,6 +36790,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
   return {
     emptyText: '沒有資料',
     chart: { emptyText: '沒有資料', value: '數值', percent: '百分比' },
+    combobox: { emptyText: '沒有符合項目' },
     exportBusyText: '匯出 Excel 中...',
     workingText: '處理中...',
     loadMsg: '正在處理，請稍候...',
@@ -22628,6 +36942,9 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       comboBoxOptions: '下拉選項',
       openColorPicker: '開啟顏色選擇器',
       colorPicker: '顏色選擇器',
+      colorSaturation: '飽和度與明度',
+      colorHue: '色相',
+      colorAlpha: '透明度',
       openColumnChooser: '開啟欄位選擇器',
       columnChooser: '欄位選擇器',
       selectAllRows: '選取所有列',
@@ -22693,6 +37010,7 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
   return {
     emptyText: '没有数据',
     chart: { emptyText: '没有数据', value: '数值', percent: '百分比' },
+    combobox: { emptyText: '没有匹配项' },
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
     loadMsg: '正在处理，请稍候...',
@@ -22844,6 +37162,9 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
       comboBoxOptions: '下拉选项',
       openColorPicker: '打开颜色选择器',
       colorPicker: '颜色选择器',
+      colorSaturation: '饱和度与明度',
+      colorHue: '色相',
+      colorAlpha: '透明度',
       openColumnChooser: '打开字段选择器',
       columnChooser: '字段选择器',
       selectAllRows: '选择所有行',

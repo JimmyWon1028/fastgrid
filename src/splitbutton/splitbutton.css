@@ -1,0 +1,45 @@
+.fui-split-button {
+  position: relative;
+}
+
+.fui-split-button > .fui-button-inner {
+  flex: 1 1 auto;
+}
+
+.fui-split-button .fui-split-button-arrow {
+  width: 22px;
+  flex-basis: 22px;
+  border-left: 1px solid transparent;
+  pointer-events: auto;
+}
+
+.fui-split-button.fui-button-size-large .fui-split-button-arrow {
+  width: 28px;
+  flex-basis: 28px;
+}
+
+.fui-split-button:not(.fui-button-disabled) .fui-split-button-arrow {
+  cursor: pointer;
+}
+
+.fui-split-button:not(.fui-button-disabled) .fui-split-button-arrow:hover {
+  background: rgba(127, 127, 127, 0.12);
+}
+
+.fui-split-button:not(.fui-button-disabled):hover .fui-split-button-arrow {
+  border-left-color: rgba(0, 0, 0, 0.12);
+}
+
+.fui-split-button.fui-menu-button-open .fui-split-button-arrow {
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.fui-split-button.fg-theme-dark-hive .fui-split-button-arrow:hover,
+.fui-split-button.fg-theme-black .fui-split-button-arrow:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fui-split-button.fg-theme-dark-hive:not(.fui-button-disabled):hover .fui-split-button-arrow,
+.fui-split-button.fg-theme-black:not(.fui-button-disabled):hover .fui-split-button-arrow {
+  border-left-color: rgba(255, 255, 255, 0.18);
+}

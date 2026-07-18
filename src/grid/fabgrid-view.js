@@ -1556,10 +1556,10 @@ export function installFabGridView(FabGrid, context) {
       icon = iconConfigs[i];
       button = document.createElement('button');
       button.type = 'button';
-      button.className = trimText('fg-header-search-icon fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls || icon.className || icon.iconClass || icon.icon || ''));
+      button.className = trimText('fg-header-search-icon fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls));
       button.setAttribute('data-col', column._viewIndex);
       button.setAttribute('data-icon-index', i);
-      button.setAttribute('aria-label', icon.ariaLabel || icon.label || icon.title || this.getHeaderCellText(column));
+      button.setAttribute('aria-label', icon.ariaLabel || this.getHeaderCellText(column));
       button.title = icon.title || '';
       button.textContent = icon.text || '';
       button.style.width = Math.max(18, toNumber(icon.width, 22)) + 'px';

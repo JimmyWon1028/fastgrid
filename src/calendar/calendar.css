@@ -1,0 +1,55 @@
+.fui-calendar-control {
+  display: inline-block;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 0;
+  background: var(--fui-panel-bg, #fff);
+  color: var(--fui-panel-text, #000);
+  font: 14px Arial, sans-serif;
+  vertical-align: top;
+}
+
+.fui-calendar-control:focus-visible {
+  outline: 2px solid var(--fui-control-selected-border, #ffab3f);
+  outline-offset: 1px;
+}
+
+.fui-calendar-control.fui-calendar-noborder {
+  border: 0;
+}
+
+.fui-calendar-embedded-panel {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.fui-calendar-embedded-panel > .fui-calendar {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--fui-control-border, #95b8e7);
+}
+
+.fui-calendar-noborder .fui-calendar-embedded-panel > .fui-calendar {
+  border: 0;
+}
+
+.fui-calendar-embedded-panel .fui-calendar-body,
+.fui-calendar-embedded-panel .fui-calendar-show-lunar .fui-calendar-body {
+  height: calc(100% - 36px);
+}
+
+.fui-calendar-embedded-panel .fui-calendar-show-lunar {
+  min-height: 0;
+}
+
+.fui-calendar-embedded-panel .fui-calendar-day,
+.fui-calendar-embedded-panel .fui-calendar-show-lunar .fui-calendar-day {
+  min-height: 0;
+}
+
+.fui-calendar-embedded-panel .fui-datebox-buttons {
+  display: none;
+}

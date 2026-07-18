@@ -18,10 +18,11 @@
   --fui-tabs-selected-right-bg: #ffffff;
   --fui-tabs-pill-bg: #eeeeee;
   --fui-tabs-pill-text: #3399cc;
+  --fui-tabs-drag-indicator: #d95965;
 }
 
 .fui-tabs.fg-theme-material-teal .fui-tabs-close,
-.fui-tabs.fg-theme-material-teal .fui-tabs-scroller-left,
-.fui-tabs.fg-theme-material-teal .fui-tabs-scroller-right {
+.fui-tabs.fg-theme-material-teal .fui-tabs-scroll-prev,
+.fui-tabs.fg-theme-material-teal .fui-tabs-scroll-next {
   background-image: url('images/tabs_icons.png');
 }

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.Menu Build Demo</title>
+  <link rel="stylesheet" href="../dist/fabui.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+      background: #fff;
+      color: #333;
+      font: 14px Arial, sans-serif;
+    }
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 28px 0 12px; font-size: 18px; }
+    .demo-toolbar,
+    .menu-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .demo-toolbar {
+      margin: 18px 0;
+      padding: 12px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+    .menu-actions button {
+      min-height: 30px;
+      padding: 4px 10px;
+    }
+    #menu-status {
+      min-height: 20px;
+      margin: 12px 0;
+      color: #666;
+    }
+    #menu-context-area {
+      display: flex;
+      min-height: 170px;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed #95b8e7;
+      background: #f4f9ff;
+      color: #3f6596;
+      transition: background-color 120ms ease;
+    }
+    #menu-context-area.menu-context-active {
+      background: #eaf2ff;
+    }
+    .inline-wrap {
+      display: flex;
+      min-height: 230px;
+      align-items: flex-start;
+      gap: 24px;
+    }
+    .inline-note {
+      max-width: 420px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.Menu Build Demo</h1>
+  <p>只載入 <code>dist/fabui.min.js</code> 與 <code>dist/fabui.css</code>；下一次明確執行 build 後會同步最新 Menu。</p>
+
+  <div class="demo-toolbar">
+    <label for="menu-theme">主題</label>
+    <select id="menu-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+    </select>
+    <label for="menu-locale">語系</label>
+    <select id="menu-locale">
+      <option value="zh-TW" selected>繁體中文</option>
+      <option value="zh-CN">简体中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div id="menu-status" aria-live="polite"></div>
+
+  <h2>Basic／Context Menu</h2>
+  <div class="menu-actions">
+    <button id="show-basic-menu" type="button">顯示 Basic Menu</button>
+  </div>
+  <div id="menu-context-area" tabindex="0">在此區域按滑鼠右鍵，或按上方按鈕</div>
+
+  <h2>Inline Menu／Custom Content</h2>
+  <div class="inline-wrap">
+    <div id="menu-inline" inline style="width:190px">
+      <div data-options="name:'home',iconCls:'icon-back'">首頁</div>
+      <div>
+        <span>工作區</span>
+        <div style="width:170px">
+          <div data-options="name:'grid',iconCls:'icon-edit'">資料表</div>
+          <div data-options="name:'chart',iconCls:'icon-search'">圖表</div>
+        </div>
+      </div>
+      <div>
+        <span>自訂內容</span>
+        <div class="menu-content">
+          <strong>自訂 Menu Item</strong>
+          <p style="margin:8px 0 0">可放入說明、表單或其他 HTML 內容。</p>
+        </div>
+      </div>
+      <div class="menu-sep"></div>
+      <div data-options="name:'help',iconCls:'icon-help'">說明</div>
+    </div>
+    <div class="inline-note">
+      Inline Menu 固定顯示於文件流中。使用方向鍵、Home／End、Enter、Space、Escape 操作；右方向鍵進入子選單，左方向鍵返回父選單。
+    </div>
+  </div>
+
+  <h2>Runtime API</h2>
+  <div class="menu-actions">
+    <button id="show-dynamic-menu" type="button">show()</button>
+    <button id="append-menu-item" type="button">appendItem()</button>
+    <button id="toggle-menu-disabled" type="button">enable／disable</button>
+    <button id="rename-menu-item" type="button">setText／setIcon</button>
+  </div>
+
+  <div id="menu-basic" style="width:180px" hidden>
+    <div data-options="name:'new',iconCls:'icon-add'">新增</div>
+    <div>
+      <span>開啟</span>
+      <div style="width:170px">
+        <div data-options="name:'word'"><b>Word 文件</b></div>
+        <div data-options="name:'excel',iconCls:'icon-excel'">Excel 活頁簿</div>
+        <div>
+          <span>最近使用</span>
+          <div style="width:160px">
+            <div>報表.xlsx</div>
+            <div>預算.xlsx</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div data-options="name:'save',iconCls:'icon-save'">儲存</div>
+    <div data-options="name:'print',iconCls:'icon-print',disabled:true">列印</div>
+    <div class="menu-sep"></div>
+    <div data-options="name:'exit',iconCls:'icon-close'">離開</div>
+  </div>
+  <div id="menu-dynamic" hidden></div>
+
+  <script src="../dist/fabui.min.js"></script>
+  <script src="./js/menu-demo.js?v=20260718-menu-v2"></script>
+  <script>
+    window.mountFabUIMenuDemo(window.fabui);
+  </script>
+</body>
+</html>

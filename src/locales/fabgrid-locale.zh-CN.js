@@ -10,6 +10,7 @@
   return {
     emptyText: '没有数据',
     chart: { emptyText: '没有数据', value: '数值', percent: '百分比' },
+    combobox: { emptyText: '没有匹配项' },
     exportBusyText: '正在导出 Excel...',
     workingText: '处理中...',
     loadMsg: '正在处理，请稍候...',
@@ -161,6 +162,9 @@
       comboBoxOptions: '下拉选项',
       openColorPicker: '打开颜色选择器',
       colorPicker: '颜色选择器',
+      colorSaturation: '饱和度与明度',
+      colorHue: '色相',
+      colorAlpha: '透明度',
       openColumnChooser: '打开字段选择器',
       columnChooser: '字段选择器',
       selectAllRows: '选择所有行',

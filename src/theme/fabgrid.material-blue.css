@@ -1,5 +1,5 @@
 /*! FabGrid theme material-blue | performance-first data grid */
-@import './material-blue/tabs.css';
+@import './material-blue/tabs.css?v=20260718-tabs-drag-right-v1';
 @import './material-blue/components.css';
 .fg-root.fg-theme-material-blue,
 .fui-tabs.fg-theme-material-blue {

@@ -1,7 +1,8 @@
 /*! FabGrid theme metro-green | performance-first data grid */
+@import './metro-green/tabs.css?v=20260718-tabs-drag-right-v1';
 
-
-.fg-root.fg-theme-metro-green {
+.fg-root.fg-theme-metro-green,
+.fui-tabs.fg-theme-metro-green {
   --fg-border: #bbb;
   --fg-border-strong: #bbb;
   --fg-frozen-divider: #aaa;

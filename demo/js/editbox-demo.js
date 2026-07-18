@@ -5,16 +5,26 @@
     return value == null || value === '' ? '—' : String(value);
   }
 
-  function mountEditBoxDemo(EditBox) {
+  function mountEditBoxDemo(fabui) {
     var boxes = {};
     var output = document.getElementById('editbox-output');
+    var themeSelect = document.getElementById('calendar-theme');
     var render;
 
-    if (typeof EditBox !== 'function') {
-      throw new Error('EditBox class is unavailable.');
+    function applyCalendarTheme(theme) {
+      Array.prototype.forEach.call(themeSelect.options, function(option) {
+        document.body.classList.remove('fg-theme-' + option.value);
+      });
+      document.body.classList.add('fg-theme-' + theme);
     }
 
-    boxes.name = new EditBox('#edit-name', {
+    if (!fabui || typeof fabui.EditBox !== 'function') {
+      throw new Error('fabui.EditBox class is unavailable.');
+    }
+
+    applyCalendarTheme(themeSelect.value);
+
+    boxes.name = new fabui.EditBox('#edit-name', {
       editor: 'text',
       width: 280,
       prompt: '請輸入姓名',
@@ -29,7 +39,7 @@
       }],
       clearButton: true
     });
-    boxes.amount = new EditBox('#edit-amount', {
+    boxes.amount = new fabui.EditBox('#edit-amount', {
       editor: 'number',
       width: 280,
       min: 0,
@@ -37,21 +47,21 @@
       groupSeparator: ',',
       prefix: '$'
     });
-    boxes.date = new EditBox('#edit-date', {
+    boxes.date = new fabui.EditBox('#edit-date', {
       editor: 'date',
       width: 280,
       locale: 'zh-TW',
       mask: '9999/99/99',
       autoUnmask: true
     });
-    boxes.month = new EditBox('#edit-month', {
+    boxes.month = new fabui.EditBox('#edit-month', {
       editor: 'date',
       width: 280,
       locale: 'zh-TW',
       mask: '9999/99',
       autoUnmask: true
     });
-    boxes.status = new EditBox('#edit-status', {
+    boxes.status = new fabui.EditBox('#edit-status', {
       editor: 'combo',
       width: 280,
       editable: true,
@@ -63,7 +73,7 @@
         { value: 'closed', text: '結束' }
       ]
     });
-    boxes.color = new EditBox('#edit-color', {
+    boxes.color = new fabui.EditBox('#edit-color', {
       editor: 'color',
       width: 280,
       locale: 'zh-TW',
@@ -72,6 +82,7 @@
 
     render = function() {
       output.textContent = [
+        'Calendar 主題：' + themeSelect.value,
         '姓名：' + text(boxes.name.getValue()),
         '金額：' + text(boxes.amount.getValue()),
         '日期：' + text(boxes.date.getValue()),
@@ -96,6 +107,11 @@
       Object.keys(boxes).forEach(function(name) {
         boxes[name].reset();
       });
+      render();
+    });
+
+    themeSelect.addEventListener('change', function() {
+      applyCalendarTheme(themeSelect.value);
       render();
     });
 

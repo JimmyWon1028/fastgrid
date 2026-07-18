@@ -1,0 +1,269 @@
+.fui-layout,
+.fui-layout * {
+  box-sizing: border-box;
+}
+
+.fui-layout {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #ccc;
+  --fui-layout-expand-bg: #fafafa;
+  --fui-layout-expand-text: #404040;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+.fui-layout-fit {
+  width: 100%;
+  height: 100%;
+}
+
+.fui-layout-region {
+  position: absolute;
+  z-index: 1;
+}
+
+.fui-layout-region-east,
+.fui-layout-region-west {
+  z-index: 2;
+}
+
+.fui-layout-region-north,
+.fui-layout-region-south {
+  z-index: 3;
+}
+
+.fui-layout-region-center {
+  z-index: 1;
+}
+
+.fui-layout-body {
+  min-width: 1px;
+  min-height: 1px;
+}
+
+.fui-layout-region-floating {
+  z-index: 8;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.24);
+}
+
+.fui-layout-animating .fui-layout-region,
+.fui-layout-animating .fui-layout-splitter,
+.fui-layout-animating .fui-layout-expand {
+  transition:
+    left var(--fui-layout-animation-duration) cubic-bezier(0.2, 0, 0, 1),
+    top var(--fui-layout-animation-duration) cubic-bezier(0.2, 0, 0, 1),
+    width var(--fui-layout-animation-duration) cubic-bezier(0.2, 0, 0, 1),
+    height var(--fui-layout-animation-duration) cubic-bezier(0.2, 0, 0, 1),
+    opacity var(--fui-layout-animation-duration) ease;
+  will-change: left, top, width, height, opacity;
+}
+
+.fui-layout-splitter {
+  position: absolute;
+  z-index: 5;
+  border: 0;
+  outline: 0;
+  background: var(--fui-layout-splitter);
+}
+
+.fui-layout-splitter:hover,
+.fui-layout-splitter:focus-visible,
+.fui-layout-resizing .fui-layout-splitter {
+  background: var(--fui-layout-splitter-hover);
+}
+
+.fui-layout-splitter-north,
+.fui-layout-splitter-south {
+  cursor: ns-resize;
+}
+
+.fui-layout-splitter-east,
+.fui-layout-splitter-west {
+  cursor: ew-resize;
+}
+
+.fui-layout-resizing::after {
+  content: '';
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  background: rgba(250, 250, 250, 0.1);
+}
+
+.fui-layout-expand {
+  position: absolute;
+  z-index: 4;
+  overflow: hidden;
+  border: 1px solid var(--fui-panel-border, #dfdfdf);
+  background: var(--fui-layout-expand-bg);
+  color: var(--fui-layout-expand-text);
+  cursor: pointer;
+  font: 14px Arial, sans-serif;
+}
+
+.fui-layout-expand[hidden] {
+  display: none;
+}
+
+.fui-layout-expand:hover {
+  filter: brightness(0.98);
+}
+
+.fui-layout-expand-title {
+  position: absolute;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fui-layout-expand-north .fui-layout-expand-title,
+.fui-layout-expand-south .fui-layout-expand-title {
+  top: 5px;
+  right: 34px;
+  left: 8px;
+}
+
+.fui-layout-expand-east .fui-layout-expand-title,
+.fui-layout-expand-west .fui-layout-expand-title {
+  top: 34px;
+  bottom: 8px;
+  left: 5px;
+  writing-mode: vertical-rl;
+}
+
+.fui-layout-expand-button {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.fui-layout-expand-north .fui-layout-expand-button,
+.fui-layout-expand-south .fui-layout-expand-button {
+  top: 3px;
+  right: 5px;
+}
+
+.fui-layout-expand-east .fui-layout-expand-button,
+.fui-layout-expand-west .fui-layout-expand-button {
+  top: 4px;
+  left: 3px;
+}
+
+.fui-layout-expand-button:hover,
+.fui-layout-expand-button:focus-visible {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.fui-layout-button-up,
+.fui-layout-button-down,
+.fui-layout-button-left,
+.fui-layout-button-right {
+  position: relative;
+}
+
+.fui-layout-button-up::before,
+.fui-layout-button-down::before,
+.fui-layout-button-left::before,
+.fui-layout-button-right::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+}
+
+.fui-layout-button-up::before { transform: rotate(45deg); }
+.fui-layout-button-down::before { top: 3px; transform: rotate(225deg); }
+.fui-layout-button-left::before { left: 7px; transform: rotate(-45deg); }
+.fui-layout-button-right::before { left: 3px; transform: rotate(135deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fui-layout-animating .fui-layout-region,
+  .fui-layout-animating .fui-layout-splitter,
+  .fui-layout-animating .fui-layout-expand {
+    transition: none;
+  }
+}
+
+.fui-layout.fg-theme-default {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #95b8e7;
+  --fui-layout-expand-bg: #e0ecff;
+  --fui-layout-expand-text: #000;
+}
+
+.fui-layout.fg-theme-bootstrap {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #d4d4d4;
+  --fui-layout-expand-bg: #f2f2f2;
+  --fui-layout-expand-text: #333;
+}
+
+.fui-layout.fg-theme-cupertino {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #aed0ea;
+  --fui-layout-expand-bg: #d7ebf9;
+  --fui-layout-expand-text: #2779aa;
+}
+
+.fui-layout.fg-theme-material,
+.fui-layout.fg-theme-material-blue,
+.fui-layout.fg-theme-material-teal {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #ccc;
+  --fui-layout-expand-bg: #fafafa;
+  --fui-layout-expand-text: #404040;
+}
+
+.fui-layout.fg-theme-metro,
+.fui-layout.fg-theme-metro-blue,
+.fui-layout.fg-theme-metro-gray,
+.fui-layout.fg-theme-metro-green,
+.fui-layout.fg-theme-metro-orange,
+.fui-layout.fg-theme-metro-red {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #ccc;
+  --fui-layout-expand-bg: #fafafa;
+  --fui-layout-expand-text: #404040;
+}
+
+.fui-layout.fg-theme-sunny {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #8e846b;
+  --fui-layout-expand-bg: #feeebd;
+  --fui-layout-expand-text: #383838;
+}
+
+.fui-layout.fg-theme-pepper-grinder {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-hover: #d4d1bf;
+  --fui-layout-expand-bg: #fff;
+  --fui-layout-expand-text: #453821;
+}
+
+.fui-layout.fg-theme-dark-hive {
+  --fui-layout-splitter: #111;
+  --fui-layout-splitter-hover: #555;
+  --fui-layout-expand-bg: #1f1f1f;
+  --fui-layout-expand-text: #fff;
+}
+
+.fui-layout.fg-theme-black {
+  --fui-layout-splitter: #111;
+  --fui-layout-splitter-hover: #555;
+  --fui-layout-expand-bg: #333;
+  --fui-layout-expand-text: #fff;
+}

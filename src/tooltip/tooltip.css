@@ -1,0 +1,176 @@
+.fui-tooltip,
+.fui-tooltip * {
+  box-sizing: border-box;
+}
+
+.fui-tooltip {
+  --fui-tooltip-bg: #ffffff;
+  --fui-tooltip-border: #95B8E7;
+  --fui-tooltip-text: #000000;
+  --fui-tooltip-radius: 5px;
+  position: absolute;
+  z-index: 9900000;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 5px;
+  border: 1px solid var(--fui-tooltip-border);
+  border-radius: var(--fui-tooltip-radius);
+  outline: 0;
+  background: var(--fui-tooltip-bg);
+  color: var(--fui-tooltip-text);
+  font: 14px Arial, sans-serif;
+  opacity: 1;
+}
+
+.fui-tooltip[hidden] {
+  display: none;
+}
+
+.fui-tooltip-content {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.fui-tooltip-arrow-outer,
+.fui-tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  font-size: 0;
+  line-height: 0;
+}
+
+.fui-tooltip-right .fui-tooltip-arrow-outer {
+  left: -13px;
+  margin-top: -6px;
+  border-right-color: var(--fui-tooltip-border);
+}
+
+.fui-tooltip-right .fui-tooltip-arrow {
+  left: -12px;
+  margin-top: -6px;
+  border-right-color: var(--fui-tooltip-bg);
+}
+
+.fui-tooltip-left .fui-tooltip-arrow-outer {
+  right: -13px;
+  margin-top: -6px;
+  border-left-color: var(--fui-tooltip-border);
+}
+
+.fui-tooltip-left .fui-tooltip-arrow {
+  right: -12px;
+  margin-top: -6px;
+  border-left-color: var(--fui-tooltip-bg);
+}
+
+.fui-tooltip-top .fui-tooltip-arrow-outer {
+  bottom: -13px;
+  margin-left: -6px;
+  border-top-color: var(--fui-tooltip-border);
+}
+
+.fui-tooltip-top .fui-tooltip-arrow {
+  bottom: -12px;
+  margin-left: -6px;
+  border-top-color: var(--fui-tooltip-bg);
+}
+
+.fui-tooltip-bottom .fui-tooltip-arrow-outer {
+  top: -13px;
+  margin-left: -6px;
+  border-bottom-color: var(--fui-tooltip-border);
+}
+
+.fui-tooltip-bottom .fui-tooltip-arrow {
+  top: -12px;
+  margin-left: -6px;
+  border-bottom-color: var(--fui-tooltip-bg);
+}
+
+.fui-tooltip.fg-theme-bootstrap {
+  --fui-tooltip-border: #D4D4D4;
+  --fui-tooltip-text: #333;
+}
+
+.fui-tooltip.fg-theme-cupertino {
+  --fui-tooltip-bg: #f2f5f7;
+  --fui-tooltip-border: #AED0EA;
+}
+
+.fui-tooltip.fg-theme-material {
+  --fui-tooltip-border: #ddd;
+  --fui-tooltip-text: #404040;
+  --fui-tooltip-radius: 4px;
+}
+
+.fui-tooltip.fg-theme-material-blue {
+  --fui-tooltip-border: #dfdfdf;
+  --fui-tooltip-text: #404040;
+  --fui-tooltip-radius: 2px;
+}
+
+.fui-tooltip.fg-theme-material-teal {
+  --fui-tooltip-border: #dfdfdf;
+  --fui-tooltip-text: #404040;
+  --fui-tooltip-radius: 4px;
+}
+
+.fui-tooltip.fg-theme-metro,
+.fui-tooltip.fg-theme-metro-blue,
+.fui-tooltip.fg-theme-metro-gray,
+.fui-tooltip.fg-theme-metro-green,
+.fui-tooltip.fg-theme-metro-orange,
+.fui-tooltip.fg-theme-metro-red {
+  --fui-tooltip-bg: #fafafa;
+  --fui-tooltip-text: #404040;
+  --fui-tooltip-radius: 0;
+}
+
+.fui-tooltip.fg-theme-metro {
+  --fui-tooltip-border: #ddd;
+  --fui-tooltip-text: #444;
+}
+
+.fui-tooltip.fg-theme-metro-blue {
+  --fui-tooltip-border: #c3d9e0;
+}
+
+.fui-tooltip.fg-theme-metro-gray {
+  --fui-tooltip-border: #abafb8;
+}
+
+.fui-tooltip.fg-theme-metro-green {
+  --fui-tooltip-border: #b1c242;
+}
+
+.fui-tooltip.fg-theme-metro-orange {
+  --fui-tooltip-border: #d4a375;
+}
+
+.fui-tooltip.fg-theme-metro-red {
+  --fui-tooltip-border: #f6c1bc;
+}
+
+.fui-tooltip.fg-theme-sunny {
+  --fui-tooltip-bg: #feeebd;
+  --fui-tooltip-border: #494437;
+}
+
+.fui-tooltip.fg-theme-pepper-grinder {
+  --fui-tooltip-bg: #eceadf;
+  --fui-tooltip-border: #cbc7bd;
+  --fui-tooltip-text: #1f1f1f;
+}
+
+.fui-tooltip.fg-theme-dark-hive {
+  --fui-tooltip-bg: #000000;
+  --fui-tooltip-border: #444444;
+  --fui-tooltip-text: #ffffff;
+}
+
+.fui-tooltip.fg-theme-black {
+  --fui-tooltip-bg: #666;
+  --fui-tooltip-border: #000;
+  --fui-tooltip-text: #fff;
+}

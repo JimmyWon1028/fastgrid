@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.SplitButton 開發版 Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260718-splitbutton-hover-divider-v1">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+      background: #fff;
+      color: #333;
+      font: 14px Arial, sans-serif;
+    }
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 28px 0 12px; font-size: 18px; }
+    .demo-toolbar,
+    .split-button-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .demo-toolbar {
+      margin: 18px 0;
+      padding: 12px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+    .split-button-panel {
+      padding: 8px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+    #splitbutton-status {
+      min-height: 20px;
+      margin: 12px 0;
+      color: #666;
+    }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.SplitButton 開發版 Demo</h1>
+  <p>Pure JavaScript SplitButton，重用 fabui.MenuButton；主區域執行動作，只有右側箭頭區展開 fabui.Menu。</p>
+
+  <div class="demo-toolbar">
+    <label for="splitbutton-theme">主題</label>
+    <select id="splitbutton-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+    </select>
+    <button id="toggle-splitbutton-disabled" type="button">切換 Edit Disabled</button>
+  </div>
+  <div id="splitbutton-status" aria-live="polite"></div>
+
+  <h2>Basic SplitButton</h2>
+  <div class="split-button-panel split-button-row">
+    <button id="splitbutton-edit" type="button">Edit</button>
+    <button id="splitbutton-save" type="button">Save</button>
+    <button id="splitbutton-ok" type="button">Ok</button>
+  </div>
+
+  <h2>Menu Alignment</h2>
+  <div class="split-button-row">
+    <button id="splitbutton-right" type="button">Right Align</button>
+  </div>
+
+  <h2>Runtime API</h2>
+  <div class="split-button-row">
+    <button id="splitbutton-runtime" type="button">Runtime Action</button>
+    <button id="show-splitbutton" type="button">show()</button>
+    <button id="hide-splitbutton" type="button">hide()</button>
+    <button id="update-splitbutton" type="button">動態更新</button>
+  </div>
+
+  <div id="split-menu-edit" style="width:170px" hidden>
+    <div data-options="name:'undo',iconCls:'icon-undo'">Undo</div>
+    <div data-options="name:'redo',iconCls:'icon-redo'">Redo</div>
+    <div class="menu-sep"></div>
+    <div data-options="name:'cut',iconCls:'icon-cut'">Cut</div>
+    <div data-options="name:'copy',iconCls:'icon-copy'">Copy</div>
+    <div data-options="name:'paste',iconCls:'icon-paste'">Paste</div>
+  </div>
+  <div id="split-menu-save" style="width:160px" hidden>
+    <div data-options="name:'save',iconCls:'icon-save'">Save</div>
+    <div data-options="name:'save-as'">Save As...</div>
+    <div class="menu-sep"></div>
+    <div data-options="name:'export',iconCls:'icon-export'">Export</div>
+  </div>
+  <div id="split-menu-ok" style="width:120px" hidden>
+    <div data-options="name:'ok',iconCls:'icon-ok'">Ok</div>
+    <div data-options="name:'cancel',iconCls:'icon-cancel'">Cancel</div>
+  </div>
+  <div id="split-menu-right" style="width:200px" hidden>
+    <div>Menu 右側對齊 SplitButton</div>
+    <div>第二個項目</div>
+  </div>
+  <div id="split-menu-runtime" style="width:180px" hidden>
+    <div data-options="iconCls:'icon-reload'">重新整理</div>
+    <div data-options="iconCls:'icon-search'">搜尋</div>
+  </div>
+
+  <script src="./js/splitbutton-demo.js?v=20260718-splitbutton-v3"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260718-splitbutton-hover-transfer-v1';
+    window.mountFabUISplitButtonDemo(fabui);
+  </script>
+</body>
+</html>

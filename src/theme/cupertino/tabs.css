@@ -17,10 +17,11 @@
   --fui-tabs-selected-right-bg: linear-gradient(to left, #EFF5FF 0, #f2f5f7 100%);
   --fui-tabs-pill-bg: #3baae3;
   --fui-tabs-pill-text: #ffffff;
+  --fui-tabs-drag-indicator: #d88630;
 }
 
 .fui-tabs.fg-theme-cupertino .fui-tabs-close,
-.fui-tabs.fg-theme-cupertino .fui-tabs-scroller-left,
-.fui-tabs.fg-theme-cupertino .fui-tabs-scroller-right {
+.fui-tabs.fg-theme-cupertino .fui-tabs-scroll-prev,
+.fui-tabs.fg-theme-cupertino .fui-tabs-scroll-next {
   background-image: url('images/tabs_icons.png');
 }

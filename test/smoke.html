@@ -26,7 +26,34 @@
   <div id="largeGrid" style="width: 900px; height: 420px; margin-top: 20px;"></div>
   <div id="headerLayoutGrid" style="position: absolute; left: -10000px; width: 240px; height: 90px; min-height: 90px;"></div>
   <div id="cellTemplateGrid" style="position: absolute; left: -10000px; width: 420px; height: 90px; min-height: 90px;"></div>
+  <input id="editBoxSmoke" value="FabUI" style="position: absolute; left: -10000px;">
+  <button id="buttonSmoke" type="button" style="position: absolute; left: -10000px;">Button</button>
+  <div id="calendarSmoke" style="position: absolute; left: -10000px;"></div>
+  <div id="tabsSmoke" style="position:absolute;left:-10000px;width:320px;height:180px">
+    <div title="First">First body</div>
+    <div title="Second" closable="true">Second body</div>
+  </div>
+  <div id="treeSmoke" style="position:absolute;left:-10000px;width:320px;height:180px"></div>
+  <button id="tooltipSmoke" type="button" title="Smoke title" style="position:absolute;left:20px;top:20px;opacity:0">Tooltip</button>
+  <button id="menuButtonSmoke" type="button" style="position:absolute;left:-10000px">Actions</button>
+  <div id="menuButtonMenuSmoke" style="width:160px" hidden>
+    <div data-options="name:'action',iconCls:'icon-edit'">Action</div>
+  </div>
+  <button id="splitButtonSmoke" type="button" style="position:absolute;left:-10000px">Split Action</button>
+  <div id="splitButtonMenuSmoke" style="width:160px" hidden>
+    <div data-options="name:'split-action',iconCls:'icon-save'">Split Action</div>
+  </div>
+  <div id="menuSmoke" style="width:160px" hidden>
+    <div data-options="name:'open',iconCls:'icon-edit'">Open</div>
+    <div class="menu-sep"></div>
+    <div data-options="name:'disabled',disabled:true">Disabled</div>
+  </div>
   <div id="chartSmoke" style="width: 480px; height: 280px;"></div>
+  <div id="panelSmoke" title="Original panel title" style="display:none">Panel</div>
+  <div id="layoutSmoke" style="display:none;width:400px;height:220px">
+    <div data-region="center">Center</div>
+  </div>
+  <div id="windowSmoke" title="Original window title" style="display:none">Window</div>
   <pre id="result">pending</pre>
   <script src="../dist/fabui.min.js"></script>
   <script>
@@ -1079,12 +1106,12 @@
               grid.activeEditor.getAttribute('data-editor-type') === 'date' &&
               grid.activeEditor.value === '2026/08/08';
             var textDateDateboxPanelHiddenOnStartWorks =
-              window.getComputedStyle(document.querySelector('.fg-datebox-panel')).display === 'none';
+              window.getComputedStyle(document.querySelector('.fui-grid-date-popup')).display === 'none';
             document.querySelector('.fg-editor-trigger').click();
             var textDateDateboxPanelOpensOnButtonWorks =
-              window.getComputedStyle(document.querySelector('.fg-datebox-panel')).display === 'block' &&
-              document.querySelector('.fg-datebox-panel .fg-datebox-title').textContent === '八月 2026';
-            var textDateDateboxDay = document.querySelector('.fg-datebox-day[data-date="2026-08-18"]');
+              window.getComputedStyle(document.querySelector('.fui-grid-date-popup')).display === 'block' &&
+              document.querySelector('.fui-grid-date-popup .fui-calendar-title').textContent === '八月 2026';
+            var textDateDateboxDay = document.querySelector('.fui-grid-date-popup .fui-calendar-day[data-date="2026-08-18"]');
             if (textDateDateboxDay) {
               textDateDateboxDay.click();
             }
@@ -1100,7 +1127,7 @@
             var maskDefaultCopyIncludesMaskWorks = grid.getClipString() === '2026/09/09';
             grid.startEditing(0, 6);
             document.querySelector('.fg-editor-trigger').click();
-            var maskDefaultDay = document.querySelector('.fg-datebox-day[data-date="2026-09-18"]');
+            var maskDefaultDay = document.querySelector('.fui-grid-date-popup .fui-calendar-day[data-date="2026-09-18"]');
             if (maskDefaultDay) {
               maskDefaultDay.click();
             }
@@ -1122,7 +1149,7 @@
             grid.activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
             var dashMaskDateInputWorks = grid.activeEditor.value === '2026-11-22';
             document.querySelector('.fg-editor-trigger').click();
-            var dashMaskDateDay = document.querySelector('.fg-datebox-day[data-date="2026-11-25"]');
+            var dashMaskDateDay = document.querySelector('.fui-grid-date-popup .fui-calendar-day[data-date="2026-11-25"]');
             if (dashMaskDateDay) {
               dashMaskDateDay.click();
             }
@@ -1334,22 +1361,22 @@
             grid.finishEditing(false);
             grid.select(0, 3);
             grid.startEditing(0, 3);
-            var comboboxPanel = document.querySelector('.fg-combobox-panel');
+            var comboboxPanel = document.querySelector('.fui-grid-combo-popup');
             var comboboxEditorConfigWorks = grid.activeEditor &&
               grid.activeEditor.getAttribute('data-editor-type') === 'combo' &&
               grid.activeEditor.className.indexOf('combobox-f') >= 0 &&
               grid.activeEditor.value === 'Alpha';
             document.querySelector('.fg-editor-trigger').click();
             var comboboxPanelOpensWorks = comboboxPanel &&
-              window.getComputedStyle(comboboxPanel).display === 'block' &&
-              comboboxPanel.querySelectorAll('.fg-combobox-option').length === 2;
-            var comboboxSecondOption = comboboxPanel.querySelector('.fg-combobox-option[data-index="1"]');
+              !comboboxPanel.hidden &&
+              comboboxPanel.querySelectorAll('.fui-combobox-item').length === 2;
+            var comboboxSecondOption = comboboxPanel.querySelector('.fui-combobox-item[data-index="1"]');
             if (comboboxSecondOption) {
-              comboboxSecondOption.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+              comboboxSecondOption.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
             }
             var comboboxSelectUpdatesInputWorks = grid.activeEditor &&
               grid.activeEditor.value === 'Beta' &&
-              window.getComputedStyle(comboboxPanel).display === 'none';
+              comboboxPanel.hidden;
             grid.finishEditing(true);
             var comboboxSelectCommitWorks = grid.getCellData(0, 3) === 'BB' &&
               document.querySelector('.fg-cell[data-row="0"][data-col="3"]').textContent === 'Beta';
@@ -1367,15 +1394,15 @@
               bubbles: true,
               cancelable: true
             }));
-            var comboboxAltArrowDownOpensWorks = window.getComputedStyle(comboboxPanel).display === 'block' &&
-              comboboxPanel.querySelector('.fg-combobox-option[data-index="0"]').className.indexOf('fg-combobox-active') >= 0;
+            var comboboxAltArrowDownOpensWorks = !comboboxPanel.hidden &&
+              comboboxPanel.querySelector('.fui-combobox-item[data-index="0"]').className.indexOf('fui-combobox-item-active') >= 0;
             grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
               key: 'ArrowDown',
               bubbles: true,
               cancelable: true
             }));
             var comboboxArrowDownMovesActiveWorks =
-              comboboxPanel.querySelector('.fg-combobox-option[data-index="1"]').className.indexOf('fg-combobox-active') >= 0;
+              comboboxPanel.querySelector('.fui-combobox-item[data-index="1"]').className.indexOf('fui-combobox-item-active') >= 0;
             grid.activeEditor.dispatchEvent(new KeyboardEvent('keydown', {
               key: 'Enter',
               bubbles: true,
@@ -1383,7 +1410,7 @@
             }));
             var comboboxKeyboardSelectWorks = grid.activeEditor &&
               grid.activeEditor.value === 'Beta' &&
-              window.getComputedStyle(comboboxPanel).display === 'none';
+              comboboxPanel.hidden;
             grid.finishEditing(true);
             var comboboxKeyboardCommitWorks = grid.getCellData(0, 3) === 'BB' &&
               document.querySelector('.fg-cell[data-row="0"][data-col="3"]').textContent === 'Beta';
@@ -1393,16 +1420,15 @@
               grid.activeEditor.getAttribute('data-editor-type') === 'combo' &&
               grid.activeEditor.value === '買賣';
             document.querySelector('.fg-editor-trigger').click();
-            var comboboxValueInListOption = comboboxPanel.querySelector('.fg-combobox-option[data-index="0"]');
+            var comboboxValueInListOption = comboboxPanel.querySelector('.fui-combobox-item[data-index="0"]');
             var comboboxValueInListWorks = comboboxValueInListOption &&
-              comboboxValueInListOption.querySelector('.fg-combobox-option-text') &&
-              comboboxValueInListOption.querySelector('.fg-combobox-option-text').textContent === '買賣' &&
-              comboboxValueInListOption.querySelector('.fg-combobox-option-value') &&
-              comboboxValueInListOption.querySelector('.fg-combobox-option-value').textContent === '(1)' &&
-              window.getComputedStyle(comboboxValueInListOption.querySelector('.fg-combobox-option-value')).color === 'rgb(156, 163, 175)';
+              comboboxValueInListOption.querySelector('.fui-combobox-item-text') &&
+              comboboxValueInListOption.querySelector('.fui-combobox-item-text').textContent === '買賣' &&
+              comboboxValueInListOption.querySelector('.fui-combobox-item-value') &&
+              comboboxValueInListOption.querySelector('.fui-combobox-item-value').textContent === '(1)' &&
+              window.getComputedStyle(comboboxValueInListOption.querySelector('.fui-combobox-item-value')).color === 'rgb(107, 114, 128)';
             var comboboxPanelWidthWorks = comboboxPanel.offsetWidth > grid.visibleColumns[8]._width &&
-              window.getComputedStyle(comboboxValueInListOption).whiteSpace === 'nowrap' &&
-              window.getComputedStyle(comboboxValueInListOption.querySelector('.fg-combobox-option-value')).whiteSpace === 'nowrap';
+              window.getComputedStyle(comboboxValueInListOption.querySelector('.fui-combobox-item-value')).whiteSpace === 'nowrap';
             grid.hideComboboxPanel();
             grid.activeEditor.value = '其他';
             grid.activeEditor.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1434,7 +1460,7 @@
             grid.setCellData(0, 5, '2026-07-07');
             grid.select(0, 5);
             grid.startEditing(0, 5);
-            var dateboxPanel = document.querySelector('.fg-datebox-panel');
+            var dateboxPanel = document.querySelector('.fui-grid-date-popup');
             var dateboxEditorConfigWorks = grid.activeEditor &&
               grid.activeEditor.getAttribute('data-editor-type') === 'date' &&
               grid.activeEditor.className.indexOf('datebox-f') >= 0 &&
@@ -1494,19 +1520,19 @@
             document.querySelector('.fg-editor-trigger').click();
             var dateboxPanelOpensWorks = dateboxPanel &&
               window.getComputedStyle(dateboxPanel).display === 'block' &&
-              dateboxPanel.querySelector('.fg-datebox-title').textContent === '七月 2026';
-            dateboxPanel.querySelector('.fg-datebox-title-button').click();
-            var dateboxMonthViewOpensWorks = dateboxPanel.querySelector('.fg-datebox-month-view') &&
-              dateboxPanel.querySelector('.fg-datebox-year-input').value === '2026' &&
-              dateboxPanel.querySelectorAll('.fg-datebox-month').length === 12;
-            var dateboxYearInput = dateboxPanel.querySelector('.fg-datebox-year-input');
+              dateboxPanel.querySelector('.fui-calendar-title').textContent === '七月 2026';
+            dateboxPanel.querySelector('.fui-calendar-title').click();
+            var dateboxMonthViewOpensWorks = !dateboxPanel.querySelector('.fui-calendar-menu').hidden &&
+              dateboxPanel.querySelector('.fui-calendar-menu-year').value === '2026' &&
+              dateboxPanel.querySelectorAll('.fui-calendar-menu-month').length === 12;
+            var dateboxYearInput = dateboxPanel.querySelector('.fui-calendar-menu-year');
             dateboxYearInput.value = '2028';
             dateboxYearInput.dispatchEvent(new Event('change', { bubbles: true }));
-            var dateboxYearInputChangesWorks = dateboxPanel.querySelector('.fg-datebox-year-input').value === '2028' &&
-              dateboxPanel.querySelector('.fg-datebox-title').textContent === '七月 2028';
-            dateboxPanel.querySelector('.fg-datebox-month[data-month="6"]').click();
-            var dateboxMonthSelectReturnsCalendarWorks = dateboxPanel.querySelector('.fg-datebox-weekdays') &&
-              dateboxPanel.querySelector('.fg-datebox-title').textContent === '七月 2028';
+            var dateboxYearInputChangesWorks = dateboxPanel.querySelector('.fui-calendar-menu-year').value === '2028' &&
+              dateboxPanel.querySelector('.fui-calendar-title').textContent === '七月 2028';
+            dateboxPanel.querySelector('.fui-calendar-menu-month[data-month="6"]').click();
+            var dateboxMonthSelectReturnsCalendarWorks = !dateboxPanel.querySelector('.fui-calendar-body').hidden &&
+              dateboxPanel.querySelector('.fui-calendar-title').textContent === '七月 2028';
             scroller.scrollTop = 60;
             grid.handleScroll();
             var dateboxPanelClosesOnScrollWorks = dateboxPanel &&
@@ -1514,7 +1540,7 @@
             scroller.scrollTop = 0;
             grid.handleScroll();
             document.querySelector('.fg-editor-trigger').click();
-            var dateboxDay = dateboxPanel ? dateboxPanel.querySelector('.fg-datebox-day[data-date="2026-07-15"]') : null;
+            var dateboxDay = dateboxPanel ? dateboxPanel.querySelector('.fui-calendar-day[data-date="2026-07-15"]') : null;
             if (dateboxDay) {
               dateboxDay.click();
             }
@@ -1940,12 +1966,379 @@
               var chartPieWorks = document.querySelectorAll('#chartSmoke .fui-chart-slice').length === 2;
               chart.dispose();
               var chartDisposeWorks = document.getElementById('chartSmoke').children.length === 0;
+              var editBox = new window.fabui.EditBox('#editBoxSmoke', {
+                editor: 'text'
+              });
+              var editBoxCoreBundleWorks = editBox.getValue() === 'FabUI' &&
+                editBox.getDefinition() === window.fabui.editorDefinitions.text;
+              editBox.dispose();
+              var fabButton = new window.fabui.Button('#buttonSmoke', {
+                text: 'Smoke Button',
+                iconCls: 'icon-check',
+                toggle: true
+              });
+              fabButton.select();
+              var buttonCoreBundleWorks = fabButton.options.selected === true &&
+                fabButton.hostElement.getAttribute('aria-pressed') === 'true' &&
+                fabButton.options.iconAlign === 'left' &&
+                fabButton.iconElement.nextElementSibling === fabButton.textElement &&
+                fabButton.hostElement.classList.contains('fui-button-icon-left') &&
+                window.fabui.Control.getControl('#buttonSmoke') === fabButton;
+              fabButton.destroy();
+              var calendarSelectCount = 0;
+              var fabCalendar = new window.fabui.Calendar('#calendarSmoke', {
+                current: new Date(2026, 6, 18),
+                locale: 'zh-TW',
+                onSelect: function() {
+                  calendarSelectCount += 1;
+                }
+              });
+              fabCalendar.select(new Date(2026, 6, 19));
+              var calendarCoreBundleWorks =
+                fabCalendar.options.showLunar === false &&
+                document.querySelectorAll('#calendarSmoke .fui-calendar').length === 1 &&
+                document.querySelector('#calendarSmoke .fui-calendar-title').textContent === '七月 2026' &&
+                document.querySelector('#calendarSmoke .fui-calendar-selected').getAttribute('data-date') === '2026-07-19' &&
+                calendarSelectCount === 1 &&
+                window.fabui.Control.getControl('#calendarSmoke') === fabCalendar;
+              fabCalendar.destroy();
+              var tabsSelectTitle = '';
+              var tabsInitialMarkup = document.getElementById('tabsSmoke').innerHTML;
+              var fabTabs = new window.fabui.Tabs('#tabsSmoke', {
+                onSelect: function(title) {
+                  tabsSelectTitle = title;
+                }
+              });
+              fabTabs.select('Second');
+              fabTabs.add({
+                title: 'Third',
+                content: 'Third body',
+                closable: true
+              });
+              var tabsCoreBundleWorks =
+                fabTabs.getTabs().length === 3 &&
+                fabTabs.getSelected().textContent === 'Third body' &&
+                fabTabs.exists('Second') &&
+                fabTabs.getTabIndex(fabTabs.getTab('Second')) === 1 &&
+                window.fabui.Control.getControl('#tabsSmoke') === fabTabs;
+              fabTabs.close('Third');
+              tabsCoreBundleWorks = tabsCoreBundleWorks &&
+                fabTabs.getTabs().length === 2 &&
+                !fabTabs.exists('Third');
+              fabTabs.destroy();
+              tabsCoreBundleWorks = tabsCoreBundleWorks &&
+                document.getElementById('tabsSmoke').innerHTML === tabsInitialMarkup;
+              var treeSelectText = '';
+              var fabTree = new window.fabui.Tree('#treeSmoke', {
+                checkbox: true,
+                lines: true,
+                data: [{
+                  id: 'root',
+                  text: 'Root',
+                  state: 'open',
+                  children: [
+                    { id: 'alpha', text: 'Alpha' },
+                    { id: 'beta', text: 'Beta' }
+                  ]
+                }],
+                onSelect: function(node) {
+                  treeSelectText = node.text;
+                }
+              });
+              fabTree.select(fabTree.find('alpha'));
+              fabTree.check(fabTree.find('beta'));
+              var treeCoreBundleWorks =
+                fabTree.getRoot().text === 'Root' &&
+                fabTree.getChildren(fabTree.getRoot()).length === 2 &&
+                fabTree.getSelected().id === 'alpha' &&
+                treeSelectText === 'Alpha' &&
+                fabTree.getChecked().some(function(node) { return node.id === 'beta'; }) &&
+                document.querySelectorAll('#treeSmoke .fui-tree-node').length === 3 &&
+                window.fabui.Control.getControl('#treeSmoke') === fabTree;
+              fabTree.destroy();
+              treeCoreBundleWorks = treeCoreBundleWorks &&
+                document.getElementById('treeSmoke').innerHTML === '';
+              var tooltipShowCount = 0;
+              var tooltipHideCount = 0;
+              var fabTooltip = new window.fabui.Tooltip('#tooltipSmoke', {
+                position: 'right',
+                content: '<strong>Smoke Tooltip</strong>',
+                showDelay: 0,
+                hideDelay: 0,
+                onShow: function() {
+                  tooltipShowCount += 1;
+                },
+                onHide: function() {
+                  tooltipHideCount += 1;
+                }
+              });
+              fabTooltip.show();
+              var tooltipTip = fabTooltip.tip();
+              var tooltipArrow = fabTooltip.arrow();
+              var tooltipCoreBundleWorks =
+                fabTooltip.options().position === 'right' &&
+                tooltipTip &&
+                !tooltipTip.hidden &&
+                tooltipTip.querySelector('.fui-tooltip-content').innerHTML === '<strong>Smoke Tooltip</strong>' &&
+                tooltipArrow &&
+                tooltipArrow.outer.classList.contains('fui-tooltip-arrow-outer') &&
+                tooltipShowCount === 1 &&
+                window.fabui.Control.getControl('#tooltipSmoke') === fabTooltip;
+              fabTooltip.update('Updated Tooltip');
+              fabTooltip.reposition();
+              fabTooltip.hide();
+              tooltipCoreBundleWorks = tooltipCoreBundleWorks &&
+                tooltipTip.hidden &&
+                tooltipTip.querySelector('.fui-tooltip-content').textContent === 'Updated Tooltip' &&
+                tooltipHideCount === 1;
+              fabTooltip.destroy();
+              tooltipCoreBundleWorks = tooltipCoreBundleWorks &&
+                document.getElementById('tooltipSmoke').getAttribute('title') === 'Smoke title' &&
+                !document.body.contains(tooltipTip);
+              var menuSmokeHost = document.getElementById('menuSmoke');
+              var menuSmokeMarkup = menuSmokeHost.innerHTML;
+              var fabMenu = new window.fabui.Menu(menuSmokeHost, {
+                locale: 'zh-TW',
+                hideOnUnhover: false
+              });
+              fabMenu.show({ left: 24, top: 24 });
+              var menuOpenItem = fabMenu.findItem({ name: 'open' });
+              var menuDisabledItem = fabMenu.findItem({ name: 'disabled' });
+              var menuAddedItem = fabMenu.appendItem({
+                name: 'added',
+                text: 'Added',
+                iconCls: 'icon-add'
+              });
+              fabMenu.setText({
+                target: menuAddedItem.target,
+                text: 'Added Updated'
+              });
+              fabMenu.enableItem(menuDisabledItem.target);
+              var menuCoreBundleWorks =
+                !menuSmokeHost.hidden &&
+                fabMenu.options().itemHeight === 32 &&
+                menuOpenItem.iconCls === 'icon-edit' &&
+                menuAddedItem.text === 'Added Updated' &&
+                menuDisabledItem.disabled === false &&
+                menuSmokeHost.querySelectorAll('.fui-menu-icon-cell').length === 3 &&
+                window.fabui.Control.getControl(menuSmokeHost) === fabMenu;
+              fabMenu.hide();
+              menuCoreBundleWorks = menuCoreBundleWorks && menuSmokeHost.hidden;
+              fabMenu.destroy();
+              menuCoreBundleWorks = menuCoreBundleWorks &&
+                menuSmokeHost.innerHTML === menuSmokeMarkup &&
+                window.fabui.Control.getControl(menuSmokeHost) === null;
+              var menuButtonSmokeHost = document.getElementById('menuButtonSmoke');
+              var menuButtonSmokeMarkup = menuButtonSmokeHost.innerHTML;
+              var menuButtonMenuSmokeHost = document.getElementById('menuButtonMenuSmoke');
+              var menuButtonMenuSmokeMarkup = menuButtonMenuSmokeHost.innerHTML;
+              var fabMenuButton = new window.fabui.MenuButton(menuButtonSmokeHost, {
+                menu: menuButtonMenuSmokeHost,
+                iconCls: 'icon-edit',
+                duration: 0
+              });
+              fabMenuButton.show();
+              var menuButtonCoreBundleWorks =
+                fabMenuButton.button instanceof window.fabui.Button &&
+                fabMenuButton.menu instanceof window.fabui.Menu &&
+                fabMenuButton.options().plain === true &&
+                !menuButtonMenuSmokeHost.hidden &&
+                menuButtonSmokeHost.getAttribute('aria-expanded') === 'true' &&
+                menuButtonSmokeHost.querySelectorAll('.fui-menu-button-arrow').length === 1 &&
+                window.fabui.Control.getControl(menuButtonSmokeHost) === fabMenuButton;
+              fabMenuButton.hide();
+              menuButtonCoreBundleWorks = menuButtonCoreBundleWorks &&
+                menuButtonMenuSmokeHost.hidden &&
+                menuButtonSmokeHost.getAttribute('aria-expanded') === 'false';
+              fabMenuButton.destroy();
+              menuButtonCoreBundleWorks = menuButtonCoreBundleWorks &&
+                menuButtonSmokeHost.innerHTML === menuButtonSmokeMarkup &&
+                menuButtonMenuSmokeHost.innerHTML === menuButtonMenuSmokeMarkup &&
+                window.fabui.Control.getControl(menuButtonSmokeHost) === null;
+              var splitButtonSmokeHost = document.getElementById('splitButtonSmoke');
+              var splitButtonSmokeMarkup = splitButtonSmokeHost.innerHTML;
+              var splitButtonMenuSmokeHost = document.getElementById('splitButtonMenuSmoke');
+              var splitButtonMenuSmokeMarkup = splitButtonMenuSmokeHost.innerHTML;
+              var splitButtonMainCount = 0;
+              var splitButtonArrowCount = 0;
+              var fabSplitButton = new window.fabui.SplitButton(splitButtonSmokeHost, {
+                menu: splitButtonMenuSmokeHost,
+                iconCls: 'icon-save',
+                duration: 0,
+                onClick: function() {
+                  splitButtonMainCount += 1;
+                },
+                onArrowClick: function() {
+                  splitButtonArrowCount += 1;
+                }
+              });
+              splitButtonSmokeHost.click();
+              var splitButtonCoreBundleWorks =
+                fabSplitButton.menuButton instanceof window.fabui.MenuButton &&
+                fabSplitButton.button instanceof window.fabui.Button &&
+                fabSplitButton.menu instanceof window.fabui.Menu &&
+                splitButtonMainCount === 1 &&
+                splitButtonArrowCount === 0 &&
+                splitButtonMenuSmokeHost.hidden &&
+                window.fabui.Control.getControl(splitButtonSmokeHost) === fabSplitButton;
+              fabSplitButton.arrowElement.click();
+              splitButtonCoreBundleWorks = splitButtonCoreBundleWorks &&
+                splitButtonMainCount === 1 &&
+                splitButtonArrowCount === 1 &&
+                !splitButtonMenuSmokeHost.hidden &&
+                splitButtonSmokeHost.getAttribute('aria-expanded') === 'true';
+              fabSplitButton.hide();
+              fabSplitButton.destroy();
+              splitButtonCoreBundleWorks = splitButtonCoreBundleWorks &&
+                splitButtonSmokeHost.innerHTML === splitButtonSmokeMarkup &&
+                splitButtonMenuSmokeHost.innerHTML === splitButtonMenuSmokeMarkup &&
+                window.fabui.Control.getControl(splitButtonSmokeHost) === null;
+              var messagerAlertCount = 0;
+              var messagerAlert = window.fabui.Messager.alert({
+                title: 'Smoke Alert',
+                msg: 'Messager works',
+                icon: 'info',
+                locale: 'zh-TW',
+                animate: false,
+                fn: function() {
+                  messagerAlertCount += 1;
+                }
+              });
+              var messagerAlertElement = messagerAlert.window();
+              var messagerAlertHost = messagerAlert.body();
+              var messagerOkButton = messagerAlert.footer().querySelector('.fui-button');
+              var messagerCoreBundleWorks =
+                messagerAlert instanceof window.fabui.Window &&
+                messagerAlertElement.classList.contains('fui-messager-alert') &&
+                messagerAlertElement.querySelector('.icon-info') &&
+                messagerOkButton.textContent.indexOf('確定') >= 0 &&
+                window.fabui.Messager.activeDialogs().length === 1;
+              messagerOkButton.click();
+              messagerCoreBundleWorks = messagerCoreBundleWorks &&
+                messagerAlertCount === 1 &&
+                !document.body.contains(messagerAlertElement) &&
+                !document.body.contains(messagerAlertHost) &&
+                window.fabui.Messager.activeDialogs().length === 0;
+              var messagerToast = window.fabui.Messager.show({
+                title: 'Smoke Toast',
+                msg: 'Toast works',
+                timeout: 0,
+                showSpeed: 0
+              });
+              var messagerToastHost = messagerToast.body();
+              messagerCoreBundleWorks = messagerCoreBundleWorks &&
+                messagerToast instanceof window.fabui.Window &&
+                window.fabui.Messager.activeToasts().length === 1;
+              window.fabui.Messager.close(messagerToast);
+              messagerCoreBundleWorks = messagerCoreBundleWorks &&
+                !document.body.contains(messagerToastHost);
+              var messagerProgress = window.fabui.Messager.progress({
+                title: 'Smoke Progress',
+                msg: 'Loading',
+                value: 10,
+                animate: false
+              });
+              var messagerProgressHost = messagerProgress.body();
+              var messagerBar = window.fabui.Messager.progress('bar');
+              messagerBar.setValue(60);
+              messagerCoreBundleWorks = messagerCoreBundleWorks &&
+                messagerProgress instanceof window.fabui.Window &&
+                messagerBar.getValue() === 60;
+              window.fabui.Messager.progress('close');
+              messagerCoreBundleWorks = messagerCoreBundleWorks &&
+                window.fabui.Messager.progress('bar') === null &&
+                !document.body.contains(messagerProgressHost) &&
+                window.fabui.Messager.activeToasts().length === 0;
+              var panelSmokeHost = document.getElementById('panelSmoke');
+              var fabPanel = new window.fabui.Panel(panelSmokeHost, {
+                id: 'panelSmokeRuntime',
+                title: 'Smoke Panel',
+                width: 320,
+                height: 180,
+                closed: true
+              });
+              var panelCoreBundleWorks = fabPanel.options.title === 'Smoke Panel' &&
+                window.fabui.Control.getControl(panelSmokeHost) === fabPanel;
+              fabPanel.destroy();
+              panelCoreBundleWorks = panelCoreBundleWorks &&
+                panelSmokeHost.id === 'panelSmoke' &&
+                panelSmokeHost.getAttribute('title') === 'Original panel title';
+              var fabLayout = new window.fabui.Layout('#layoutSmoke', {
+                regions: {
+                  north: {
+                    title: 'Dynamic north',
+                    height: 40
+                  }
+                }
+              });
+              var layoutCoreBundleWorks = fabLayout.panel('center') instanceof window.fabui.Panel &&
+                fabLayout.panel('north') instanceof window.fabui.Panel &&
+                window.fabui.Control.getControl('#layoutSmoke') === fabLayout;
+              fabLayout.destroy();
+              layoutCoreBundleWorks = layoutCoreBundleWorks &&
+                !document.querySelector('#layoutSmoke [data-region="north"]');
+              var invalidLayoutHost = document.createElement('div');
+              var invalidLayoutNorth = document.createElement('div');
+              var invalidLayoutRejected = false;
+              invalidLayoutHost.className = 'layout-smoke-sentinel';
+              invalidLayoutNorth.setAttribute('data-region', 'north');
+              invalidLayoutHost.appendChild(invalidLayoutNorth);
+              document.body.appendChild(invalidLayoutHost);
+              try {
+                new window.fabui.Layout(invalidLayoutHost);
+              } catch (error) {
+                invalidLayoutRejected = /center region/.test(error.message);
+              }
+              layoutCoreBundleWorks = layoutCoreBundleWorks &&
+                invalidLayoutRejected &&
+                invalidLayoutHost.className === 'layout-smoke-sentinel' &&
+                !invalidLayoutHost.__fabuiLayout &&
+                window.fabui.Control.getControl(invalidLayoutHost) === null;
+              invalidLayoutHost.remove();
+              var windowSmokeHost = document.getElementById('windowSmoke');
+              var fabWindow = new window.fabui.Window(windowSmokeHost, {
+                title: 'Smoke',
+                width: 320,
+                height: 180,
+                closed: true
+              });
+              var windowCoreBundleWorks = fabWindow.options.title === 'Smoke' &&
+                window.fabui.Control.getControl(windowSmokeHost) === fabWindow;
+              fabWindow.destroy();
+              windowCoreBundleWorks = windowCoreBundleWorks &&
+                windowSmokeHost.getAttribute('title') === 'Original window title';
               finish({
                 hasChart: !!window.fabui && typeof window.fabui.Chart === 'function',
                 chartRenderWorks: chartRenderWorks,
                 chartBindingWorks: chartBindingWorks,
                 chartPieWorks: chartPieWorks,
                 chartDisposeWorks: chartDisposeWorks,
+                hasEditBox: !!window.fabui && typeof window.fabui.EditBox === 'function',
+                editBoxCoreBundleWorks: editBoxCoreBundleWorks,
+                hasButton: !!window.fabui && typeof window.fabui.Button === 'function',
+                buttonCoreBundleWorks: buttonCoreBundleWorks,
+                hasCalendar: !!window.fabui && typeof window.fabui.Calendar === 'function',
+                calendarCoreBundleWorks: calendarCoreBundleWorks,
+                hasTabs: !!window.fabui && typeof window.fabui.Tabs === 'function',
+                tabsCoreBundleWorks: tabsCoreBundleWorks,
+                hasTree: !!window.fabui && typeof window.fabui.Tree === 'function',
+                treeCoreBundleWorks: treeCoreBundleWorks,
+                hasTooltip: !!window.fabui && typeof window.fabui.Tooltip === 'function',
+                tooltipCoreBundleWorks: tooltipCoreBundleWorks,
+                hasMenu: !!window.fabui && typeof window.fabui.Menu === 'function',
+                menuCoreBundleWorks: menuCoreBundleWorks,
+                hasMenuButton: !!window.fabui && typeof window.fabui.MenuButton === 'function',
+                menuButtonCoreBundleWorks: menuButtonCoreBundleWorks,
+                hasSplitButton: !!window.fabui && typeof window.fabui.SplitButton === 'function',
+                splitButtonCoreBundleWorks: splitButtonCoreBundleWorks,
+                hasMessager: !!window.fabui && typeof window.fabui.Messager === 'object',
+                messagerCoreBundleWorks: messagerCoreBundleWorks,
+                hasPanel: !!window.fabui && typeof window.fabui.Panel === 'function',
+                panelCoreBundleWorks: panelCoreBundleWorks,
+                hasLayout: !!window.fabui && typeof window.fabui.Layout === 'function',
+                layoutCoreBundleWorks: layoutCoreBundleWorks,
+                hasWindow: !!window.fabui && typeof window.fabui.Window === 'function',
+                windowCoreBundleWorks: windowCoreBundleWorks,
                 hasFabGrid: !!window.fabui &&
                   typeof window.fabui.FabGrid === 'function' &&
                   window.fabui.editorDefinitions === window.fabui.FabGrid.editorDefinitions &&
@@ -1954,7 +2347,7 @@
                 controlLookupWorks: typeof window.fabui.Control === 'function' &&
                   window.fabui.Control.getControl('#grid') === grid &&
                   grid.hostElement === document.getElementById('grid'),
-                coreBundleOnlyWorks: ['TextBox', 'NumberBox', 'DateBox', 'ComboBox', 'Tabs'].every(function(name) {
+                coreBundleOnlyWorks: ['TextBox', 'NumberBox', 'DateBox', 'ComboBox'].every(function(name) {
                   return typeof window.fabui[name] === 'undefined';
                 }),
                 filterHeaderTextVerticallyCenteredWorks: filterHeaderTextVerticallyCenteredWorks,

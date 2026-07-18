@@ -1,0 +1,289 @@
+.fui-menu,
+.fui-menu * {
+  box-sizing: border-box;
+}
+
+.fui-menu {
+  --fui-menu-bg: #ffffff;
+  --fui-menu-border: #95b8e7;
+  --fui-menu-divider: #e6e6e6;
+  --fui-menu-hover-bg: #eaf2ff;
+  --fui-menu-hover-border: #b7d2ff;
+  --fui-menu-text: #000000;
+  --fui-menu-disabled-text: #999999;
+  --fui-menu-shadow: rgba(0, 0, 0, 0.18);
+  --fui-menu-item-height: 32px;
+  position: absolute;
+  z-index: 110000;
+  display: block;
+  min-width: 120px;
+  padding: 3px 0;
+  border: 1px solid var(--fui-menu-border);
+  border-radius: 3px;
+  outline: 0;
+  background: var(--fui-menu-bg);
+  box-shadow: 0 3px 10px var(--fui-menu-shadow);
+  color: var(--fui-menu-text);
+  font: 14px Arial, sans-serif;
+  user-select: none;
+}
+
+.fui-menu[hidden],
+.fui-menu-submenu[hidden],
+.fui-menu-item[hidden],
+.fui-menu-separator[hidden],
+.fui-menu-arrow[hidden] {
+  display: none;
+}
+
+.fui-menu-inline {
+  position: relative;
+  top: auto !important;
+  left: auto !important;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.fui-menu-list {
+  position: relative;
+  min-width: inherit;
+}
+
+.fui-menu-item {
+  position: relative;
+  display: grid;
+  min-height: var(--fui-menu-item-height);
+  margin: 0 2px;
+  grid-template-columns: 30px minmax(64px, 1fr) 20px;
+  align-items: stretch;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  outline: 0;
+  cursor: pointer;
+}
+
+.fui-menu-icon-cell {
+  display: flex;
+  width: 30px;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--fui-menu-divider);
+}
+
+.fui-menu-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.fui-menu-text {
+  display: flex;
+  min-width: 0;
+  padding: 0 8px;
+  align-items: center;
+  overflow: hidden;
+  color: inherit;
+  line-height: calc(var(--fui-menu-item-height) - 2px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fui-menu-arrow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+}
+
+.fui-menu-arrow::before {
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  color: var(--fui-menu-text);
+  content: "";
+  transform: rotate(45deg);
+}
+
+.fui-menu-item-submenu-left > .fui-menu-arrow::before {
+  transform: rotate(-135deg);
+}
+
+.fui-menu-item-active,
+.fui-menu-item:focus-visible,
+.fui-menu-item-open {
+  border-color: var(--fui-menu-hover-border);
+  background: var(--fui-menu-hover-bg);
+}
+
+.fui-menu-item-disabled {
+  color: var(--fui-menu-disabled-text);
+  cursor: default;
+}
+
+.fui-menu-item-disabled .fui-menu-icon,
+.fui-menu-item-disabled .fui-menu-arrow {
+  opacity: 0.45;
+}
+
+.fui-menu-item-disabled.fui-menu-item-active,
+.fui-menu-item-disabled:focus-visible {
+  border-color: transparent;
+  background: transparent;
+}
+
+.fui-menu-separator {
+  position: relative;
+  height: 7px;
+  margin: 0 2px;
+}
+
+.fui-menu-separator::before {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  left: 30px;
+  border-top: 1px solid var(--fui-menu-divider);
+  content: "";
+}
+
+.fui-menu-submenu {
+  position: absolute;
+  top: -4px;
+  left: calc(100% - 4px);
+  z-index: 1;
+  min-width: 120px;
+  padding: 3px 0;
+  border: 1px solid var(--fui-menu-border);
+  border-radius: 3px;
+  background: var(--fui-menu-bg);
+  box-shadow: 0 3px 10px var(--fui-menu-shadow);
+}
+
+.fui-menu-content {
+  min-width: 180px;
+  padding: 10px;
+  color: var(--fui-menu-text);
+  user-select: text;
+}
+
+.fui-menu.fg-theme-bootstrap {
+  --fui-menu-border: #cccccc;
+  --fui-menu-divider: #e5e5e5;
+  --fui-menu-hover-bg: #e6e6e6;
+  --fui-menu-hover-border: #adadad;
+  --fui-menu-text: #333333;
+}
+
+.fui-menu.fg-theme-cupertino {
+  --fui-menu-bg: #f2f5f7;
+  --fui-menu-border: #aed0ea;
+  --fui-menu-divider: #d7ebf9;
+  --fui-menu-hover-bg: #d7ebf9;
+  --fui-menu-hover-border: #74b2e2;
+  --fui-menu-text: #2779aa;
+}
+
+.fui-menu.fg-theme-material,
+.fui-menu.fg-theme-material-blue,
+.fui-menu.fg-theme-material-teal {
+  --fui-menu-bg: #ffffff;
+  --fui-menu-border: #dddddd;
+  --fui-menu-divider: #eeeeee;
+  --fui-menu-hover-bg: #eeeeee;
+  --fui-menu-hover-border: #dddddd;
+  --fui-menu-text: #404040;
+  border-radius: 4px;
+}
+
+.fui-menu.fg-theme-material-blue {
+  --fui-menu-hover-bg: #e1f5fe;
+  --fui-menu-hover-border: #00bbee;
+}
+
+.fui-menu.fg-theme-material-teal {
+  --fui-menu-hover-bg: #e0f2f1;
+  --fui-menu-hover-border: #39c5bb;
+}
+
+.fui-menu.fg-theme-metro,
+.fui-menu.fg-theme-metro-blue,
+.fui-menu.fg-theme-metro-gray,
+.fui-menu.fg-theme-metro-green,
+.fui-menu.fg-theme-metro-orange,
+.fui-menu.fg-theme-metro-red {
+  --fui-menu-bg: #fafafa;
+  --fui-menu-border: #dddddd;
+  --fui-menu-divider: #e5e5e5;
+  --fui-menu-hover-bg: #e6e6e6;
+  --fui-menu-hover-border: #bbbbbb;
+  --fui-menu-text: #404040;
+  border-radius: 0;
+}
+
+.fui-menu.fg-theme-metro-blue {
+  --fui-menu-hover-bg: #d9edf7;
+  --fui-menu-hover-border: #28a9e0;
+}
+
+.fui-menu.fg-theme-metro-gray {
+  --fui-menu-hover-bg: #e5e5e5;
+  --fui-menu-hover-border: #8b909b;
+}
+
+.fui-menu.fg-theme-metro-green {
+  --fui-menu-hover-bg: #eaf2c7;
+  --fui-menu-hover-border: #7e8f24;
+}
+
+.fui-menu.fg-theme-metro-orange {
+  --fui-menu-hover-bg: #fce8d4;
+  --fui-menu-hover-border: #ca7d33;
+}
+
+.fui-menu.fg-theme-metro-red {
+  --fui-menu-hover-bg: #fde4e1;
+  --fui-menu-hover-border: #e45447;
+}
+
+.fui-menu.fg-theme-sunny {
+  --fui-menu-bg: #fff9e5;
+  --fui-menu-border: #494437;
+  --fui-menu-divider: #feeebd;
+  --fui-menu-hover-bg: #ffdd57;
+  --fui-menu-hover-border: #817865;
+  --fui-menu-text: #000000;
+}
+
+.fui-menu.fg-theme-pepper-grinder {
+  --fui-menu-bg: #eceadf;
+  --fui-menu-border: #cbc7bd;
+  --fui-menu-divider: #cbc7bd;
+  --fui-menu-hover-bg: #dad6cb;
+  --fui-menu-hover-border: #654b24;
+  --fui-menu-text: #1f1f1f;
+}
+
+.fui-menu.fg-theme-dark-hive {
+  --fui-menu-bg: #000000;
+  --fui-menu-border: #444444;
+  --fui-menu-divider: #333333;
+  --fui-menu-hover-bg: #003147;
+  --fui-menu-hover-border: #0972a5;
+  --fui-menu-text: #ffffff;
+  --fui-menu-disabled-text: #888888;
+}
+
+.fui-menu.fg-theme-black {
+  --fui-menu-bg: #666666;
+  --fui-menu-border: #000000;
+  --fui-menu-divider: #555555;
+  --fui-menu-hover-bg: #000000;
+  --fui-menu-hover-border: #000000;
+  --fui-menu-text: #ffffff;
+  --fui-menu-disabled-text: #bbbbbb;
+}

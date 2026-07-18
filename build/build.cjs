@@ -11,6 +11,8 @@ const buildDate = new Date();
 const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
   'core/control.js',
+  'button/button.js',
+  'calendar/calendar.js',
   'chart/chart.js',
   'grid/fabgrid-types.js',
   'grid/fabgrid-data.js',
@@ -23,6 +25,26 @@ const javascriptSources = [
   'grid/fabgrid-selection.js',
   'grid/fabgrid-editor-runtime.js',
   'editbox/editbox-definitions.js',
+  'editbox/editor-icons.js',
+  'editbox/text-editbox.js',
+  'editbox/number-editbox.js',
+  'editbox/date-popup.js',
+  'editbox/date-editbox.js',
+  'editbox/combo-popup.js',
+  'editbox/combo-editbox.js',
+  'editbox/color-popup.js',
+  'editbox/color-editbox.js',
+  'editbox/editbox.js',
+  'menu/menu.js',
+  'menubutton/menubutton.js',
+  'splitbutton/splitbutton.js',
+  'panel/panel.js',
+  'tabs/tabs.js',
+  'tree/tree.js',
+  'tooltip/tooltip.js',
+  'layout/layout.js',
+  'window/window.js',
+  'messager/messager.js',
   'grid/fabgrid.js',
   'pivot/pivot-utils.js',
   'pivot/pivot-engine.js',
@@ -46,7 +68,8 @@ function stripExports(source) {
   return source
     .replace(/import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?/g, '')
     .replace(/export\s+(var|let|const)\s+/g, '$1 ')
-    .replace(/export function ([A-Za-z_$][\w$]*)/g, 'function $1');
+    .replace(/export function ([A-Za-z_$][\w$]*)/g, 'function $1')
+    .replace(/export\s+default\s+[A-Za-z_$][\w$]*\s*;?/g, '');
 }
 
 function minifyJs(source, format) {
@@ -68,11 +91,11 @@ function minifyCss(source) {
 }
 
 function isStandaloneComponentStyle(request) {
-  return /(?:^|\/)(?:components|tabs)\.css$/i.test(request);
+  return /(?:^|\/)components\.css$/i.test(request);
 }
 
 function stripStandaloneThemeSelectors(source) {
-  return source.replace(/(\.fg-root\.fg-theme-[^{,]+),\s*\.fui-tabs\.fg-theme-[^{]+(\{)/g, '$1 $2');
+  return source;
 }
 
 function rewriteCssUrls(source, sourceFile) {
@@ -153,7 +176,20 @@ function createJavascriptBundle() {
     'global.fabui.version = ' + JSON.stringify(buildVersion) + ';\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
     'global.fabui.Control = Control;\n' +
+    'global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Calendar = createCalendarFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Chart = createChartFactory();\n' +
+    'global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions);\n' +
+    'global.fabui.Menu = createMenuFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.MenuButton = createMenuButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Button, global.fabui.Menu);\n' +
+    'global.fabui.SplitButton = createSplitButtonFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.MenuButton);\n' +
+    'global.fabui.Panel = createPanelFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Tabs = createTabsFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Tree = createTreeFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Tooltip = createTooltipFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Layout = createLayoutFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);\n' +
+    'global.fabui.Window = createWindowFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
+    'global.fabui.Messager = createMessagerFactory(global.fabui.Window, global.fabui.Button);\n' +
     'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
     'global.fabui.pivot = {};\n' +
     'global.fabui.pivot.PivotAggregate = PivotAggregate;\n' +
@@ -188,7 +224,20 @@ function createEsmJavascriptBundle() {
   const locales = localeSources.map(createEsmLocaleSource).join('\n');
   return banner('ES module') + modules + '\n' +
     'var editorDefinitions = createEditorDefinitions();\n' +
+    'var Button = createButtonFactory(Control, registerControl, unregisterControl);\n' +
+    'var Calendar = createCalendarFactory(Control, registerControl, unregisterControl);\n' +
     'var Chart = createChartFactory();\n' +
+    'var EditBox = createEditBoxFactory(editorDefinitions);\n' +
+    'var Menu = createMenuFactory(Control, registerControl, unregisterControl);\n' +
+    'var MenuButton = createMenuButtonFactory(Control, registerControl, unregisterControl, Button, Menu);\n' +
+    'var SplitButton = createSplitButtonFactory(Control, registerControl, unregisterControl, MenuButton);\n' +
+    'var Panel = createPanelFactory(Control, registerControl, unregisterControl);\n' +
+    'var Tabs = createTabsFactory(Control, registerControl, unregisterControl);\n' +
+    'var Tree = createTreeFactory(Control, registerControl, unregisterControl);\n' +
+    'var Tooltip = createTooltipFactory(Control, registerControl, unregisterControl);\n' +
+    'var Layout = createLayoutFactory(Control, registerControl, unregisterControl, Panel);\n' +
+    'var Window = createWindowFactory(Control, registerControl, unregisterControl);\n' +
+    'var Messager = createMessagerFactory(Window, Button);\n' +
     'var FabGrid = createFabGridFactory(editorDefinitions);\n' +
     'var PivotChart = createPivotChartFactory(Control, registerControl, unregisterControl, PivotEngine, Chart, FabGrid);\n' +
     'var PivotGrid = createPivotGridFactory(FabGrid, PivotEngine);\n' +
@@ -210,8 +259,21 @@ function createEsmJavascriptBundle() {
     'var fabui = {\n' +
     '  version: ' + JSON.stringify(buildVersion) + ',\n' +
     '  editorDefinitions: editorDefinitions,\n' +
+    '  Button: Button,\n' +
+    '  Calendar: Calendar,\n' +
     '  Control: Control,\n' +
     '  Chart: Chart,\n' +
+    '  EditBox: EditBox,\n' +
+    '  Layout: Layout,\n' +
+    '  Menu: Menu,\n' +
+    '  MenuButton: MenuButton,\n' +
+    '  Messager: Messager,\n' +
+    '  Panel: Panel,\n' +
+    '  SplitButton: SplitButton,\n' +
+    '  Tabs: Tabs,\n' +
+    '  Tree: Tree,\n' +
+    '  Tooltip: Tooltip,\n' +
+    '  Window: Window,\n' +
     '  FabGrid: FabGrid,\n' +
     '  pivot: pivotNamespace,\n' +
     '  CellType: CellType,\n' +
@@ -246,14 +308,29 @@ function verifyBuildOutput() {
   if (/\.\.\/images\/clear\.png/.test(css)) {
     throw new Error('Filter clear icon uses an invalid parent-directory path.');
   }
-  if (/global\.fabui\.(?:EditBox|TextBox|NumberBox|DateBox|ComboBox|Tabs)\s*=/.test(javascript)) {
-    throw new Error('Standalone components must not be published in the FabGrid bundle.');
+  if (/global\.fabui\.(?:TextBox|NumberBox|DateBox|ComboBox)\s*=/.test(javascript)) {
+    throw new Error('Legacy Box classes must not be published in the FabUI bundle.');
   }
   if (javascript.indexOf('global.fabui.version = ' + JSON.stringify(buildVersion)) < 0) {
     throw new Error('FabUI build version does not match the build date.');
   }
   if (javascript.indexOf('global.fabui.Chart = createChartFactory()') < 0) {
     throw new Error('FabUI Chart is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions)') < 0) {
+    throw new Error('fabui.EditBox is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Menu = createMenuFactory') < 0) {
+    throw new Error('FabUI Menu is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.MenuButton = createMenuButtonFactory') < 0) {
+    throw new Error('FabUI MenuButton is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.SplitButton = createSplitButtonFactory') < 0) {
+    throw new Error('FabUI SplitButton is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Messager = createMessagerFactory') < 0) {
+    throw new Error('FabUI Messager is missing from the JavaScript bundle.');
   }
   if (javascript.indexOf('global.fabui.pivot.PivotChart = createPivotChartFactory') < 0) {
     throw new Error('FabUI PivotChart is missing from the JavaScript bundle.');
@@ -276,6 +353,12 @@ function verifyBuildOutput() {
   if (javascript.indexOf('global.fabui.Control = Control') < 0) {
     throw new Error('FabUI Control is missing from the JavaScript bundle.');
   }
+  if (javascript.indexOf('global.fabui.Button = createButtonFactory') < 0) {
+    throw new Error('FabUI Button is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Calendar = createCalendarFactory') < 0) {
+    throw new Error('FabUI Calendar is missing from the JavaScript bundle.');
+  }
   if (javascript.indexOf('function downloadBlob(') < 0) {
     throw new Error('FabGrid export download helper is missing from the JavaScript bundle.');
   }
@@ -290,6 +373,24 @@ function verifyBuildOutput() {
   }
   if (javascript.indexOf('global.fabui.CellType = CellType') < 0) {
     throw new Error('FabUI CellType is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Window = createWindowFactory') < 0) {
+    throw new Error('FabUI Window is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Panel = createPanelFactory') < 0) {
+    throw new Error('FabUI Panel is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Tabs = createTabsFactory') < 0) {
+    throw new Error('FabUI Tabs is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Tree = createTreeFactory') < 0) {
+    throw new Error('FabUI Tree is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Tooltip = createTooltipFactory') < 0) {
+    throw new Error('FabUI Tooltip is missing from the JavaScript bundle.');
+  }
+  if (javascript.indexOf('global.fabui.Layout = createLayoutFactory') < 0) {
+    throw new Error('FabUI Layout is missing from the JavaScript bundle.');
   }
   if (javascript.indexOf('FabGrid.Row = Row') < 0 || javascript.indexOf('FabGrid.GroupRow = GroupRow') < 0) {
     throw new Error('FabGrid Row types are missing from the JavaScript bundle.');

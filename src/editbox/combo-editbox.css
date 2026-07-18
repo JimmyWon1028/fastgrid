@@ -84,6 +84,7 @@
   margin-left: 6px;
   color: var(--fui-control-muted-text, #6b7280);
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .fui-combobox-item-disabled {

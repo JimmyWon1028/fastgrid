@@ -2,7 +2,6 @@ export function installFabGridFilterUi(FabGrid, context) {
   var applyMask = context.applyMask;
   var closest = context.closest;
   var countMaskCharactersBeforeCaret = context.countMaskCharactersBeforeCaret;
-  var createColorState = context.createColorState;
   var createDictionary = context.createDictionary;
   var createFilterMenuItemHandler = context.createFilterMenuItemHandler;
   var extractMaskCharacters = context.extractMaskCharacters;
@@ -1056,9 +1055,8 @@ export function installFabGridFilterUi(FabGrid, context) {
     }
     if (this.colorTarget && this.colorTarget.type === 'search' && this.colorTarget.input === input && this.isColorPanelOpen()) {
       color = normalizeColorValue(input.value);
-      if (color && !this.colorDragState) {
-        this.colorState = createColorState(color);
-        this.renderColorPanel();
+      if (color && this.colorPopup && !this.colorPopup.dragState) {
+        this.colorPopup.setValue(input.value);
         this.positionHeaderSearchColorPanel(input);
       }
     }
@@ -1104,7 +1102,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     icons = getColumnSearchIconConfigs(column);
     iconIndex = toNumber(button.getAttribute('data-icon-index'), -1);
     iconConfig = icons[iconIndex];
-    handler = iconConfig && (iconConfig.onClick || iconConfig.click || iconConfig.handler);
+    handler = iconConfig && iconConfig.onClick;
     input = this.header.querySelector('.fg-header-search-input[data-col="' + colIndex + '"]');
     if (iconConfig && iconConfig.builtin === 'date') {
       this.showHeaderSearchDateboxPanel(input, column);
@@ -1155,6 +1153,11 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (this.handleMaskedHeaderSearchDelete(event, input)) {
       return true;
     }
+    colIndex = toNumber(input.getAttribute('data-col'), -1);
+    column = this.visibleColumns[colIndex];
+    if (this.handleDateboxKeyDown(event, input, column)) {
+      return true;
+    }
     if (this.handleHeaderSearchComboboxKeyDown(event, input)) {
       return true;
     }
@@ -1164,11 +1167,9 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (event.key !== 'Enter' && event.key !== 'Tab') {
       return false;
     }
-    colIndex = toNumber(input.getAttribute('data-col'), -1);
     if (colIndex < 0) {
       return false;
     }
-    column = this.visibleColumns[colIndex];
     event.preventDefault();
     event.stopPropagation();
     this.normalizeHeaderSearchComboboxText(input, column);

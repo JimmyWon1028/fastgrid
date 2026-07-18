@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.Tree Demo</title>
+  <link rel="stylesheet" href="../dist/fabui.css">
+  <style>
+    body {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+      background: var(--fg-cell-bg, #fff);
+      color: var(--fg-cell-text, #333);
+      font: 14px Arial, sans-serif;
+    }
+
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 0 0 10px; font-size: 18px; }
+    .demo-toolbar, .tree-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .demo-toolbar { margin: 18px 0; padding: 12px; border: 1px solid var(--fg-border, #ddd); background: var(--fg-header-bg, #fafafa); }
+    #tree-status { min-height: 20px; margin-bottom: 14px; color: var(--fg-muted-text, #666); }
+    .demo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .demo-card { min-width: 0; min-height: 300px; padding: 14px; border: 1px solid var(--fg-border-strong, #95b8e7); background: var(--fg-cell-bg, #fff); }
+    .tree-stage { min-height: 220px; overflow: auto; }
+    .tree-actions { margin-bottom: 10px; }
+    .tree-actions input { min-width: 130px; height: 28px; padding: 3px 7px; }
+    @media (max-width: 760px) { .demo-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.Tree Demo</h1>
+  <p>Pure JavaScript Tree：展開收合、checkbox、線條、圖示、動態 API、右鍵、編輯、拖放、搜尋、鍵盤與非同步載入。</p>
+  <div class="demo-toolbar">
+    <label for="tree-theme">主題</label>
+    <select id="tree-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+    </select>
+    <label for="tree-locale">語系</label>
+    <select id="tree-locale">
+      <option value="zh-TW" selected>繁體中文</option>
+      <option value="zh-CN">簡體中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div id="tree-status" aria-live="polite"></div>
+  <div class="demo-grid">
+    <section class="demo-card">
+      <h2>Basic／Markup／Animation</h2>
+      <div class="tree-stage">
+        <ul id="tree-basic">
+          <li data-id="documents"><span>我的文件</span><ul>
+            <li data-id="photos" data-state="closed"><span>相片</span><ul><li>朋友</li><li>家人</li><li>公司</li></ul></li>
+            <li><span>應用程式</span><ul><li>FabGrid</li><li>Browser</li><li>Office</li></ul></li>
+            <li>index.html</li><li>about.html</li>
+          </ul></li>
+        </ul>
+      </div>
+    </section>
+    <section class="demo-card"><h2>Checkbox／Cascade／Lines</h2><div id="tree-checkbox" class="tree-stage"></div></section>
+    <section class="demo-card">
+      <h2>Actions／Context Menu／Edit／DnD</h2>
+      <div class="tree-actions">
+        <button id="tree-expand-all" type="button">全部展開</button>
+        <button id="tree-collapse-all" type="button">全部收合</button>
+        <button id="tree-add" type="button">新增</button>
+        <button id="tree-edit" type="button">重新命名</button>
+        <button id="tree-remove" type="button">刪除</button>
+        <input id="tree-search" type="search" placeholder="搜尋節點">
+      </div>
+      <div id="tree-actions" class="tree-stage"></div>
+      <div id="tree-context-menu"></div>
+    </section>
+    <section class="demo-card"><h2>Async／Lazy Load</h2><p>展開「伺服器資料」時才呼叫 Promise loader。</p><div id="tree-lazy" class="tree-stage"></div></section>
+  </div>
+  <script src="../dist/fabui.min.js"></script>
+  <script src="./js/tree-demo.js?v=20260718-tree-v1"></script>
+  <script>
+    window.mountFabUITreeDemo(window.fabui);
+  </script>
+</body>
+</html>

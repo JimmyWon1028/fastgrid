@@ -4,17 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid Dev Grid Demo</title>
-    <link rel="stylesheet" href="../src/fabui.css?v=20260716-selection-pointer-v3" />
+    <link rel="stylesheet" href="../src/fabui.css?v=20260718-drag-indicator-alpha-v1" />
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
     />
     <link
       rel="stylesheet"
-      href="./style/style.css?v=20260714-grid-fullscreen-v1"
+      href="./style/style.css?v=20260718-drag-indicator-alpha-v1"
     />
   </head>
-  <body>
+  <body class="fg-theme-default">
     <main class="page">
       <section data-fabgrid-demo-toolbar></section>
 
@@ -66,7 +66,7 @@
     <script src="./js/grid-locales.js?v=20260716-filtering-toggle-v1"></script>
     <script src="./js/grid-query.js?v=20260715-grid-names-v1"></script>
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260717-editor-names-v2";
+      import fabui from "../src/fabui.js?v=20260718-row-drop-width-v1";
 
       window.fabui = fabui;
       await import(
@@ -78,7 +78,7 @@
       await import(
         "../src/locales/fabgrid-locale.en.js?v=20260716-excel-filter-escape-v1"
       );
-      await import("./js/grid.js?v=20260717-editor-names-v1");
+      await import("./js/grid.js?v=20260718-lunar-default-off-v1");
     </script>
   </body>
 </html>

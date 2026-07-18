@@ -80,21 +80,64 @@ Server-side Pivot／OLAP／SSAS 不列入目前產品範圍。
 
 ## 後續 FabUI 元件
 
-以下元件已列入後續 roadmap，目前尚未由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開或編譯：
+以下元件已列入 FabUI roadmap；已完成項目會由主 bundle 公開，未完成項目仍不納入 `dist/fabui.*`：
 
-- [x] `EditBox`
+- [x] `fabui.EditBox`
   - 以單一 `fabui.EditBox` 整合 text、number、date、combo、color，原四個 Box class 僅保留為內部實作。
   - 共用視覺樣式以 TextBox 為基準，提供共用 value、state、event methods 與必要的日期／清單 methods。
-  - FabGrid 與 EditBox 共用 `src/editbox/editbox-definitions.js`，不再維護重複 editor 定義。
-  - 提供獨立 browser global／ES module build、CSS、API、測試與 source-mode／build-mode Demo。
-  - 提供獨立 `$.fn.fabeditbox` jQuery wrapper、types、API、測試與 Demo，不依賴 FabGrid core。
-- [ ] `Window`
+  - FabGrid 與 `fabui.EditBox` 共用 `src/editbox/editbox-definitions.js`，不再維護重複 editor 定義。
+  - 納入 FabUI core 的 browser global／ES module build 與 CSS，使用方式為 `new fabui.EditBox(...)`。
+  - 不產生獨立 EditBox bundle；另提供 `$.fn.fabeditbox` jQuery wrapper、types、API、測試與 Demo。
+- [x] `fabui.Button`
+  - 樣式、options、methods 與 click 行為參考 [jQuery EasyUI LinkButton／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=LinkButton&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 支援 `<a>`／`<button>`、動態與百分比尺寸、disabled、plain、outline、toggle、selected、group、預設左側及四方向 `iconCls`、small／large、theme、Control registry 與 dispose 還原。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.Calendar`
+  - Options、methods 與 events 參考 [jQuery EasyUI Calendar／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Calendar&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 支援年月導覽、月份選單、週次、`formatter`、`styler`、`validator`、三語系、16 組 theme、鍵盤、Control registry 與 dispose 還原；農民曆 `showLunar` 預設為 `false`。
+  - 與 Date EditBox／FabGrid 日期 editor 共用同一個 DatePopup renderer 與 `.fui-calendar-*` 樣式，納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API 與單元測試。
+- [x] `fabui.Tabs`
+  - Options、methods 與 events 參考 [jQuery EasyUI Tabs／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Tabs&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 支援 markup／programmatic tabs、動態新增／插入／更新／關閉、tab tools、header tools、四方向排列、overflow scroller、遠端內容、disabled、keyboard、三語系、16 組 theme、Control registry 與 dispose 還原；拖曳中的 Tab 使用 50% 透明度，插入線固定在目標 Tab 右側並使用 theme 主色補色。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser smoke。
+- [x] `fabui.Tree`
+  - Options、methods 與 events 參考 [jQuery EasyUI Tree／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Tree&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 支援 nested markup／data、展開收合、checkbox cascade、lines、`iconCls`、動態節點 API、右鍵事件、拖放、inline edit、filter、Promise／callback lazy loader、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser smoke。
+- [x] `fabui.Tooltip`
+  - Options、methods 與 events 參考 [jQuery EasyUI Tooltip／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Tooltip&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 支援四方向定位、HTML／function content、滑鼠追蹤、顯示／隱藏延遲、viewport 翻轉、Escape、外部點擊、16 組 theme、Control registry 與 dispose 還原。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser smoke。
+- [x] `fabui.Menu`
+  - Options、methods 與 events 參考 [jQuery EasyUI Menu／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Menu&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Pure JavaScript 支援 context／inline menu、巢狀 submenu、自訂內容、icon、separator、disabled、runtime item API、三語系 ARIA、鍵盤、viewport 翻轉、Escape、外部點擊、16 組 theme、Control registry 與 dispose 還原。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.MenuButton`
+  - Options、methods 與互動參考 [jQuery EasyUI MenuButton／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=MenuButton&theme=default&dir=ltr&pitem=&sort=asc)。
+  - 直接組合 `fabui.Button` 與 `fabui.Menu`，支援 hover／click、左右對齊、下拉箭頭、disabled、鍵盤、ARIA、theme、Control registry 與 dispose，不重複實作 popup lifecycle。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.SplitButton`
+  - Options、methods 與互動參考 [jQuery EasyUI SplitButton／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=SplitButton&theme=default&dir=ltr&pitem=&sort=asc)。
+  - 直接組合 `fabui.MenuButton`，主區域執行主動作，右側箭頭區 click／hover 才顯示 Menu，支援 disabled、鍵盤、ARIA、theme、Control registry 與 dispose。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.Messager`
+  - API、非同步 callback 與 Default 視覺參考 [jQuery EasyUI Messager／Default Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Messager&theme=default&dir=ltr&pitem=&sort=asc)。
+  - Singleton API 支援 `show`、`alert`、`confirm`、`prompt`、`progress`、三語系、16 組 theme、鍵盤、ARIA、Toast 堆疊與 lifecycle；Dialog 必須共用 `fabui.Window`，動作必須共用 `fabui.Button`。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.Window`
   - 樣式、options、methods 與 events 定義參考 [jQuery EasyUI Window／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Window&theme=material-teal&dir=ltr&pitem=&sort=asc)。
-- [ ] `Panel`
+  - Pure JavaScript 實作拖曳、八方向縮放、modal mask、置中、收合、最小化、最大化／還原、theme、locale、Control registry 與 lifecycle events。
+  - 預設工具為最大化／還原與關閉；收合、最小化可選擇啟用，各狀態切換提供過渡動畫，左上角標題 icon 統一使用 `iconCls: 'icon-xxx'`。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.Panel`
   - 樣式、options、methods 與 events 定義參考 [jQuery EasyUI Panel／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Panel&theme=material-teal&dir=ltr&pitem=&sort=asc)。
-- [ ] `Layout`
+  - Pure JavaScript 實作 header／body／footer、custom tools、收合、最小化、最大化／還原、關閉、fit、垂直標題、遠端 lazy load、cache、theme、locale、Control registry 與可取消 lifecycle。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
+- [x] `fabui.Layout`
   - 樣式、options、methods、events 與 north／south／east／west／center 區域定義參考 [jQuery EasyUI Layout／Material Teal Demo](https://www.jeasyui.com/demo/main/index.php?plugin=Layout&theme=material-teal&dir=ltr&pitem=&sort=asc)。
+  - 五區都重用 `fabui.Panel`，Layout 只維護 dock geometry、collapsed bar、float／dock expand、pointer／keyboard Splitter、動態 add／remove、split／unsplit、巢狀 resize 與 lifecycle；edge region 收起／展開同步動畫 center、Splitter 與 collapsed bar。
+  - 納入 FabUI core browser global／ES module／CSS，提供 source-mode／build-mode Demo、API、單元測試與 browser validation。
 
-以上元件實作時仍須維持 pure JavaScript 核心；EasyUI 僅作為視覺與 API 契約參考，不加入 jQuery／EasyUI runtime 依賴。每個元件必須建立獨立 entry、CSS、demo、API 文件與驗證，不得直接併回 FabGrid core bundle。
+以上元件實作時仍須維持 pure JavaScript 核心；EasyUI 僅作為視覺與 API 契約參考，不加入 jQuery／EasyUI runtime 依賴。是否納入 FabUI core bundle 依各元件的產品契約決定。
 
-TextBox、NumberBox、DateBox、ComboBox 原始碼只作為 EditBox 內部實作，不再各自作為公開 standalone class；Tabs 仍只保留原始碼，不列入目前 roadmap。
+TextBox、NumberBox、DateBox、ComboBox 原始碼只作為 `fabui.EditBox` 內部實作，不再各自作為公開 standalone class。

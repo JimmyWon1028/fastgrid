@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotWorkspace 開發版</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260717-pivot-workspace-v6">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260718-tabs-v1">
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -30,7 +30,7 @@
     }
   </style>
 </head>
-<body>
+<body class="fg-theme-default">
   <main class="page">
     <header class="page-header">
       <div>
@@ -44,7 +44,7 @@
       <label>
         <span id="themeLabel">主題</span>
         <select id="themeSelect" aria-label="主題">
-          <option value="default">預設</option>
+          <option value="default" selected>預設</option>
           <option value="metro-blue">Metro Blue</option>
           <option value="material">Material</option>
           <option value="cupertino">Cupertino</option>
@@ -84,7 +84,7 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260717-pivot-workspace-v7';
+    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-workspace-v3');

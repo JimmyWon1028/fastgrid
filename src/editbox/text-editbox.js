@@ -1,3 +1,8 @@
+import {
+  normalizeEditorIconDescriptor,
+  normalizeEditorIconDescriptors
+} from './editor-icons.js?v=20260718-editor-icons-v1';
+
 export function createTextBoxFactory(editorDefinitions) {
   'use strict';
 
@@ -174,10 +179,9 @@ export function createTextBoxFactory(editorDefinitions) {
 
   TextBox.prototype._renderAddons = function() {
     var options = this._options;
-    var icons = Array.isArray(options.icons) ? options.icons.slice() : [];
+    var icons = normalizeEditorIconDescriptors(options.icons);
     var index;
     var descriptor;
-    var iconClassName;
     var icon;
     var addon;
     this._iconElements = [];
@@ -185,27 +189,24 @@ export function createTextBoxFactory(editorDefinitions) {
     this._afterAddon.textContent = '';
 
     if (options.clearButton) {
-      icons.push({
+      icons.push(normalizeEditorIconDescriptor({
         iconCls: 'fui-textbox-clear-icon',
         align: 'right',
         clear: true,
         title: 'Clear'
-      });
+      }));
     }
 
     for (index = 0; index < icons.length; index += 1) {
-      descriptor = assign({}, icons[index]);
+      descriptor = icons[index];
       addon = descriptor.align === 'left' ? this._beforeAddon : this._afterAddon;
       icon = document.createElement('button');
       icon.type = 'button';
-      iconClassName = descriptor.iconCls || descriptor.className ||
-        descriptor.iconClass || descriptor.icon || '';
-      icon.className = 'fui-textbox-icon' + (iconClassName ? ' ' + iconClassName : '');
+      icon.className = 'fui-textbox-icon' + (descriptor.iconCls ? ' ' + descriptor.iconCls : '');
       icon.style.width = cssSize(descriptor.width || options.iconWidth, 18);
       icon.setAttribute(
         'aria-label',
-        descriptor.ariaLabel || descriptor.label || descriptor.title ||
-          'TextBox icon ' + (index + 1)
+        descriptor.ariaLabel || 'TextBox icon ' + (index + 1)
       );
       icon.title = descriptor.title || '';
       icon.textContent = descriptor.text || '';
@@ -249,6 +250,7 @@ export function createTextBoxFactory(editorDefinitions) {
       var target = event.target.closest('.fui-textbox-icon');
       var descriptor;
       var callback;
+      var result;
       if (!target || target.disabled || self._options.disabled || self._options.readonly) return;
       descriptor = target.__fabuiIcon || {};
       event.data = assign({}, event.data || {}, {
@@ -261,12 +263,15 @@ export function createTextBoxFactory(editorDefinitions) {
         self.clear();
         self.focus();
       }
-      callback = descriptor.onClick || descriptor.click || descriptor.handler;
+      callback = descriptor.onClick;
       if (typeof callback === 'function') {
-        callback.call(self, event);
+        result = callback.call(self, event);
       }
       self._invoke('onClickIcon', target.__fabuiIconIndex);
       self._emit('iconClick', { index: target.__fabuiIconIndex, icon: target });
+      if (result !== false && descriptor.keepFocus !== false) {
+        self.focus();
+      }
     };
     this._onButtonClick = function() {
       if (self._options.disabled) return;

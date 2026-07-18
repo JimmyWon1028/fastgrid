@@ -19,12 +19,13 @@
 - 日常修改不要每次都編譯到 `dist`。
 - 除非使用者明確要求「編譯」、「build」、「重建 dist」、「產生 dist」或同等意思，否則不要主動執行會更新 `dist` 的指令，例如 `npm run build` 或 `npm run smoke`。
 - 修改確認完成後，預設啟動開發伺服器，提供本機網址讓使用者自行測試。
+- 所有 `demo/*.html`、共用 Demo 設定與動態產生的 theme selector 都必須以 `default` 作為初始主題；可以保留其他 theme 的切換功能，但不得讓個別 Demo 預設為其他 theme。
 - 若任務需要驗證但使用者沒有要求編譯，優先使用不會改寫 `dist` 的檢查方式；如果現有驗證只能透過 build/smoke 完成，先回報限制並等待使用者指示。
 - FabUI 使用的 icon 定義統一放在 `src/fabui.icon.css`，例如 `icon-datebox`、`icon-refwin`；不要在核心 CSS 直接硬編圖檔路徑。
 - 開發測試優先使用 source-mode `demo/dev-grid.html`，直接引用公開入口 `src/fabui.js` 與 `src/fabui.css`；build-mode 主 Demo 固定為 `demo/grid.html`。內部模組仍放在各自目錄。修改 source 後要同步更新 query version，避免瀏覽器快取造成誤判。
 - 新增任何核心 UI 文字時，必須同步補齊 `en`、`zh-TW`、`zh-CN` locale key；demo-only 文字若會隨語言切換，也要放進 demo locale pack，不要寫死單一語言。
 - popup menu 樣式要維持一致：左側 icon 欄、icon 後分隔線、緊湊列高與清楚 hover/active 狀態；後續新增 popup menu 時沿用目前 filter menu 的視覺規則。
-- 所有既有與未來新增的 popup 都必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或其 trigger 不得誤關閉。關閉只負責收起 popup，不得隱含套用、清除或提交尚未確認的內容；同時開啟多個 popup 時，點進其中一個也必須關閉其餘 popup。
+- 所有既有與未來新增的 popup 都必須支援按 `Escape` 與點擊 popup 外部關閉；點擊 popup 內部或其 trigger 不得誤關閉。關閉只負責收起 popup，不得隱含套用、清除或提交尚未確認的內容；同時開啟多個 popup 時，點進其中一個也必須關閉其餘 popup。Popup 所需的 document／window listener 只在開啟期間綁定，關閉或 dispose 時必須立即解除。
 - 工作進度記錄放在 `worklogs/YYYY-MM-DD.md`，固定使用 `## 完成進度` 標題；功能契約改動時，同步更新 README 與本文件。
 - Excel 預設匯出完整欄位集合，隱藏欄位必須保留資料並在工作表標記為 hidden；只有明確傳入 `visibleOnly === true` 時才只匯出可見欄位。
 - Excel 匯出使用目前 grid `view`。群組啟用時必須保留 group row、群組 aggregate 顯示格式與收合狀態。
@@ -47,14 +48,27 @@ FabGrid 是一個以效能為優先的 data grid，核心使用 pure JavaScript 
 
 - `fabui` 是最上層 UI namespace，Browser global 與 ES module 公開入口目前輸出 FabGrid、Chart 與其必要定義。
 - Browser global 與 ES module 皆以 `fabui.version` 公開 `YYYY.M.D` 格式的發佈日期版本，每次 build 依本機當天日期自動產生。
-- FabGrid 與 EditBox 共用的 editor 定義位於 `src/editbox/editbox-definitions.js`，由 core bundle 的 `fabui.editorDefinitions` 與獨立 EditBox 的 `EditBox.editorDefinitions` 公開；不可在 Grid 內維護多套數字／日期清理、格式化或 editor class。`src/editor/editor-definitions.js` 只保留舊 import path 相容入口。
-- FabGrid 年月編輯統一使用 `date`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不另外定義年月專用 editor。FabGrid 與獨立 EditBox 的 DateBox `autoUnmask` 預設皆為 `true`，複製日期／年月內容時必須移除遮罩字面值；只有明確設定 `autoUnmask: false` 時才保留遮罩。
+- FabGrid 與 `fabui.EditBox` 共用的 editor 定義位於 `src/editbox/editbox-definitions.js`，由 core bundle 的 `fabui.editorDefinitions` 與 `fabui.EditBox.editorDefinitions` 公開；不可在 Grid 內維護多套數字／日期清理、格式化或 editor class。`src/editor/editor-definitions.js` 只保留舊 import path 相容入口。
+- FabGrid 與 `fabui.EditBox` 的日期 popup 共用 `src/editbox/date-popup.js`；Calendar DOM、月份選單、鍵盤導覽、outside click、`Escape` lifecycle 與 `.fui-calendar-*` 樣式以 EditBox 視覺為唯一基準。Grid 只保留 cell／Search Row 的日期寫回邏輯，不得另建 `fg-datebox-*` renderer 或 CSS。
+- 共用 DatePopup 的 `showLunar` 預設為 `false`；設為 `true` 時在國曆日期下方顯示農曆日期，FabGrid cell editor、Search Row 與 `fabui.EditBox` 必須沿用同一個 option、轉換與 DOM／CSS，不得各自實作農曆 renderer。
+- 共用 DatePopup 的 Calendar theme 樣式以本機 `res/themes/*/calendar.css` 為視覺參考，但 source、Demo 與 build 不得依賴 `res/`。Date EditBox 預設繼承外層 `fg-theme-*` class，並可用 `theme`／`setTheme(theme)` 覆寫；FabGrid popup 必須跟隨 Grid root 的 theme class，包含 popup 已開啟時的 theme 變更。
+- FabGrid 與 `fabui.EditBox` 的清單 popup 共用 `src/editbox/combo-popup.js`；option、group、active／selected 狀態、鍵盤導覽、寬度量測、outside click、`Escape` lifecycle 與 `.fui-combobox-*` 樣式以 EditBox 視覺為唯一基準。Grid 只保留 cell／Search Row 的資料過濾、驗證與值寫回邏輯，不得另建 `fg-combobox-*` popup renderer 或 CSS。
+- FabGrid 與 `fabui.EditBox` 的顏色 popup 共用 `src/editbox/color-popup.js`；色票、HSV、Alpha、pointer drag、outside click、`Escape` lifecycle 與 `.fui-colorbox-*` 樣式以 EditBox 視覺為唯一基準。Grid 只保留 cell／Search Row 的顏色寫回邏輯與顏色名稱原樣保存契約，不得另建 `fg-color-*` popup renderer 或 CSS。
+- FabGrid 年月編輯統一使用 `date`；當 mask 為 `9999/99` 或 `9999-99` 時，popup 固定使用年份／月份選擇模式，不另外定義年月專用 editor。FabGrid 與 `fabui.EditBox` 的 DateBox `autoUnmask` 預設皆為 `true`，複製日期／年月內容時必須移除遮罩字面值；只有明確設定 `autoUnmask: false` 時才保留遮罩。
 - FabGrid 位於 `fabui.FabGrid`；`src/fabui.js` 是入口，`src/grid/fabgrid.js` 是 Grid 子模組。
 - Chart 位於 `fabui.Chart`；使用 pure JavaScript SVG rendering，只支援直條圖、橫條圖、折線圖與圓餅圖，原始碼位於 `src/chart/` 並納入主 bundle。
 - PivotChart 位於 `fabui.pivot.PivotChart`；直接監聽共用 PivotEngine 的 `updatedView`，只負責將 Pivot view 轉成既有 `fabui.Chart` 的 categories／series，不得重新彙總原始資料或複製 Chart renderer。
-- FabGrid 與 `fabui.EditBox` 的公開 editor 名稱統一為 `text`、`number`、`date`、`combo`、`color`；舊 `textbox`、`numberbox`、`datebox`、`combobox` 僅保留為相容別名，CSS class 名稱不必跟著改。EditBox 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class；editor 類型別名、共用 definitions、icon descriptor 與 Color palette／HSV／alpha 樣式契約必須和 FabGrid 一致。原四個 Box class 只保留為 EditBox 內部實作，原始碼統一放在 `src/editbox/` 的 `text-editbox.*`、`number-editbox.*`、`date-editbox.*`、`combo-editbox.*`，不得再建立分散的 `src/*box/` 目錄，也不得由 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 或 `dist/fabui.*` 公開。EditBox 使用獨立 entry、CSS 與 `dist/editbox.*`，不得併入 FabGrid core bundle。Tabs 仍只保留原始碼且不列入目前產品 roadmap。
-- EditBox jQuery wrapper 位於 `packages/fabeditbox-jquery`，以 `$.fn.fabeditbox` 對應 EditBox options、events、methods 與 lifecycle；使用獨立 build，不得依賴或載入 FabGrid core。宣告式初始化使用 `.fab-editbox` 搭配安全解析的 EasyUI 風格 `data-options`，例如 `editor:'text',iconCls:'icon-search'`；尺寸同時相容 inline `style="width:300px"`、`data-options="width:300"` 與 `data-options="width:'300px'"`，JavaScript options 優先於 HTML 設定。Browser global 在 DOM ready 自動解析，動態內容使用 `fabuiEditBoxJQuery.parse(container)`；`data-options` 只解析資料值，不得執行其中的 function 或任意程式碼。
-- `Window`、`Panel`、`Layout` 已列入後續元件 roadmap；樣式與 API 契約參考 jQuery EasyUI Material Teal，但不得加入 jQuery／EasyUI runtime 依賴。
+- FabGrid 與 `fabui.EditBox` 的公開 editor 名稱統一為 `text`、`number`、`date`、`combo`、`color`；舊 `textbox`、`numberbox`、`datebox`、`combobox` 僅保留為相容別名，CSS class 名稱不必跟著改。`fabui.EditBox` 是 TextBox、NumberBox、DateBox、ComboBox 的單一公開替代 class；editor 類型別名、共用 definitions、icon descriptor 與 Color palette／HSV／alpha 樣式契約必須和 FabGrid 一致。原四個 Box class 只保留為 `fabui.EditBox` 內部實作，原始碼統一放在 `src/editbox/` 的 `text-editbox.*`、`number-editbox.*`、`date-editbox.*`、`combo-editbox.*`，不得再建立分散的 `src/*box/` 目錄，也不得在 `fabui` 頂層公開。`fabui.EditBox` 必須納入 `src/fabui.js`、`src/fabui.css`、`build/build.cjs` 與 `dist/fabui.*`，不得另行輸出 `dist/editbox.*`。
+- FabGrid cell editor、Search Row 與 `fabui.EditBox` 的 icon descriptor 公開標準欄位統一為 `iconCls`、`title`、`ariaLabel`、`text`、`width`、`align`、`keepFocus`、`onClick`，並由 `src/editbox/editor-icons.js` 單次正規化；`className`／`iconClass`／`icon`、`label`、`click`／`handler` 只保留舊寫法相容，renderer 不得各自重複解析別名。
+- EditBox jQuery wrapper 位於 `packages/fabeditbox-jquery`，以 `$.fn.fabeditbox` 對應 `fabui.EditBox` options、events、methods 與 lifecycle；使用獨立 wrapper build，Browser global 依賴 `dist/fabui.min.js` 提供 `fabui.EditBox`。宣告式初始化使用 `.fab-editbox` 搭配安全解析的 EasyUI 風格 `data-options`，例如 `editor:'text',iconCls:'icon-search'`；尺寸同時相容 inline `style="width:300px"`、`data-options="width:300"` 與 `data-options="width:'300px'"`，JavaScript options 優先於 HTML 設定。Browser global 在 DOM ready 自動解析，動態內容使用 `fabuiEditBoxJQuery.parse(container)`；`data-options` 只解析資料值，不得執行其中的 function 或任意程式碼。
+- `fabui.Button` 已由 FabUI core 公開，原始碼位於 `src/button/`；API 與視覺參考 jQuery EasyUI LinkButton／Default theme，支援 `<a>`／`<button>`、尺寸、disabled、plain、outline、toggle、group、四方向 `iconCls`、theme、Control registry 與 dispose 還原，icon 預設位於文字左側，統一使用 `icon-xxx` 並由 `src/fabui.icon.css` 定義。`fabui.Calendar` 位於 `src/calendar/`，API 與視覺參考 jQuery EasyUI Calendar／Default theme；必須以嵌入模式共用 `src/editbox/date-popup.js` 的 renderer、月份選單、農民曆與 `.fui-calendar-*` 樣式，不得維護第二套 Calendar DOM，`showLunar` 預設為 `false`。`fabui.Tabs` 位於 `src/tabs/`，API 與視覺參考 jQuery EasyUI Tabs／Default theme，支援 markup／programmatic panels、動態新增／插入／更新／關閉、tab tools、header tools、四方向、overflow、遠端內容、keyboard、theme、locale、Control registry 與 dispose；所有 icon 一律使用 `iconCls: 'icon-xxx'` 並由 `src/fabui.icon.css` 定義。`fabui.Panel` 已由 FabUI core 公開，原始碼位於 `src/panel/`；提供 header／body／footer、custom tools、狀態、遠端 lazy load、cache、theme、locale、Control registry 與可取消 lifecycle；最大化／還原、收合／展開預設使用 180ms 過渡動畫，支援關閉動畫並遵守 `prefers-reduced-motion`。`fabui.Window` 位於 `src/window/`，另提供浮動定位、拖曳、八方向縮放、modal mask 與置中；右上角預設只顯示最大化／還原與關閉，狀態切換使用可關閉的過渡動畫，左上角標題 icon 統一使用 `iconCls: 'icon-xxx'` 並由 `src/fabui.icon.css` 定義。`fabui.Layout` 位於 `src/layout/`，north／south／east／west／center 五區必須重用 `fabui.Panel`，Layout 只維護 dock geometry、collapsed bar、float／dock expand、pointer／keyboard Splitter、動態 add／remove、split／unsplit、巢狀 resize 與 lifecycle，不得複製 Panel renderer；edge region 收起／展開必須同步動畫 center、Splitter 與 collapsed bar，預設啟用並遵守 `prefers-reduced-motion`。這些元件不得加入 jQuery／EasyUI runtime 依賴。
+- `fabui.Tooltip` 位於 `src/tooltip/`，API 與視覺參考 jQuery EasyUI Tooltip／Default theme；支援四方向、HTML／function content、滑鼠追蹤、顯示／隱藏延遲、viewport 翻轉、Escape、外部點擊、互斥 popup、theme、Control registry 與 dispose 還原。Tooltip 顯示期間只綁定必要的 document／window listener，隱藏或 dispose 時必須立即解除。
+- `fabui.Menu` 位於 `src/menu/`，API 與視覺參考 jQuery EasyUI Menu／Default theme；支援 context／inline menu、巢狀 submenu、自訂內容、`iconCls: 'icon-xxx'`、separator、disabled、runtime item API、三語系 ARIA、鍵盤、viewport 翻轉、theme、Control registry 與 dispose 還原。Menu 必須沿用固定左側 icon 欄、icon 後分隔線與約 32px 列高；非 inline Menu 開啟期間才綁定 document／window listener，點擊外部、`Escape`、捲動或 viewport 改變時關閉，點擊 menu 內部不得誤關閉。
+- `fabui.MenuButton` 位於 `src/menubutton/`，API 與視覺參考 jQuery EasyUI MenuButton／Default theme；必須直接組合既有 `fabui.Button` 與 `fabui.Menu`，不得複製 Button renderer 或 Menu popup lifecycle。支援 selector／element／既有 Menu、hover／click、`menuAlign`、`hasDownArrow`、disabled、ArrowDown／Escape、ARIA、theme、Control registry 與 dispose 還原；Button 與 Menu icon 一律使用 `iconCls: 'icon-xxx'`。MenuButton 的 icon、文字與下拉箭頭之間不得顯示分隔線；只有 SplitButton 在滑鼠移入時顯示主操作區與箭頭區的分隔線。Trigger 與 popup 的 hover 交接必須使用同一 mouse／pointer event family，移入 popup 時取消隱藏計時，不得在使用者選擇項目前誤關閉。
+- `fabui.SplitButton` 位於 `src/splitbutton/`，API 與視覺參考 jQuery EasyUI SplitButton／Default theme；必須直接組合既有 `fabui.MenuButton`，主區域 click 只執行主動作，右側箭頭區 click／hover 才顯示 Menu，不得複製 Button、Menu 或 popup lifecycle。支援 `menuAlign`、`duration`、disabled、ArrowDown／Escape、ARIA、theme、Control registry 與 dispose 還原；所有 icon 一律使用 `iconCls: 'icon-xxx'`。主操作區與箭頭區的分隔線預設透明，只在滑鼠移入整個 SplitButton 時顯示。
+- `fabui.Messager` 位於 `src/messager/`，API 與視覺參考 jQuery EasyUI Messager／Default theme；以 singleton 提供 `show`、`alert`、`confirm`、`prompt`、`progress`。Alert／Confirm／Prompt／Progress 必須重用 `fabui.Window`，Footer 動作必須重用 `fabui.Button`，不得另建 dialog／button renderer；Toast resize listener 只在 Toast 存在期間綁定。支援三語系、16 組 theme、Enter／Escape／focus trap、ARIA、Toast 堆疊、Progress bar handle 與集中於 `src/fabui.icon.css` 的 `icon-info`／`icon-warning`／`icon-question`／`icon-error`。
+- `fabui.Tabs` 的 `draggable` 預設為 `false`；設為 `true` 時允許 `top`／`bottom` 頁籤以滑鼠左右拖曳排序，必須保留目前選取 panel 與 DOM 對應。跟隨游標的 drag image 使用 50% 透明背景、文字與 icon，保留目前 theme 的清楚外框與陰影，原位置 Tab 保持原樣且目的地仍可透視；往左拖時在目標 Tab 左側顯示 55% 半透明垂直線並插到左方，往右拖時在目標 Tab 右側顯示垂直線並插到右方。提示不顯示箭頭、不得被 Tab 的 overflow 裁切，顏色由各 theme 的主色補色變數定義。`left`／`right` 位置不得啟用水平拖曳。
+- `fabui.Tree` 位於 `src/tree/`，API 與視覺參考 jQuery EasyUI Tree／Default theme；支援 nested markup／data、展開收合、checkbox cascade、lines、`iconCls: 'icon-xxx'`、動態節點 API、右鍵事件、拖放、inline edit、filter、callback／Promise lazy loader、鍵盤、ARIA、三語系、16 組 theme、Control registry 與 dispose 還原。Tree 拖放的 before／after 插入線必須使用 55% 半透明；核心不得依賴 jQuery／EasyUI。
 - 未來發佈任何 standalone 控件時，必須建立獨立 entry、CSS、demo、API 文件與驗證；不得併回 FabGrid core bundle。
 - 核心使用不綁定框架的 pure JavaScript。
 - 第一版 demo 不需要後端。
@@ -87,7 +101,7 @@ fabgrid-jquery
 - `updatedView` 支援 constructor option callback，簽名為 `(grid, eventArgs)`；既有 Wijmo-compatible event object 與 native emitter API 必須保持相容。
 - 1 至 3 階列群組、aggregate、群組收合狀態與 Excel 群組匯出。
 - `childItemsPath` TreeGrid、節點收合／展開、同層排序、篩選祖先路徑、收合／篩選後維持原始列號與階層鍵盤導覽。樹欄所有資料 cell 右鍵都必須顯示單一「全部展開／全部疊合」狀態項目；仍有可視展開節點時顯示全部疊合，全部疊合後交換為全部展開，並由 TreeGrid class 共用既有 Grid popup 容器與關閉規則，不得只實作在 Demo。
-- `allowDragging: 'Rows'` 的本機資料列拖曳、跨 Grid move、TreeGrid `before`／`inside`／`after` 節點重排與上下階；循環階層必須被拒絕。
+- `allowDragging: 'Rows'` 的本機資料列拖曳、跨 Grid move、TreeGrid `before`／`inside`／`after` 節點重排與上下階；循環階層必須被拒絕。欄位拖曳、資料列 `before`／`after`／`inside` 與 PivotPanel 欄位拖曳的插入指示線統一使用 55% 半透明，不得顯示不透明實線；Grid／TreeGrid 資料列插入指示線的右邊界不得超過實際欄位區域或延伸到垂直捲軸。
 - 左上角列頭 cell 右鍵功能表，提供搜尋列切換、清除所有篩選、「列號」下層顯示模式、Excel／CSV 匯出與 Grid fullscreen。
 - `selectionMode` 支援 `Cell` 與連續矩形 `CellRange`；後者支援滑鼠拖曳、`Shift + Click`、`Shift + 方向鍵`與 TSV clipboard copy。CellRange 雙擊必須由同一資料格的連續 pointer 操作成立，`pointercancel` 不得觸發雙擊，完成 pointer 選取後不得再由 click 重複套用 selection 或 render。`highlightActiveRow` 預設為 `true`，只控制 active row 背景，不得隱含改變多選列；active cell 邊框預設為 2px，`setRowHeaderWidth(width)` 可在 runtime 調整列號欄寬並自動 refresh。
 - `alternatingRowStep` 預設為 `1`；`false` 關閉交替列背景，正整數依指定列數為一組切換交替色。
@@ -99,7 +113,7 @@ fabgrid-jquery
 - 欄位拖曳、欄寬調整、雙擊 header 分隔線 AutoFit、欄位顯示切換、footer aggregate。
 - CSV 與 Excel 匯出，以及 Excel hidden columns、格式、凍結窗格與 autoFilter。
 - JSON API 使用 `getJson(options)`、`exportJson(filename, options)` 與 `importJson(source)`；預設匯出完整 `itemsSource` 以保留 TreeGrid 階層，只有 `viewOnly === true` 才匯出排除合成群組列的目前 view。
-- `text`、`number`、`date`、`combo`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；standalone 控件仍不由 core bundle 公開。
+- `text`、`number`、`date`、`combo`、`color` grid editor；`color` 支援 hex 與標準 CSS 顏色名稱，名稱提交後保留原文字；`fabui.EditBox` 由 core bundle 公開。
 - 欄位搜尋列遇到 `date`、`combo`、`color` editor 時沿用對應下拉 panel；搜尋輸入只建立 filter，不執行 cell validation。
 - Header 漏斗採互斥的兩套欄位篩選：`showSearchRow: true` 使用原 Search Row 運算子，`false` 使用 Excel-like 值篩選；每次切換模式先清除另一套欄位條件，右下角 Quick Search 保留。
 - Filterable Header 文字必須垂直置中，漏斗 icon 疊在右上方；icon 必須維持獨立且高於文字的 hit area，點擊只開啟篩選選單，不得觸發排序或欄位拖曳；Header 右邊界的 resize handle 必須高於 filter icon，確保拖曳調寬與雙擊 AutoFit 可用。
@@ -575,3 +589,4 @@ V1 符合以下條件時可視為成功：
 - 能用 `<script src="./fabui.min.js">` 建立 `fabui.FabGrid` 與其他 FabUI 控件。
 - Demo 頁面使用打包後的 dist 檔案運作。
 - `dispose()` 會移除 listeners，且不留下明顯的殘留行為。
+- 每次使用者明確要求 build 時，必須執行完整 FabUI core 與 wrapper build、`npm test`、smoke test、六個主發佈檔檢查及 `git diff --check`；2026-07-18 的基準結果為 `fabui.version` `2026.7.18`、285／285 項測試通過且 smoke 全部通過。

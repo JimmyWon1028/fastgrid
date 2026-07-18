@@ -43,6 +43,7 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `columns` | `Array` | 欄位定義；提供後優先於 `FabGridColumn`。 |
 | `gridOptions` | `Object` | 傳給 core 的進階完整 options。 |
 | `allowEditing` | `Boolean` | 是否允許編輯。 |
+| `allowDragging` | `Boolean\|String` | `None`、`Columns`、`Rows`、`All`，或相容 boolean 設定。 |
 | `allowFiltering` | `Boolean` | Search Row 與 Excel-like 欄位篩選的共用開關；關閉時保留 Quick Search。 |
 | `allowSorting` | `Boolean` | 是否允許排序。 |
 | `allowResizing` | `Boolean` | 是否允許調整欄寬。 |
@@ -78,6 +79,9 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `loaded-rows` | `loadedRows` |
 | `filter-changed` | `filterChanged` |
 | `format-item` | `formatItem`；參數包含 `panel`、`cell`、`row`、`col`、`item`、`column` 與 `value`。 |
+| `dragging-row` / `dragged-row` | `draggingRow` / `draggedRow` |
+| `row-header-mode-changed` | `rowHeaderModeChanged` |
+| `search-row-visibility-changed` | `searchRowVisibilityChanged` |
 
 ## Component ref
 

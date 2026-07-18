@@ -4,6 +4,9 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const root = path.resolve(__dirname, '..');
+const distDir = process.env.FABUI_DIST_DIR ?
+  path.resolve(process.env.FABUI_DIST_DIR) :
+  path.join(root, 'dist');
 const port = 4174;
 const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
@@ -15,8 +18,12 @@ const types = {
 
 function serveFile(req, res) {
   const urlPath = req.url.split('?')[0] === '/' ? '/test/smoke.html' : req.url.split('?')[0];
-  const filePath = path.normalize(path.join(root, urlPath));
-  if (filePath.indexOf(root) !== 0) {
+  const baseDir = urlPath.indexOf('/dist/') === 0 ? distDir : root;
+  const relativePath = urlPath.indexOf('/dist/') === 0 ?
+    urlPath.slice('/dist/'.length) :
+    urlPath;
+  const filePath = path.normalize(path.join(baseDir, relativePath));
+  if (filePath !== baseDir && filePath.indexOf(baseDir + path.sep) !== 0) {
     res.writeHead(403);
     res.end('Forbidden');
     return;
@@ -82,6 +89,30 @@ server.listen(port, '127.0.0.1', async function() {
       !result.chartBindingWorks ||
       !result.chartPieWorks ||
       !result.chartDisposeWorks ||
+      !result.hasEditBox ||
+      !result.editBoxCoreBundleWorks ||
+      !result.hasCalendar ||
+      !result.calendarCoreBundleWorks ||
+      !result.hasTabs ||
+      !result.tabsCoreBundleWorks ||
+      !result.hasTree ||
+      !result.treeCoreBundleWorks ||
+      !result.hasTooltip ||
+      !result.tooltipCoreBundleWorks ||
+      !result.hasMenu ||
+      !result.menuCoreBundleWorks ||
+      !result.hasMenuButton ||
+      !result.menuButtonCoreBundleWorks ||
+      !result.hasSplitButton ||
+      !result.splitButtonCoreBundleWorks ||
+      !result.hasMessager ||
+      !result.messagerCoreBundleWorks ||
+      !result.hasPanel ||
+      !result.panelCoreBundleWorks ||
+      !result.hasLayout ||
+      !result.layoutCoreBundleWorks ||
+      !result.hasWindow ||
+      !result.windowCoreBundleWorks ||
       !result.hasFabGrid ||
       !result.controlLookupWorks ||
       !result.coreBundleOnlyWorks ||
@@ -375,12 +406,6 @@ server.listen(port, '127.0.0.1', async function() {
       throw new Error('Smoke assertions failed: ' + JSON.stringify(result));
     }
     const expectedDistFiles = [
-      'editbox.css',
-      'editbox.esm.js',
-      'editbox.esm.min.js',
-      'editbox.js',
-      'editbox.min.css',
-      'editbox.min.js',
       'fabui.css',
       'fabui.esm.js',
       'fabui.esm.min.js',

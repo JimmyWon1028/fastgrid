@@ -2,7 +2,7 @@
 
 `fabgrid-jquery` 是 `fabui.FabGrid` 的薄型 jQuery adapter。它只負責 instance、方法、option、事件與生命週期轉接，不參與 cell rendering 或 virtualization。
 
-EditBox 使用不依賴 FabGrid core 的獨立 `$.fn.fabeditbox` wrapper，詳見 [EditBox jQuery Wrapper API](./editbox-jquery-api.md)。
+`fabui.EditBox` 使用獨立發佈的 `$.fn.fabeditbox` wrapper，控件本身由 FabUI core 提供；詳見 [`fabui.EditBox` jQuery Wrapper API](./editbox-jquery-api.md)。
 
 ## 載入與初始化
 
@@ -71,7 +71,7 @@ $("#grid").fabgrid("option", {
 
 `itemsSource`、`columns`、`locale`、凍結欄與其他具有正式 setter 的設定會轉交 core setter；其他設定更新 `grid.options` 後呼叫 `invalidate()`。
 
-目前會優先呼叫正式 setter 的動態設定包括 `itemsSource`、`columns`、`locale`、左右凍結欄、列號模式、列號欄寬、footer、搜尋列、列群組、編輯模式、多選、頁碼、每頁筆數與 header 顯示模式。
+目前會優先呼叫正式 setter 的動態設定包括 `itemsSource`、`columns`、`locale`、`activeCellBorder`、`allowFiltering`、左右凍結欄、列號模式、列號欄寬、footer、搜尋列、列群組、編輯模式、多選、頁碼、每頁筆數與 header 顯示模式。
 
 再次傳入 options 不會建立第二個 instance，而是更新既有 instance。
 

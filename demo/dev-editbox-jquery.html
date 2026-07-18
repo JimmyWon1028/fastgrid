@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EditBox jQuery 開發版 Demo</title>
-  <link rel="stylesheet" href="../src/editbox/editbox.css?v=20260717-editbox-jquery-v1">
+  <title>fabui.EditBox jQuery 開發版 Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260718-tabs-v1">
   <style>
     body {
       max-width: 720px;
@@ -49,9 +49,9 @@
     }
   </style>
 </head>
-<body>
-  <h1>EditBox jQuery 開發版 Demo</h1>
-  <p class="intro">使用 <code>$.fn.fabeditbox</code> 建立並操作 EditBox。</p>
+<body class="fg-theme-default">
+  <h1>fabui.EditBox jQuery 開發版 Demo</h1>
+  <p class="intro">使用 <code>$.fn.fabeditbox</code> 建立並操作 <code>fabui.EditBox</code>。</p>
 
   <div class="form-row"><label for="edit-name">文字</label><input class="editbox-jquery-input fab-editbox" id="edit-name" value="王小明" data-options="editor:'text',iconCls:'icon-search'" style="width:300px"></div>
   <div class="form-row"><label for="edit-amount">數字</label><input class="editbox-jquery-input" id="edit-amount" value="1280.5"></div>
@@ -69,10 +69,10 @@
   <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
   <script src="./js/editbox-jquery-demo.js?v=20260717-editbox-jquery-v1"></script>
   <script type="module">
-    import EditBox from '../src/editbox/editbox.js?v=20260717-editbox-jquery-v1';
+    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
     import { createFabEditBoxJQuery } from '../packages/fabeditbox-jquery/src/fabeditbox-jquery.js?v=20260717-editbox-jquery-v1';
 
-    var adapter = createFabEditBoxJQuery(window.jQuery, { EditBox: EditBox });
+    var adapter = createFabEditBoxJQuery(window.jQuery, fabui);
     adapter.parse(document);
     window.mountFabEditBoxJQueryDemo(window.jQuery);
   </script>

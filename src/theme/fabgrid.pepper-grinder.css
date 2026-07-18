@@ -1,5 +1,5 @@
 /*! FabGrid theme pepper-grinder | performance-first data grid */
-@import './pepper-grinder/tabs.css';
+@import './pepper-grinder/tabs.css?v=20260718-tabs-drag-right-v1';
 @import './pepper-grinder/components.css';
 .fg-root.fg-theme-pepper-grinder,
 .fui-tabs.fg-theme-pepper-grinder {

@@ -1,13 +1,13 @@
 import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v21';
-import { createColorEditBoxFactory } from './color-editbox.js?v=20260717-editbox-v21';
-import { createTextBoxFactory } from './text-editbox.js?v=20260717-editbox-v21';
+import { createColorEditBoxFactory } from './color-editbox.js?v=20260718-final-audit-v1';
+import { createTextBoxFactory } from './text-editbox.js?v=20260718-editor-icons-v1';
 import { createNumberBoxFactory } from './number-editbox.js?v=20260717-editbox-v21';
-import { createDateBoxFactory } from './date-editbox.js?v=20260717-editbox-v21';
-import { createComboBoxFactory } from './combo-editbox.js?v=20260717-editbox-v21';
+import { createDateBoxFactory } from './date-editbox.js?v=20260718-final-audit-v1';
+import { createComboBoxFactory } from './combo-editbox.js?v=20260718-final-audit-v1';
 
 var EDITOR_TYPES = ['text', 'number', 'date', 'combo', 'color'];
 
-function assign(target) {
+function assignEditBoxOptions(target) {
   var index;
   var source;
   var key;
@@ -92,7 +92,7 @@ export function createEditBoxFactory(editorDefinitions) {
     if (this._source.tagName === 'SELECT' && this._editorType !== 'combo') {
       throw new Error('fabui.EditBox select elements require editor "combo".');
     }
-    childOptions = assign({}, options);
+    childOptions = assignEditBoxOptions({}, options);
     delete childOptions.editor;
     delete childOptions.editType;
     delete childOptions.kind;
@@ -259,6 +259,14 @@ export function createEditBoxFactory(editorDefinitions) {
 
   EditBox.prototype.setEditable = function(mode) {
     this._control.setEditable(mode);
+    return this;
+  };
+
+  EditBox.prototype.setTheme = function(theme) {
+    if (typeof this._control.setTheme !== 'function') {
+      throw new Error('fabui.EditBox setTheme() requires editor "date".');
+    }
+    this._control.setTheme(theme);
     return this;
   };
 

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fabui.Button 開發版 Demo</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260718-button-icon-left-v2">
+  <style>
+    body {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+      background: #fff;
+      color: #333;
+      font: 14px Arial, sans-serif;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+    }
+
+    h2 {
+      margin: 28px 0 10px;
+      font-size: 18px;
+    }
+
+    .demo-toolbar,
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .demo-toolbar {
+      padding: 12px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+
+    .button-panel {
+      padding: 10px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+
+    #button-status {
+      min-height: 20px;
+      margin-top: 10px;
+      color: #666;
+    }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.Button 開發版 Demo</h1>
+  <p>Pure JavaScript Button，參考 EasyUI LinkButton，支援文字、icon、尺寸、plain、disabled、toggle 與 group。</p>
+
+  <div class="demo-toolbar">
+    <label for="button-theme">主題</label>
+    <select id="button-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+    </select>
+    <button id="toggle-disabled" type="button">切換 Disabled</button>
+    <button id="change-dynamic" type="button">動態更新</button>
+  </div>
+  <div id="button-status" aria-live="polite"></div>
+
+  <h2>Basic Buttons</h2>
+  <div class="button-row">
+    <a id="button-add" href="#button-status">新增</a>
+    <button id="button-remove" type="button">移除</button>
+    <button id="button-save" type="button">儲存</button>
+    <button id="button-cut" type="button">剪下</button>
+    <button id="button-text" type="button">純文字</button>
+  </div>
+
+  <h2>Fixed／Fluid Width</h2>
+  <div class="button-panel">
+    <div class="button-row">
+      <button id="button-search" type="button">搜尋</button>
+      <button id="button-print" type="button">列印</button>
+    </div>
+    <div style="margin-top:10px">
+      <button id="button-fluid" type="button">50% 寬度</button>
+    </div>
+  </div>
+
+  <h2>Plain Buttons</h2>
+  <div class="button-panel button-row">
+    <button id="button-plain-add" type="button">新增</button>
+    <button id="button-plain-help" type="button" aria-label="說明"></button>
+  </div>
+
+  <h2>Icon Align／Size</h2>
+  <div class="button-row">
+    <button id="button-icon-left" type="button">Left</button>
+    <button id="button-icon-right" type="button">Right</button>
+    <button id="button-icon-top" type="button">Top</button>
+    <button id="button-icon-bottom" type="button">Bottom</button>
+  </div>
+
+  <h2>Toggle／Group</h2>
+  <div class="button-row">
+    <button id="button-toggle" type="button">獨立 Toggle</button>
+    <button id="button-group-1" type="button">選項一</button>
+    <button id="button-group-2" type="button">選項二</button>
+    <button id="button-group-3" type="button">選項三</button>
+  </div>
+
+  <h2>Runtime API</h2>
+  <div class="button-row">
+    <button id="button-dynamic" type="button">動態 Button</button>
+  </div>
+
+  <script src="./js/button-demo.js?v=20260718-button-icon-left-v2"></script>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
+
+    window.mountFabUIButtonDemo(fabui);
+  </script>
+</body>
+</html>

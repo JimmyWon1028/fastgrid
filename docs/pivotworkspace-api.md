@@ -99,8 +99,6 @@ Panel／Grid 與 Grid／Chart 之間各有一條 `role="separator"` 分隔線：
 | `panelOptions` | `{}` | 傳給 PivotPanel 的 options。 |
 | `gridOptions` | `{}` | 傳給 PivotGrid 的 options。 |
 | `chartOptions` | `{}` | 傳給 PivotChart 的 options。 |
-
-`engineOptions.asyncBatchSize` 可設定非同步彙總的預設批次大小。
 | `locale` | `en` | Workspace 與三個子元件的語系。 |
 | `messages` | `null` | 自訂 locale messages。 |
 | `layout` | `Auto` | `Auto`、`Horizontal`、`Vertical`。 |
@@ -127,7 +125,19 @@ Panel／Grid 與 Grid／Chart 之間各有一條 `role="separator"` 分隔線：
 | `layoutChanged` | `null` | 排列方向改變後的 callback。 |
 | `paneSizeChanged` | `null` | Splitter 操作完成後的 callback。 |
 
-`itemsSource`、`fields`、`rowFields`、`columnFields`、`valueFields`、`filterFields`、`showRowTotals`、`showColumnTotals`、`totalsBeforeData`、`showZeros` 與 `autoGenerateFields` 會在建立內部 PivotEngine 時直接沿用。
+`engineOptions.asyncBatchSize` 可設定非同步彙總的預設批次大小。
+
+建立內部 PivotEngine 時，下列 Workspace 頂層 options 也會直接轉交 Engine：
+
+| Option | 說明 |
+| --- | --- |
+| `fields` | PivotField definitions。 |
+| `rowFields` / `columnFields` / `valueFields` / `filterFields` | 四個 View 區域的欄位 references。 |
+| `showRowTotals` / `showColumnTotals` | 列／欄小計與總計顯示模式。 |
+| `totalsBeforeData` | 是否將 totals 放在資料前。 |
+| `showZeros` | 無 aggregate value 時是否顯示 `0`。 |
+| `autoGenerateFields` | 未提供 fields 時是否自動建立欄位。 |
+| `asyncBatchSize` | `refreshAsync()` 預設批次大小；也可放在 `engineOptions`。 |
 
 `chartSize` 支援三種表示方式：
 

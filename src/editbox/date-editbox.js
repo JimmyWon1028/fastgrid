@@ -1,3 +1,6 @@
+import { DatePopup, normalizeDatePopupTheme } from './date-popup.js?v=20260718-final-audit-v1';
+import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
+
 export function createDateBoxFactory(TextBox, editorDefinitions) {
   'use strict';
 
@@ -45,9 +48,11 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     iconWidth: 28,
     panelWidth: 250,
     panelHeight: 'auto',
+    theme: 'inherit',
     locale: 'en',
     firstDay: 0,
     showWeek: false,
+    showLunar: false,
     weekNumberHeader: '',
     currentText: null,
     closeText: null,
@@ -92,22 +97,12 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     return typeof element === 'string' ? document.querySelector(element) : element;
   }
 
-  function cssSize(value, fallback) {
-    if (value == null || value === '') return fallback + 'px';
-    return typeof value === 'number' ? value + 'px' : String(value);
-  }
-
   function cloneDate(date) {
     return date instanceof Date && isFinite(date.getTime()) ? new Date(date.getTime()) : null;
   }
 
   function dateOnly(date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  }
-
-  function sameDate(left, right) {
-    return Boolean(left && right) && left.getFullYear() === right.getFullYear() &&
-      left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
   }
 
   function pad(value) {
@@ -144,10 +139,14 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     var panelWidth = element.getAttribute('panelWidth');
     var panelHeight = element.getAttribute('panelHeight');
     var firstDay = element.getAttribute('firstDay');
+    var showLunar = element.getAttribute('showLunar');
+    var theme = element.getAttribute('theme');
     var locale = element.getAttribute('locale');
     if (panelWidth != null && panelWidth !== '') options.panelWidth = isFinite(Number(panelWidth)) ? Number(panelWidth) : panelWidth;
     if (panelHeight != null && panelHeight !== '') options.panelHeight = isFinite(Number(panelHeight)) ? Number(panelHeight) : panelHeight;
     if (firstDay != null && firstDay !== '') options.firstDay = Number(firstDay);
+    if (showLunar != null) options.showLunar = showLunar !== 'false';
+    if (theme) options.theme = theme;
     if (locale) options.locale = locale;
     return options;
   }
@@ -162,48 +161,6 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   function isYearMonthMask(mask) {
     return /^9999[\/-]99$/.test(String(mask || ''));
   }
-
-  function CalendarController(owner) {
-    this.owner = owner;
-    this.element = owner._calendar;
-  }
-
-  CalendarController.prototype.options = function(options) {
-    if (!options) {
-      return {
-        current: cloneDate(this.owner._viewDate),
-        selected: cloneDate(this.owner._selectedDate),
-        firstDay: this.owner._options.firstDay,
-        weeks: this.owner._options.weeks.slice(),
-        months: this.owner._options.months.slice(),
-        showWeek: this.owner._options.showWeek,
-        validator: this.owner._options.validator
-      };
-    }
-    assign(this.owner._options, options);
-    this.owner._normalizeCalendarOptions();
-    this.owner._renderCalendar();
-    return this;
-  };
-
-  CalendarController.prototype.moveTo = function(date) {
-    var value = cloneDate(date);
-    if (value) {
-      this.owner._viewDate = dateOnly(value);
-      this.owner._renderCalendar();
-    }
-    return this;
-  };
-
-  CalendarController.prototype.select = function(date) {
-    this.owner._selectDate(date);
-    return this;
-  };
-
-  CalendarController.prototype.resize = function() {
-    this.owner._positionPanel();
-    return this;
-  };
 
   function DateBox(element, options) {
     var source;
@@ -241,7 +198,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     if (!Object.prototype.hasOwnProperty.call(userOptions, 'months')) this._options.months = locale.months.slice();
     this._normalizeCalendarOptions();
 
-    icons = Array.isArray(userOptions.icons) ? userOptions.icons.slice() : [];
+    icons = normalizeEditorIconDescriptors(userOptions.icons);
     icons.push({
       iconCls: 'icon-datebox fui-datebox-trigger',
       align: 'right',
@@ -269,7 +226,6 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._field = this._editor.closest('.fui-textbox-field');
     this._shell = this._editor.closest('.fui-textbox');
     this._buildPanel();
-    this._configureSharedCalendar();
     this._bind();
     source.__fabuiDateBox = this;
     this.initValue(this._initialValue);
@@ -282,6 +238,9 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       'months' :
       (this._options.calendarMode === 'months' ? 'months' : 'days');
     this._options.firstDay = Math.max(0, Math.min(6, parseInt(this._options.firstDay, 10) || 0));
+    this._options.theme = this._options.theme === 'inherit' ?
+      'inherit' :
+      normalizeDatePopupTheme(this._options.theme);
     this._options.weeks = Array.isArray(this._options.weeks) && this._options.weeks.length === 7 ? this._options.weeks.slice() : localePacks.en.weeks.slice();
     this._options.months = Array.isArray(this._options.months) && this._options.months.length === 12 ? this._options.months.slice() : localePacks.en.months.slice();
     this._options.formatter = typeof this._options.formatter === 'function' ? this._options.formatter : (definition && typeof definition.format === 'function' ? function(date) {
@@ -294,94 +253,44 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   };
 
   DateBox.prototype._buildPanel = function() {
-    var panel = document.createElement('div');
-    var calendar = document.createElement('div');
-    var header = document.createElement('div');
-    var title = document.createElement('button');
-    var body = document.createElement('div');
-    var menu = document.createElement('div');
-    var footer = document.createElement('div');
-    var nav = [
-      ['fui-calendar-prevyear', 'Previous year', -12],
-      ['fui-calendar-prevmonth', 'Previous month', -1],
-      ['fui-calendar-nextmonth', 'Next month', 1],
-      ['fui-calendar-nextyear', 'Next year', 12]
-    ];
-    var index;
-    var button;
-    panel.className = 'fui-datebox-panel fui-' + this._options.editorType + '-panel';
-    panel.hidden = true;
-    panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-modal', 'false');
-    calendar.className = 'fui-calendar' +
-      (this._options.calendarMode === 'months' ? ' fui-calendar-month-mode' : '');
-    header.className = 'fui-calendar-header';
-    title.className = 'fui-calendar-title';
-    title.type = 'button';
-    body.className = 'fui-calendar-body';
-    menu.className = 'fui-calendar-menu';
-    menu.hidden = true;
-    footer.className = 'fui-datebox-buttons';
-    for (index = 0; index < nav.length; index += 1) {
-      button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'fui-calendar-nav ' + nav[index][0];
-      button.setAttribute('aria-label', nav[index][1]);
-      button.setAttribute('data-month-offset', nav[index][2]);
-      header.appendChild(button);
-    }
-    header.appendChild(title);
-    calendar.appendChild(header);
-    calendar.appendChild(body);
-    calendar.appendChild(menu);
-    panel.appendChild(calendar);
-    panel.appendChild(footer);
-    document.body.appendChild(panel);
-    this._panel = panel;
-    this._calendar = calendar;
-    this._calendarHeader = header;
-    this._calendarTitle = title;
-    this._calendarBody = body;
-    this._calendarMenu = menu;
-    this._buttonBar = footer;
+    var self = this;
     this._viewDate = dateOnly(new Date());
     this._selectedDate = null;
-    this._calendarController = new CalendarController(this);
-    this._renderButtons();
-    this._renderCalendar();
-  };
-
-  DateBox.prototype._configureSharedCalendar = function() {
-    var host = resolveElement(this._options.sharedCalendar);
-    var state;
-    var self = this;
-    if (host) {
-      state = host.__fabuiDateBoxSharedCalendar;
-      if (state) {
-        if (this._calendar.parentNode) this._calendar.parentNode.removeChild(this._calendar);
-        this._calendar = state.calendar;
-        this._calendarHeader = this._calendar.querySelector('.fui-calendar-header');
-        this._calendarTitle = this._calendar.querySelector('.fui-calendar-title');
-        this._calendarBody = this._calendar.querySelector('.fui-calendar-body');
-        this._calendarMenu = this._calendar.querySelector('.fui-calendar-menu');
-      } else {
-        state = { calendar: this._calendar, host: host };
-        host.__fabuiDateBoxSharedCalendar = state;
-        host.classList.add('fui-datebox-shared-calendar');
-        host.appendChild(this._calendar);
+    this._datePopup = new DatePopup({
+      anchor: this._shell,
+      className: 'fui-' + this._options.editorType + '-panel',
+      theme: this._options.theme,
+      themeSource: this._shell,
+      openClassHost: this._shell,
+      sharedCalendar: this._options.sharedCalendar,
+      owner: this,
+      containsTarget: function(target) {
+        return self._field === target || self._field.contains(target);
+      },
+      onSelect: function(date) {
+        self._selectDate(date);
+      },
+      onOptionsChange: function(options) {
+        assign(self._options, options);
+        self._normalizeCalendarOptions();
+        self._syncDatePopup();
+        return false;
+      },
+      onShow: function() {
+        self._panelVisible = true;
+        if (typeof self._options.onShowPanel === 'function') self._options.onShowPanel.call(self);
+        self._emit('showPanel', { panel: self._panel });
+      },
+      onHide: function() {
+        self._panelVisible = false;
+        if (typeof self._options.onHidePanel === 'function') self._options.onHidePanel.call(self);
+        self._emit('hidePanel', { panel: self._panel });
       }
-      this._sharedCalendarState = state;
-    }
-    this._calendarController = new CalendarController(this);
-    if (!this._calendar.__fabuiDateBoxClickBound) {
-      this._calendar.addEventListener('click', function(event) {
-        var owner = self._calendar.__fabuiDateBoxOwner;
-        if (owner && !owner._destroyed) owner._handleCalendarClick(event);
-      });
-      this._calendar.__fabuiDateBoxClickBound = true;
-    }
-    this._calendar.__fabuiDateBoxOwner = this;
-    this._renderCalendar();
+    });
+    this._panel = this._datePopup.panel;
+    this._calendar = this._datePopup.calendar;
+    this._calendarController = this._datePopup.controller;
+    this._syncDatePopup();
   };
 
   DateBox.prototype._bind = function() {
@@ -394,22 +303,6 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
         if (!self._destroyed && !self._panel.contains(document.activeElement)) self.fix();
       }, 0);
     };
-    this._onPanelMouseDown = function(event) {
-      if (!event.target.closest('input')) event.preventDefault();
-    };
-    this._onPanelClick = function(event) {
-      if (event.target.closest('[data-button-index]')) self._handleCalendarClick(event);
-    };
-    this._onDocumentMouseDown = function(event) {
-      if (self._panelVisible && !self._panel.contains(event.target) && !self._field.contains(event.target)) self.hidePanel();
-    };
-    this._onDocumentKeyDown = function(event) {
-      if (!self._panelVisible || event.key !== 'Escape') return;
-      event.preventDefault();
-      self.hidePanel();
-    };
-    this._onWindowResize = function() { if (self._panelVisible) self._positionPanel(); };
-    this._onWindowScroll = function() { if (self._panelVisible) self._positionPanel(); };
     this._onFormReset = function() {
       window.setTimeout(function() { if (!self._destroyed) self.reset(); }, 0);
     };
@@ -417,232 +310,49 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._editor.addEventListener('input', this._onInput);
     this._editor.addEventListener('copy', this._onCopy);
     this._editor.addEventListener('blur', this._onInputBlur);
-    this._panel.addEventListener('mousedown', this._onPanelMouseDown);
-    this._panel.addEventListener('click', this._onPanelClick);
-    document.addEventListener('mousedown', this._onDocumentMouseDown);
-    document.addEventListener('keydown', this._onDocumentKeyDown);
-    window.addEventListener('resize', this._onWindowResize);
-    window.addEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
   };
 
+  DateBox.prototype._syncDatePopup = function() {
+    this._datePopup.setOptions({
+      anchor: this._shell,
+      className: 'fui-' + this._options.editorType + '-panel',
+      theme: this._options.theme,
+      themeSource: this._shell,
+      panelWidth: this._options.panelWidth,
+      panelHeight: this._options.panelHeight,
+      firstDay: this._options.firstDay,
+      showWeek: this._options.showWeek,
+      showLunar: this._options.showLunar,
+      weekNumberHeader: this._options.weekNumberHeader,
+      locale: this._options.locale,
+      currentText: this._options.currentText,
+      closeText: this._options.closeText,
+      yearText: this._options.yearText,
+      previousYearText: this._options.previousYearText,
+      nextYearText: this._options.nextYearText,
+      weeks: this._options.weeks,
+      months: this._options.months,
+      buttons: this._options.buttons,
+      calendarMode: this._options.calendarMode,
+      validator: this._options.validator,
+      validatorContext: this._source
+    });
+    this._datePopup.setValue(this._selectedDate, this._viewDate);
+    this._calendar = this._datePopup.calendar;
+    this._calendarController = this._datePopup.controller;
+  };
+
   DateBox.prototype._renderCalendar = function() {
-    var year = this._viewDate.getFullYear();
-    var month = this._viewDate.getMonth();
-    var first = new Date(year, month, 1);
-    var offset = (first.getDay() - this._options.firstDay + 7) % 7;
-    var cursor = new Date(year, month, 1 - offset);
-    var today = dateOnly(new Date());
-    var table = document.createElement('table');
-    var head = document.createElement('thead');
-    var row = document.createElement('tr');
-    var body = document.createElement('tbody');
-    var index;
-    var dayIndex;
-    var cell;
-    var button;
-    var date;
-    var valid;
-    this._calendarTitle.textContent = this._options.months[month] + ' ' + year;
-    table.setAttribute('role', 'grid');
-    if (this._options.showWeek) {
-      cell = document.createElement('th');
-      cell.className = 'fui-calendar-week-number';
-      cell.textContent = this._options.weekNumberHeader || '';
-      row.appendChild(cell);
-    }
-    for (index = 0; index < 7; index += 1) {
-      cell = document.createElement('th');
-      cell.scope = 'col';
-      cell.textContent = this._options.weeks[(this._options.firstDay + index) % 7];
-      row.appendChild(cell);
-    }
-    head.appendChild(row);
-    table.appendChild(head);
-    for (index = 0; index < 6; index += 1) {
-      row = document.createElement('tr');
-      if (this._options.showWeek) {
-        cell = document.createElement('td');
-        cell.className = 'fui-calendar-week-number';
-        cell.textContent = this._weekNumber(cursor);
-        row.appendChild(cell);
-      }
-      for (dayIndex = 0; dayIndex < 7; dayIndex += 1) {
-        date = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
-        valid = this._options.validator.call(this._source, date);
-        cell = document.createElement('td');
-        button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'fui-calendar-day';
-        button.textContent = date.getDate();
-        button.setAttribute('data-date', date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()));
-        button.setAttribute('aria-label', defaultFormatter(date));
-        if (date.getMonth() !== month) button.classList.add('fui-calendar-other-month');
-        if (date.getDay() === 0) button.classList.add('fui-calendar-sunday');
-        if (date.getDay() === 6) button.classList.add('fui-calendar-saturday');
-        if (sameDate(date, today)) button.classList.add('fui-calendar-today');
-        if (sameDate(date, this._selectedDate)) {
-          button.classList.add('fui-calendar-selected');
-          button.setAttribute('aria-selected', 'true');
-        }
-        if (!valid) {
-          button.disabled = true;
-          button.classList.add('fui-calendar-disabled');
-        }
-        cell.appendChild(button);
-        row.appendChild(cell);
-        cursor.setDate(cursor.getDate() + 1);
-      }
-      body.appendChild(row);
-    }
-    table.appendChild(body);
-    this._calendarBody.textContent = '';
-    this._calendarBody.appendChild(table);
-    this._renderMonthMenu();
-    if (this._options.calendarMode === 'months') {
-      this._calendarMenu.hidden = false;
-      this._calendarBody.hidden = true;
-    }
-  };
-
-  DateBox.prototype._weekNumber = function(date) {
-    var current = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    var day = current.getUTCDay() || 7;
-    var yearStart;
-    current.setUTCDate(current.getUTCDate() + 4 - day);
-    yearStart = new Date(Date.UTC(current.getUTCFullYear(), 0, 1));
-    return Math.ceil((((current - yearStart) / 86400000) + 1) / 7);
-  };
-
-  DateBox.prototype._renderMonthMenu = function() {
-    var yearRow = document.createElement('div');
-    var yearInput = document.createElement('input');
-    var previousYear = document.createElement('button');
-    var nextYear = document.createElement('button');
-    var grid = document.createElement('div');
-    var index;
-    var button;
-    yearRow.className = 'fui-calendar-menu-year-row';
-    yearInput.className = 'fui-calendar-menu-year';
-    yearInput.type = 'number';
-    yearInput.value = this._viewDate.getFullYear();
-    yearInput.setAttribute('aria-label', this._options.yearText);
-    previousYear.type = 'button';
-    previousYear.className = 'fui-calendar-menu-year-nav fui-calendar-menu-prevyear';
-    previousYear.setAttribute('aria-label', this._options.previousYearText);
-    previousYear.setAttribute('data-year-offset', '-1');
-    nextYear.type = 'button';
-    nextYear.className = 'fui-calendar-menu-year-nav fui-calendar-menu-nextyear';
-    nextYear.setAttribute('aria-label', this._options.nextYearText);
-    nextYear.setAttribute('data-year-offset', '1');
-    yearRow.appendChild(previousYear);
-    yearRow.appendChild(yearInput);
-    yearRow.appendChild(nextYear);
-    grid.className = 'fui-calendar-menu-months';
-    for (index = 0; index < 12; index += 1) {
-      button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'fui-calendar-menu-month';
-      button.textContent = this._options.months[index];
-      button.setAttribute('data-month', index);
-      if (this._selectedDate && this._selectedDate.getFullYear() === this._viewDate.getFullYear() && this._selectedDate.getMonth() === index) {
-        button.classList.add('fui-calendar-menu-month-selected');
-        button.setAttribute('aria-selected', 'true');
-      }
-      if (!this._options.validator.call(this._source, new Date(this._viewDate.getFullYear(), index, 1))) {
-        button.disabled = true;
-        button.classList.add('fui-calendar-menu-month-disabled');
-      }
-      grid.appendChild(button);
-    }
-    this._calendarMenu.textContent = '';
-    this._calendarMenu.appendChild(yearRow);
-    this._calendarMenu.appendChild(grid);
+    this._syncDatePopup();
   };
 
   DateBox.prototype._renderButtons = function() {
-    var buttons = Array.isArray(this._options.buttons) ? this._options.buttons : [
-      { text: this._options.currentText, action: 'today' },
-      { text: this._options.closeText, action: 'close' }
-    ];
-    var index;
-    var button;
-    var descriptor;
-    this._buttonDescriptors = buttons.slice();
-    this._buttonBar.textContent = '';
-    for (index = 0; index < buttons.length; index += 1) {
-      descriptor = buttons[index] || {};
-      button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'fui-datebox-button';
-      button.textContent = typeof descriptor.text === 'function' ? descriptor.text(this._source) : String(descriptor.text || '');
-      button.setAttribute('data-button-index', index);
-      this._buttonBar.appendChild(button);
-    }
-  };
-
-  DateBox.prototype._handleCalendarClick = function(event) {
-    var nav = event.target.closest('[data-month-offset]');
-    var yearNav = event.target.closest('[data-year-offset]');
-    var day = event.target.closest('[data-date]');
-    var month = event.target.closest('[data-month]');
-    var footer = event.target.closest('[data-button-index]');
-    var yearInput;
-    var date;
-    var descriptor;
-    if (yearNav) {
-      yearInput = this._calendarMenu.querySelector('.fui-calendar-menu-year');
-      this._viewDate = new Date(
-        (parseInt(yearInput.value, 10) || this._viewDate.getFullYear()) +
-          Number(yearNav.getAttribute('data-year-offset')),
-        this._viewDate.getMonth(),
-        1
-      );
-      this._renderCalendar();
-      return;
-    }
-    if (nav) {
-      this._moveMonth(Number(nav.getAttribute('data-month-offset')));
-      return;
-    }
-    if (event.target === this._calendarTitle) {
-      if (this._options.calendarMode === 'months') return;
-      this._calendarMenu.hidden = !this._calendarMenu.hidden;
-      this._calendarBody.hidden = !this._calendarMenu.hidden;
-      return;
-    }
-    if (month) {
-      yearInput = this._calendarMenu.querySelector('.fui-calendar-menu-year');
-      this._viewDate = new Date(parseInt(yearInput.value, 10) || this._viewDate.getFullYear(), Number(month.getAttribute('data-month')), 1);
-      if (this._options.calendarMode === 'months' && !month.disabled) {
-        this._selectDate(this._viewDate);
-        return;
-      }
-      this._calendarMenu.hidden = true;
-      this._calendarBody.hidden = false;
-      this._renderCalendar();
-      return;
-    }
-    if (day && !day.disabled) {
-      date = this._parseIsoDate(day.getAttribute('data-date'));
-      this._selectDate(date);
-      return;
-    }
-    if (footer) {
-      descriptor = this._buttonDescriptors[Number(footer.getAttribute('data-button-index'))] || {};
-      if (typeof descriptor.handler === 'function') {
-        descriptor.handler.call(footer, this._source, this);
-      } else if (descriptor.action === 'today') {
-        this._selectDate(dateOnly(new Date()));
-      } else if (descriptor.action === 'close') {
-        this.hidePanel();
-      }
-    }
+    this._syncDatePopup();
   };
 
   DateBox.prototype._handleKeyDown = function(event) {
     var key = event.key;
-    var current;
     var definition = this._editorDefinition;
     if ((key === 'Backspace' || key === 'Delete') && definition && typeof definition.handleDelete === 'function' && !this._hasCustomFormatter && !this._hasCustomParser) {
       event.preventDefault();
@@ -659,42 +369,12 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
       this.showPanel();
       return;
     }
-    if (key === 'Escape' && this._panelVisible) {
-      event.preventDefault();
-      this.hidePanel();
-      return;
-    }
+    if (this._datePopup.handleKeyDown(event)) return;
     if (key === 'Enter') {
       event.preventDefault();
-      if (this._panelVisible) {
-        this._selectDate(this._viewDate);
-      } else {
-        this.fix();
-      }
+      this.fix();
       return;
     }
-    if (!this._panelVisible || ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].indexOf(key) < 0) return;
-    event.preventDefault();
-    current = cloneDate(this._viewDate) || dateOnly(new Date());
-    if (this._options.calendarMode === 'months') {
-      if (key === 'ArrowLeft') current.setMonth(current.getMonth() - 1);
-      if (key === 'ArrowRight') current.setMonth(current.getMonth() + 1);
-      if (key === 'ArrowUp') current.setMonth(current.getMonth() - 4);
-      if (key === 'ArrowDown') current.setMonth(current.getMonth() + 4);
-      if (key === 'PageUp') current.setFullYear(current.getFullYear() - 1);
-      if (key === 'PageDown') current.setFullYear(current.getFullYear() + 1);
-      this._viewDate = current;
-      this._renderCalendar();
-      return;
-    }
-    if (key === 'ArrowLeft') current.setDate(current.getDate() - 1);
-    if (key === 'ArrowRight') current.setDate(current.getDate() + 1);
-    if (key === 'ArrowUp') current.setDate(current.getDate() - 7);
-    if (key === 'ArrowDown') current.setDate(current.getDate() + 7);
-    if (key === 'PageUp') current.setMonth(current.getMonth() - 1);
-    if (key === 'PageDown') current.setMonth(current.getMonth() + 1);
-    this._viewDate = current;
-    this._renderCalendar();
   };
 
   DateBox.prototype._handleInput = function() {
@@ -726,17 +406,6 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     event.stopPropagation();
   };
 
-  DateBox.prototype._moveMonth = function(offset) {
-    var date = new Date(this._viewDate.getFullYear(), this._viewDate.getMonth() + offset, 1);
-    this._viewDate = date;
-    this._renderCalendar();
-  };
-
-  DateBox.prototype._parseIsoDate = function(value) {
-    var parts = String(value).split('-');
-    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-  };
-
   DateBox.prototype._selectDate = function(date) {
     var value = cloneDate(date);
     if (!value || !this._options.validator.call(this._source, value)) return this;
@@ -748,27 +417,7 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   };
 
   DateBox.prototype._positionPanel = function() {
-    var rect;
-    var width;
-    var height;
-    var top;
-    var left;
-    if (!this._panelVisible) return;
-    rect = this._shell.getBoundingClientRect();
-    width = this._options.panelWidth === 'auto' ? rect.width : parseFloat(this._options.panelWidth) || 250;
-    this._panel.style.width = cssSize(width, 250);
-    this._panel.style.height = this._options.panelHeight === 'auto' ? 'auto' : cssSize(this._options.panelHeight, 290);
-    height = this._panel.offsetHeight;
-    top = rect.bottom + window.pageYOffset;
-    left = rect.left + window.pageXOffset;
-    if (rect.bottom + height > document.documentElement.clientHeight && rect.top > height) {
-      top = rect.top + window.pageYOffset - height;
-    }
-    if (left + width > window.pageXOffset + document.documentElement.clientWidth) {
-      left = Math.max(window.pageXOffset, window.pageXOffset + document.documentElement.clientWidth - width);
-    }
-    this._panel.style.left = Math.round(left) + 'px';
-    this._panel.style.top = Math.round(top) + 'px';
+    this._datePopup.position();
   };
 
   DateBox.prototype._emit = function(name, detail) {
@@ -834,31 +483,22 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
   DateBox.prototype.reset = function() { return this.setValue(this._initialValue); };
   DateBox.prototype.focus = function() { this._textbox.focus(); return this; };
 
+  DateBox.prototype.setTheme = function(theme) {
+    this._options.theme = theme === 'inherit' ? 'inherit' : normalizeDatePopupTheme(theme);
+    this._syncDatePopup();
+    return this;
+  };
+
   DateBox.prototype.showPanel = function() {
     if (this._options.disabled || this._panelVisible) return this;
     if (this._editor.value) this.setValue(this._editor.value, true);
-    if (this._sharedCalendarState) this._panel.insertBefore(this._calendar, this._buttonBar);
-    this._calendar.__fabuiDateBoxOwner = this;
     this._renderCalendar();
-    this._panelVisible = true;
-    this._panel.hidden = false;
-    this._shell.classList.add('fui-datebox-open');
-    this._positionPanel();
-    if (typeof this._options.onShowPanel === 'function') this._options.onShowPanel.call(this);
-    this._emit('showPanel', { panel: this._panel });
+    this._datePopup.show();
     return this;
   };
 
   DateBox.prototype.hidePanel = function() {
-    if (!this._panelVisible) return this;
-    this._panelVisible = false;
-    this._panel.hidden = true;
-    this._shell.classList.remove('fui-datebox-open');
-    if (this._sharedCalendarState && this._sharedCalendarState.host) {
-      this._sharedCalendarState.host.appendChild(this._calendar);
-    }
-    if (typeof this._options.onHidePanel === 'function') this._options.onHidePanel.call(this);
-    this._emit('hidePanel', { panel: this._panel });
+    this._datePopup.hide();
     return this;
   };
 
@@ -911,20 +551,8 @@ export function createDateBoxFactory(TextBox, editorDefinitions) {
     this._editor.removeEventListener('input', this._onInput);
     this._editor.removeEventListener('copy', this._onCopy);
     this._editor.removeEventListener('blur', this._onInputBlur);
-    this._panel.removeEventListener('mousedown', this._onPanelMouseDown);
-    this._panel.removeEventListener('click', this._onPanelClick);
-    document.removeEventListener('mousedown', this._onDocumentMouseDown);
-    document.removeEventListener('keydown', this._onDocumentKeyDown);
-    window.removeEventListener('resize', this._onWindowResize);
-    window.removeEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);
-    if (this._sharedCalendarState && this._sharedCalendarState.host && this._calendar.parentNode !== this._sharedCalendarState.host) {
-      this._sharedCalendarState.host.appendChild(this._calendar);
-    }
-    if (!this._sharedCalendarState && this._calendar.__fabuiDateBoxOwner === this) {
-      this._calendar.__fabuiDateBoxOwner = null;
-    }
-    if (this._panel.parentNode) this._panel.parentNode.removeChild(this._panel);
+    this._datePopup.destroy();
     delete this._source.__fabuiDateBox;
     this._textbox.destroy();
     this._listeners = {};

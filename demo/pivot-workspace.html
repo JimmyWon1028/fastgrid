@@ -21,9 +21,10 @@
     .toolbar .spacer { flex: 1 1 auto; }
     .stats { flex: 0 0 auto; color: #475569; font-size: 12px; white-space: nowrap; }
     #pivotWorkspace { flex: 1 1 auto; min-width: 0; min-height: 0; border-radius: 5px; }
+    .fg-pivot-panel-insert-line { opacity: .55; }
   </style>
 </head>
-<body>
+<body class="fg-theme-default">
   <main class="page">
     <header class="header">
       <h1>fabui.pivot.PivotWorkspace</h1>
@@ -32,7 +33,7 @@
       <label>
         <span id="themeLabel">主題</span>
         <select id="themeSelect" aria-label="主題">
-          <option value="default">預設</option>
+          <option value="default" selected>預設</option>
           <option value="metro-blue">Metro Blue</option>
           <option value="material">Material</option>
           <option value="cupertino">Cupertino</option>

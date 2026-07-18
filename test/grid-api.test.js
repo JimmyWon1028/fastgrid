@@ -1188,58 +1188,20 @@ test('pointer outside closes every open Grid menu', function() {
   });
 });
 
-test('document pointer closes editor popups independently and keeps the containing popup open', function() {
+test('document pointer leaves shared combo and color popup lifecycle to popup classes', function() {
   var FabGrid = createFabGridFactory({});
-  var hidden = {
-    datebox: 0,
-    combobox: 0,
-    color: 0
-  };
   var grid = {
     isTopLeftMenuOpen: function() { return false; },
     getFilterMenuItemAtEvent: function() { return null; },
     filterMenu: { style: { display: 'none' } },
     isColumnChooserOpen: function() { return false; },
-    dateboxPanel: { style: { display: 'block' } },
-    dateboxTarget: null,
-    comboboxPanel: { style: { display: 'block' } },
-    comboboxTarget: null,
-    isColorPanelOpen: function() { return true; },
-    colorTarget: null,
     editor: { nodeType: 1, className: 'fg-editor', parentNode: null },
-    hideDateboxPanel: function() { hidden.datebox += 1; },
-    hideComboboxPanel: function() { hidden.combobox += 1; },
-    hideColorPanel: function() { hidden.color += 1; },
     editing: null
   };
   var outside = { nodeType: 1, className: 'outside', parentNode: null };
-  var dateboxPanel = {
-    nodeType: 1,
-    className: 'fg-datebox-panel',
-    parentNode: null,
-    style: { display: 'block' }
-  };
-  var insideDatebox = {
-    nodeType: 1,
-    className: 'fg-datebox-day',
-    parentNode: dateboxPanel
-  };
-
-  FabGrid.prototype.handleDocumentMouseDown.call(grid, { target: outside });
-  assert.deepEqual(hidden, {
-    datebox: 1,
-    combobox: 1,
-    color: 1
+  assert.doesNotThrow(function() {
+    FabGrid.prototype.handleDocumentMouseDown.call(grid, { target: outside });
   });
-
-  hidden.datebox = 0;
-  hidden.combobox = 0;
-  hidden.color = 0;
-  grid.dateboxPanel = dateboxPanel;
-  grid.comboboxPanel.style.display = 'none';
-  grid.isColorPanelOpen = function() { return false; };
-  FabGrid.prototype.handleDocumentMouseDown.call(grid, { target: insideDatebox });
-  assert.equal(hidden.datebox, 0);
 });
 
 test('filter changed is exposed as a Wijmo-compatible event', function() {

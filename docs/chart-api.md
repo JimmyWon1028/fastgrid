@@ -28,6 +28,14 @@ new fabui.Chart('#pie', {
 });
 ```
 
+## 靜態 API
+
+| API | 說明 |
+| --- | --- |
+| `fabui.Chart.ChartType` | `Column`、`Bar`、`Line`、`Pie` 圖形類型常數。 |
+| `fabui.Chart.SelectionMode` | `None`、`Point`、`Series` 選取模式常數。 |
+| `fabui.Chart.locales` | Chart 內建 locale registry。 |
+
 ## 屬性與選項
 
 | 名稱 | 型別 | 預設值 | 說明 |
@@ -44,6 +52,7 @@ new fabui.Chart('#pie', {
 | `axisY` | `object` | `{}` | Y 軸設定，支援 `min`、`max`。 |
 | `legend` | `boolean\|object` | `true` | Legend 設定；`position` 支援 `Top`、`Right`、`Bottom`、`Left`、`None`。 |
 | `tooltip` | `boolean\|object` | `true` | Tooltip 設定；`content` 可使用模板字串或 function。 |
+| `padding` | `number` | `16` | SVG plot area 與 Chart 邊界的內距，單位為 px。 |
 | `palette` | `string[]` | `null` | 自訂系列配色；未設定時使用內建半透明柔和 palette。 |
 | `selectionMode` | `string` | `None` | 選取模式：`None`、`Point`、`Series`。 |
 | `selection` | `object\|null` | `null` | 目前 selection，包含 `pointIndex` 與 `seriesIndex`。 |

@@ -1,5 +1,5 @@
 /*! FabGrid theme bootstrap | performance-first data grid */
-@import './bootstrap/tabs.css';
+@import './bootstrap/tabs.css?v=20260718-tabs-drag-right-v1';
 @import './bootstrap/components.css';
 .fg-root.fg-theme-bootstrap,
 .fui-tabs.fg-theme-bootstrap {

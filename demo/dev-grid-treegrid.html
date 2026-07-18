@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabGrid Grid + TreeGrid Drag Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260716-cell-range-v2">
-  <link rel="stylesheet" href="./style/grid-treegrid.css?v=20260715-row-pointer-drag-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260718-drag-indicator-alpha-v1">
+  <link rel="stylesheet" href="./style/grid-treegrid.css?v=20260718-drag-indicator-alpha-v1">
 </head>
-<body>
+<body class="fg-theme-default">
   <main class="grid-tree-page">
     <header class="grid-tree-header">
       <div>
@@ -56,7 +56,7 @@
 
   <script src="./js/grid-treegrid-data.js?v=20260715-row-pointer-drag-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260717-pivot-workspace-v2';
+    import fabui from '../src/fabui.js?v=20260718-row-drop-width-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260716-excel-filter-escape-v1');

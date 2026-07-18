@@ -9,7 +9,7 @@
 .fui-colorbox-panel {
   position: fixed;
   z-index: 11000;
-  display: none;
+  display: flex;
   gap: 6px;
   box-sizing: border-box;
   min-height: 190px;
@@ -20,6 +20,10 @@
   background: var(--fui-control-bg, #fff);
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
   touch-action: none;
+}
+
+.fui-colorbox-panel[hidden] {
+  display: none;
 }
 
 .fui-colorbox-palette {

@@ -2,9 +2,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   var applyMask = context.applyMask;
   var clamp = context.clamp;
   var closest = context.closest;
-  var colorStateToHex = context.colorStateToHex;
   var countMaskCharactersBeforeCaret = context.countMaskCharactersBeforeCaret;
-  var createColorState = context.createColorState;
   var editorDefinitions = context.editorDefinitions;
   var escapeHtml = context.escapeHtml;
   var extractMaskCharacters = context.extractMaskCharacters;
@@ -37,7 +35,6 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   var getNumberPrecision = context.getNumberPrecision;
   var getValidationRowId = context.getValidationRowId;
   var hasClass = context.hasClass;
-  var hsvToRgb = context.hsvToRgb;
   var isColorValueValid = context.isColorValueValid;
   var isComboboxValueInList = context.isComboboxValueInList;
   var isDateLikeEditorType = context.isDateLikeEditorType;
@@ -57,7 +54,6 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   var parseDateboxEditorValue = context.parseDateboxEditorValue;
   var parseValue = context.parseValue;
   var parseYearMonthValue = context.parseYearMonthValue;
-  var renderComboboxOptionContent = context.renderComboboxOptionContent;
   var roundNumberValue = context.roundNumberValue;
   var sanitizeDateEditorText = context.sanitizeDateEditorText;
   var sanitizeNumberEditorText = context.sanitizeNumberEditorText;
@@ -158,9 +154,9 @@ export function installFabGridEditorRuntime(FabGrid, context) {
         icon = iconConfigs[i];
         button = document.createElement('button');
         button.type = 'button';
-        button.className = trimText('fg-editor-trigger fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls || icon.className || icon.iconClass || icon.icon || ''));
+        button.className = trimText('fg-editor-trigger fg-editor-trigger-custom ' + normalizeClassName(icon.iconCls));
         button.setAttribute('data-icon-index', i);
-        button.setAttribute('aria-label', icon.ariaLabel || icon.label || icon.title || this.getText('aria.cellEditor'));
+        button.setAttribute('aria-label', icon.ariaLabel || this.getText('aria.cellEditor'));
         button.title = icon.title || '';
         button.textContent = icon.text || '';
         button.style.width = Math.max(18, toNumber(icon.width, 22)) + 'px';
@@ -335,8 +331,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (config.type === 'color') {
       this.syncColorEditorAppearance();
       if (this.isColorPanelOpen() && normalizeColorValue(this.editor.value)) {
-        this.colorState = createColorState(this.editor.value);
-        this.renderColorPanel();
+        this.colorPopup.setValue(this.editor.value);
         this.positionEditor();
       }
       return;
@@ -445,7 +440,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     iconIndex = button.hasAttribute('data-icon-index') ? toNumber(button.getAttribute('data-icon-index'), -1) : -1;
     if (iconIndex >= 0) {
       iconConfig = this.editorIconConfigs[iconIndex];
-      handler = iconConfig && (iconConfig.onClick || iconConfig.click || iconConfig.handler);
+      handler = iconConfig && iconConfig.onClick;
       if (typeof handler === 'function') {
         result = handler.call(this, this.createEditorButtonArgs(event, button, iconConfig, iconIndex));
       }
@@ -455,7 +450,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return;
     }
     if (isDateLikeEditorType(this.editorConfig.type)) {
-      if (this.dateboxPanel.style.display === 'block') {
+      if (this.isDateboxPanelOpen()) {
         this.hideDateboxPanel();
       } else {
         this.showDateboxPanel();
@@ -464,7 +459,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return;
     }
     if (this.editorConfig.type === 'combo') {
-      if (this.comboboxPanel.style.display === 'block') {
+      if (this.isComboboxPanelOpen()) {
         this.hideComboboxPanel();
       } else {
         this.showComboboxPanel(true);
@@ -504,89 +499,6 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     };
   };
 
-  FabGrid.prototype.handleDateboxClick = function(event) {
-    var day = closest(event.target, 'fg-datebox-day');
-    var monthButton = closest(event.target, 'fg-datebox-month');
-    var control = closest(event.target, 'fg-datebox-control');
-    var target = this.dateboxTarget;
-    var action;
-    var date;
-    var month;
-    if (!target || !target.input || !target.config || !isDateLikeEditorType(target.config.type)) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    if (monthButton) {
-      month = toNumber(monthButton.getAttribute('data-month'), this.dateboxState ? this.dateboxState.month : 0);
-      if (isYearMonthDateboxTarget(target)) {
-        this.applyDateboxTargetDate(new Date(this.dateboxState ? this.dateboxState.year : new Date().getFullYear(), clamp(month, 0, 11), 1));
-        return;
-      }
-      this.dateboxState = {
-        year: this.dateboxState ? this.dateboxState.year : new Date().getFullYear(),
-        month: clamp(month, 0, 11),
-        selected: this.dateboxState ? this.dateboxState.selected : null,
-        mode: 'calendar'
-      };
-      this.renderDateboxPanel();
-      return;
-    }
-    if (day && !hasClass(day, 'fg-datebox-disabled')) {
-      date = parseDateValue(day.getAttribute('data-date'));
-      if (date) {
-        this.applyDateboxTargetDate(date);
-      }
-      return;
-    }
-    if (!control) {
-      return;
-    }
-    action = control.getAttribute('data-action');
-    if (action === 'months') {
-      this.dateboxState.mode = 'months';
-      this.renderDateboxPanel();
-      return;
-    }
-    if (action === 'close') {
-      this.hideDateboxPanel();
-      target.input.focus();
-      return;
-    }
-    if (action === 'today') {
-      date = new Date();
-      this.dateboxState = {
-        year: date.getFullYear(),
-        month: date.getMonth(),
-        selected: date,
-        mode: 'calendar'
-      };
-      this.renderDateboxPanel();
-      this.applyDateboxTargetDate(date);
-      return;
-    }
-    this.moveDateboxMonth(action);
-  };
-
-  FabGrid.prototype.handleDateboxChange = function(event) {
-    var input = closest(event.target, 'fg-datebox-year-input');
-    var target = this.dateboxTarget;
-    var year;
-    if (!input || !target || !target.config || !isDateLikeEditorType(target.config.type)) {
-      return;
-    }
-    year = clamp(toNumber(input.value, this.dateboxState ? this.dateboxState.year : new Date().getFullYear()), 1, 9999);
-    this.dateboxState = this.dateboxState || {
-      year: year,
-      month: new Date().getMonth(),
-      selected: null,
-      mode: 'months'
-    };
-    this.dateboxState.year = year;
-    this.dateboxState.mode = 'months';
-    this.renderDateboxPanel();
-  };
-
   FabGrid.prototype.handleDocumentMouseDown = function(event) {
     var filterMenuItem;
     if (this.isTopLeftMenuOpen() && !closest(event.target, 'fg-top-left-menu')) {
@@ -606,39 +518,29 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       !closest(event.target, 'fg-column-chooser-trigger')) {
       this.hideColumnChooser();
     }
-    if (this.dateboxPanel && this.dateboxPanel.style.display === 'block' &&
-      !(
-        (this.dateboxTarget && event.target === this.dateboxTarget.input) ||
-        event.target === this.editor ||
-        closest(event.target, 'fg-editor-icons') ||
-        closest(event.target, 'fg-header-search-icons') ||
-        closest(event.target, 'fg-datebox-panel')
-      )) {
-      this.hideDateboxPanel();
-    }
-    if (this.comboboxPanel && this.comboboxPanel.style.display === 'block' &&
-      !(
-        (this.comboboxTarget && event.target === this.comboboxTarget.input) ||
-        event.target === this.editor ||
-        closest(event.target, 'fg-editor-icons') ||
-        closest(event.target, 'fg-header-search-icons') ||
-        closest(event.target, 'fg-combobox-panel')
-      )) {
-      this.hideComboboxPanel();
-    }
-    if (this.isColorPanelOpen() &&
-      !(
-        (this.colorTarget && event.target === this.colorTarget.input) ||
-        event.target === this.editor ||
-        closest(event.target, 'fg-editor-icons') ||
-        closest(event.target, 'fg-header-search-icons') ||
-        closest(event.target, 'fg-color-panel')
-      )) {
-      this.hideColorPanel();
-    }
     if (!this.editing) {
       return;
     }
+  };
+
+  FabGrid.prototype.handleDateboxKeyDown = function(event, input, column) {
+    var config = column ? getColumnEditorConfig(column) : this.editorConfig;
+    var isOpenForInput = this.isDateboxPanelOpen() &&
+      this.dateboxTarget &&
+      this.dateboxTarget.input === input;
+    if (!input || !config || !isDateLikeEditorType(config.type)) {
+      return false;
+    }
+    if ((event.key === 'ArrowDown' && (event.altKey || event.metaKey)) || event.key === 'F4') {
+      event.preventDefault();
+      if (column) {
+        this.showHeaderSearchDateboxPanel(input, column);
+      } else {
+        this.showDateboxPanel();
+      }
+      return true;
+    }
+    return isOpenForInput ? this.datePopup.handleKeyDown(event) : false;
   };
 
   FabGrid.prototype.handleComboboxKeyDown = function(event) {
@@ -885,11 +787,11 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       column: this.visibleColumns[this.editing.col],
       config: this.editorConfig
     };
+    this.hideComboboxPanel();
     this.hideColorPanel();
     this.syncDateboxPanelToEditor();
-    this.renderDateboxPanel();
-    this.dateboxPanel.style.display = 'block';
-    this.positionEditor();
+    this.datePopup.show();
+    this.datePopup.position();
   };
 
   FabGrid.prototype.showHeaderSearchDateboxPanel = function(input, column) {
@@ -906,9 +808,8 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.hideComboboxPanel();
     this.hideColorPanel();
     this.syncDateboxPanelToTarget(this.dateboxTarget);
-    this.renderDateboxPanel();
-    this.dateboxPanel.style.display = 'block';
-    this.positionHeaderSearchDateboxPanel(input);
+    this.datePopup.show();
+    this.datePopup.position();
     input.focus();
   };
 
@@ -925,7 +826,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.hideDateboxPanel();
     this.hideColorPanel();
     this.renderComboboxPanel(showAll === true);
-    this.comboboxPanel.style.display = 'block';
+    this.comboPopup.show();
     this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
     this.positionEditor();
   };
@@ -944,23 +845,19 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.hideDateboxPanel();
     this.hideColorPanel();
     this.renderComboboxPanel(showAll === true);
-    this.comboboxPanel.style.display = 'block';
+    this.comboPopup.show();
     this.setComboboxActiveIndex(this.getComboboxInitialActiveIndex());
     this.positionHeaderSearchComboboxPanel(input);
     input.focus();
   };
 
   FabGrid.prototype.hideDateboxPanel = function() {
-    if (this.dateboxPanel) {
-      this.dateboxPanel.style.display = 'none';
-    }
+    if (this.datePopup) this.datePopup.hide();
     this.dateboxTarget = null;
   };
 
   FabGrid.prototype.hideComboboxPanel = function() {
-    if (this.comboboxPanel) {
-      this.comboboxPanel.style.display = 'none';
-    }
+    if (this.comboPopup) this.comboPopup.hide();
     this.comboboxTarget = null;
     this.comboboxActiveIndex = -1;
   };
@@ -973,56 +870,32 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.isDateboxPanelOpen = function() {
-    return !!this.dateboxPanel && this.dateboxPanel.style.display === 'block';
+    return !!this.datePopup && this.datePopup.isOpen();
   };
 
   FabGrid.prototype.positionHeaderSearchDateboxPanel = function(input) {
-    var inputRect;
-    var bodyRect;
-    var left;
-    var top;
-    if (!input || !this.body) {
-      return;
-    }
-    inputRect = input.getBoundingClientRect();
-    bodyRect = this.body.getBoundingClientRect();
-    left = inputRect.left - bodyRect.left;
-    top = inputRect.bottom - bodyRect.top;
-    this.positionDateboxPanel(left, top, inputRect.width);
+    if (!input || !this.datePopup) return;
+    this.datePopup.setOptions({
+      anchor: input,
+      panelWidth: Math.max(250, input.getBoundingClientRect().width)
+    });
+    this.datePopup.position();
   };
 
   FabGrid.prototype.positionHeaderSearchComboboxPanel = function(input) {
-    var inputRect;
-    var bodyRect;
-    var left;
-    var top;
-    if (!input || !this.body) {
-      return;
-    }
-    inputRect = input.getBoundingClientRect();
-    bodyRect = this.body.getBoundingClientRect();
-    left = inputRect.left - bodyRect.left;
-    top = inputRect.bottom - bodyRect.top;
-    this.positionComboboxPanel(left, top, inputRect.width);
+    if (!input || !this.comboPopup) return;
+    this.comboPopup.setLayout({ anchor: input });
+    this.comboPopup.position();
   };
 
   FabGrid.prototype.positionHeaderSearchColorPanel = function(input) {
-    var inputRect;
-    var bodyRect;
-    var left;
-    var top;
-    if (!input || !this.body) {
-      return;
-    }
-    inputRect = input.getBoundingClientRect();
-    bodyRect = this.body.getBoundingClientRect();
-    left = inputRect.left - bodyRect.left;
-    top = inputRect.bottom - bodyRect.top;
-    this.positionColorPanel(left, top);
+    if (!input || !this.colorPopup) return;
+    this.colorPopup.setOptions({ anchor: input });
+    this.colorPopup.position();
   };
 
   FabGrid.prototype.isComboboxPanelOpen = function() {
-    return !!this.comboboxPanel && this.comboboxPanel.style.display === 'block';
+    return !!this.comboPopup && this.comboPopup.isOpen();
   };
 
   FabGrid.prototype.getColorTarget = function() {
@@ -1057,9 +930,8 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     };
     this.hideDateboxPanel();
     this.hideComboboxPanel();
-    this.colorState = createColorState(this.editor.value || this.editing.original);
     this.renderColorPanel();
-    this.colorPanel.style.display = 'flex';
+    this.colorPopup.show();
     this.positionEditor();
   };
 
@@ -1076,208 +948,37 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     };
     this.hideDateboxPanel();
     this.hideComboboxPanel();
-    this.colorState = createColorState(input.value || '#ff0000');
     this.renderColorPanel();
-    this.colorPanel.style.display = 'flex';
+    this.colorPopup.show();
     this.positionHeaderSearchColorPanel(input);
     input.focus();
   };
 
   FabGrid.prototype.hideColorPanel = function() {
-    if (this.colorPanel) {
-      this.colorPanel.style.display = 'none';
-    }
-    this.colorDragState = null;
+    if (this.colorPopup) this.colorPopup.hide();
     this.colorTarget = null;
   };
 
   FabGrid.prototype.isColorPanelOpen = function() {
-    return !!this.colorPanel && this.colorPanel.style.display === 'flex';
+    return !!this.colorPopup && this.colorPopup.isOpen();
   };
 
   FabGrid.prototype.renderColorPanel = function() {
+    var target = this.getColorTarget();
     var config = this.getColorPanelConfig();
-    var palette = getColorPalette(config);
-    var paletteElement = document.createElement('div');
-    var controls = document.createElement('div');
-    var sv = document.createElement('div');
-    var svMarker = document.createElement('span');
-    var hue = document.createElement('div');
-    var hueMarker = document.createElement('span');
-    var alpha = document.createElement('div');
-    var alphaFill = document.createElement('span');
-    var alphaMarker = document.createElement('span');
-    var swatch;
-    var color;
-    var i;
-    this.colorPanel.innerHTML = '';
-    paletteElement.className = 'fg-color-palette';
-    for (i = 0; i < palette.length; i += 1) {
-      color = normalizeColorValue(palette[i]);
-      if (!color) {
-        continue;
-      }
-      swatch = document.createElement('button');
-      swatch.type = 'button';
-      swatch.className = 'fg-color-palette-swatch';
-      swatch.setAttribute('data-color', color);
-      swatch.setAttribute('aria-label', color);
-      swatch.title = color;
-      swatch.style.backgroundColor = color;
-      paletteElement.appendChild(swatch);
-    }
-
-    controls.className = 'fg-color-controls';
-    sv.className = 'fg-color-sv';
-    svMarker.className = 'fg-color-marker fg-color-sv-marker';
-    sv.appendChild(svMarker);
-    hue.className = 'fg-color-hue';
-    hueMarker.className = 'fg-color-marker fg-color-hue-marker';
-    hue.appendChild(hueMarker);
-    alpha.className = 'fg-color-alpha';
-    alphaFill.className = 'fg-color-alpha-fill';
-    alphaMarker.className = 'fg-color-marker fg-color-alpha-marker';
-    alpha.appendChild(alphaFill);
-    alpha.appendChild(alphaMarker);
-    controls.appendChild(sv);
-    controls.appendChild(hue);
-    if (getColorShowAlpha(config)) {
-      controls.appendChild(alpha);
-    }
-    this.colorPanel.appendChild(paletteElement);
-    this.colorPanel.appendChild(controls);
-    this.updateColorPanelVisuals();
-  };
-
-  FabGrid.prototype.updateColorPanelVisuals = function() {
-    var state = this.colorState || createColorState('#ff0000');
-    var rgb = hsvToRgb(state.h, state.s, state.v);
-    var sv = this.colorPanel.querySelector('.fg-color-sv');
-    var svMarker = this.colorPanel.querySelector('.fg-color-sv-marker');
-    var hueMarker = this.colorPanel.querySelector('.fg-color-hue-marker');
-    var alphaFill = this.colorPanel.querySelector('.fg-color-alpha-fill');
-    var alphaMarker = this.colorPanel.querySelector('.fg-color-alpha-marker');
-    if (sv) {
-      sv.style.backgroundColor = 'hsl(' + Math.round(state.h) + ', 100%, 50%)';
-    }
-    if (svMarker) {
-      svMarker.style.left = (state.s * 100) + '%';
-      svMarker.style.top = ((1 - state.v) * 100) + '%';
-    }
-    if (hueMarker) {
-      hueMarker.style.top = (state.h / 360 * 100) + '%';
-    }
-    if (alphaFill) {
-      alphaFill.style.backgroundImage = 'linear-gradient(to right, rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', 0), rgb(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + '))';
-    }
-    if (alphaMarker) {
-      alphaMarker.style.left = (state.a * 100) + '%';
-    }
-  };
-
-  FabGrid.prototype.handleColorPanelPointerDown = function(event) {
-    var paletteSwatch = closest(event.target, 'fg-color-palette-swatch');
-    var area;
-    var mode;
-    var target = this.getColorTarget();
-    var value;
-    if (!this.isColorPanelOpen()) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    if (paletteSwatch) {
-      value = paletteSwatch.getAttribute('data-color') || '';
-      this.colorState = createColorState(value);
-      this.applyColorValueToTarget(value);
-      this.updateColorPanelVisuals();
-      if (target && target.type === 'search') {
-        this.hideColorPanel();
-        target.input.focus();
-      }
-      return;
-    }
-    area = closest(event.target, 'fg-color-sv');
-    mode = 'sv';
-    if (!area) {
-      area = closest(event.target, 'fg-color-hue');
-      mode = 'hue';
-    }
-    if (!area) {
-      area = closest(event.target, 'fg-color-alpha');
-      mode = 'alpha';
-    }
-    if (!area) {
-      return;
-    }
-    this.colorDragState = { mode: mode, element: area, pointerId: event.pointerId };
-    if (area.setPointerCapture && event.pointerId != null) {
-      area.setPointerCapture(event.pointerId);
-    }
-    this.updateColorFromPointer(event);
-  };
-
-  FabGrid.prototype.handleColorPanelPointerMove = function(event) {
-    if (!this.colorDragState) {
-      return;
-    }
-    event.preventDefault();
-    this.updateColorFromPointer(event);
-  };
-
-  FabGrid.prototype.handleColorPanelPointerUp = function(event) {
-    var drag = this.colorDragState;
-    var target = this.getColorTarget();
-    if (!drag) {
-      return;
-    }
-    if (drag.element.releasePointerCapture && drag.pointerId != null) {
-      try {
-        drag.element.releasePointerCapture(drag.pointerId);
-      } catch (error) {
-        // The pointer capture may already be released by the browser.
-      }
-    }
-    this.colorDragState = null;
-    if (target && target.type === 'search') {
-      this.hideColorPanel();
-      target.input.focus();
-    }
-    event.preventDefault();
-  };
-
-  FabGrid.prototype.updateColorFromPointer = function(event) {
-    var drag = this.colorDragState;
-    var rect;
-    var x;
-    var y;
-    if (!drag || !drag.element) {
-      return;
-    }
-    rect = drag.element.getBoundingClientRect();
-    x = clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
-    y = clamp((event.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
-    this.colorState = this.colorState || createColorState('#ff0000');
-    if (drag.mode === 'sv') {
-      this.colorState.s = x;
-      this.colorState.v = 1 - y;
-    } else if (drag.mode === 'hue') {
-      this.colorState.h = Math.min(359.999, y * 360);
-    } else if (drag.mode === 'alpha') {
-      this.colorState.a = x;
-    }
-    this.applyColorStateToEditor();
-    this.updateColorPanelVisuals();
-  };
-
-  FabGrid.prototype.applyColorStateToEditor = function() {
-    var target = this.getColorTarget();
-    var config;
-    if (!this.colorState || !target || !target.input) {
-      return;
-    }
-    config = target.config || this.editorConfig;
-    this.applyColorValueToTarget(colorStateToHex(this.colorState, getColorShowAlpha(config)));
+    var input = target && target.input;
+    if (!this.colorPopup || !input) return;
+    this.colorPopup.setOptions({
+      anchor: input,
+      ariaLabel: this.getText('aria.colorPicker'),
+      saturationText: this.getText('aria.colorSaturation'),
+      hueText: this.getText('aria.colorHue'),
+      alphaText: this.getText('aria.colorAlpha'),
+      palette: getColorPalette(config),
+      showAlpha: getColorShowAlpha(config),
+      closeOnDragEnd: target.type === 'search'
+    });
+    this.colorPopup.setValue(input.value || '#ff0000');
   };
 
   FabGrid.prototype.applyColorValueToTarget = function(value) {
@@ -1310,16 +1011,20 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     var config = target && target.config ? target.config : {};
     var items = getComboboxData(config);
     var query = showAll === true || !target || !target.input ? '' : String(target.input.value || '').toLowerCase();
-    var fragment = document.createDocumentFragment();
+    var descriptors = [];
+    var options = config && config.options ? config.options : {};
+    var showValue = options.showValueInList === true ||
+      options.showValue === true ||
+      options.showCode === true;
     var item;
     var text;
     var value;
-    var option;
-    var matched = 0;
+    var selectedText = target && target.input ?
+      String(target.input.value || '') :
+      '';
     var i;
     this.comboboxItems = [];
     this.comboboxActiveIndex = -1;
-    this.comboboxPanel.innerHTML = '';
     for (i = 0; i < items.length; i += 1) {
       item = items[i];
       text = getComboboxItemText(item, config);
@@ -1327,35 +1032,34 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       if (query && text.toLowerCase().indexOf(query) < 0 && value.toLowerCase().indexOf(query) < 0) {
         continue;
       }
-      option = document.createElement('button');
-      option.type = 'button';
-      option.className = 'fg-combobox-option';
-      option.setAttribute('role', 'option');
-      option.setAttribute('data-index', this.comboboxItems.length);
-      renderComboboxOptionContent(option, text, value, config);
-      fragment.appendChild(option);
+      descriptors.push({
+        value: value,
+        text: text,
+        secondaryText: showValue && value !== '' && value !== text ?
+          '(' + value + ')' :
+          '',
+        data: item,
+        disabled: Boolean(item && typeof item === 'object' && item.disabled),
+        selected: selectedText === text || selectedText === value
+      });
       this.comboboxItems.push(item);
-      matched += 1;
     }
-    if (!matched) {
-      option = document.createElement('div');
-      option.className = 'fg-combobox-empty';
-      option.textContent = '沒有符合項目';
-      fragment.appendChild(option);
-    }
-    this.comboboxPanel.appendChild(fragment);
-  };
-
-  FabGrid.prototype.handleComboboxMouseDown = function(event) {
-    var option = closest(event.target, 'fg-combobox-option');
-    var index;
-    if (!option || !this.comboboxTarget || !this.comboboxTarget.config || this.comboboxTarget.config.type !== 'combo') {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    index = toNumber(option.getAttribute('data-index'), -1);
-    this.selectComboboxOption(index);
+    this.comboPopup.setOptions({
+      anchor: target && target.input ? target.input : this.editor,
+      className: 'fui-grid-combo-popup',
+      ariaLabel: this.getText('aria.comboBoxOptions'),
+      panelWidth: target && target.input ?
+        target.input.getBoundingClientRect().width :
+        120,
+      panelHeight: 'auto',
+      panelMinWidth: 120,
+      panelMaxWidth: Math.max(120, this.root.clientWidth - 4),
+      panelMaxHeight: 180,
+      fitContent: true,
+      closeOnSelect: true,
+      emptyText: this.getText('combobox.emptyText'),
+      items: descriptors
+    });
   };
 
   FabGrid.prototype.getComboboxInitialActiveIndex = function() {
@@ -1378,29 +1082,13 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.setComboboxActiveIndex = function(index) {
-    var options;
-    var i;
-    var option;
     if (!this.comboboxItems.length) {
       this.comboboxActiveIndex = -1;
       return;
     }
     index = clamp(index, 0, this.comboboxItems.length - 1);
-    this.comboboxActiveIndex = index;
-    options = this.comboboxPanel.querySelectorAll('.fg-combobox-option');
-    for (i = 0; i < options.length; i += 1) {
-      option = options[i];
-      if (i === index) {
-        option.className = 'fg-combobox-option fg-combobox-active';
-        option.setAttribute('aria-selected', 'true');
-        if (option.scrollIntoView) {
-          option.scrollIntoView({ block: 'nearest' });
-        }
-      } else {
-        option.className = 'fg-combobox-option';
-        option.setAttribute('aria-selected', 'false');
-      }
-    }
+    this.comboPopup.setActiveIndex(index);
+    this.comboboxActiveIndex = this.comboPopup.activeIndex;
   };
 
   FabGrid.prototype.selectComboboxActiveOption = function() {
@@ -1446,6 +1134,9 @@ export function installFabGridEditorRuntime(FabGrid, context) {
 
   FabGrid.prototype.syncDateboxPanelToTarget = function(target) {
     var date;
+    var dateOptions = target && target.config && target.config.options ?
+      target.config.options :
+      {};
     if (!target || !target.input || !target.config) {
       date = null;
     } else {
@@ -1459,12 +1150,34 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (!date) {
       date = new Date();
     }
-    this.dateboxState = {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      selected: date,
-      mode: isYearMonthDateboxTarget(target) ? 'months' : 'calendar'
-    };
+    this.datePopup.setOptions({
+      anchor: target && target.input ? target.input : this.editor,
+      className: 'fui-grid-date-popup',
+      theme: 'inherit',
+      themeSource: this.root,
+      panelWidth: Math.max(
+        250,
+        target && target.input ? target.input.getBoundingClientRect().width : 0
+      ),
+      panelHeight: 'auto',
+      ariaLabel: this.getText('aria.datePicker'),
+      firstDay: 0,
+      showWeek: false,
+      showLunar: dateOptions.showLunar === true ||
+        Boolean(target && target.column && target.column.showLunar === true),
+      locale: this.locale,
+      currentText: this.getText('datebox.today'),
+      closeText: this.getText('datebox.close'),
+      yearText: this.getText('aria.year'),
+      weeks: this.getText('datebox.weekdays'),
+      months: this.getText('datebox.months'),
+      buttons: isYearMonthDateboxTarget(target) ? [] : null,
+      calendarMode: isYearMonthDateboxTarget(target) ? 'months' : 'days',
+      validator: function() { return true; },
+      validatorContext: this,
+      owner: this
+    });
+    this.datePopup.setValue(date, date);
   };
 
   FabGrid.prototype.applyDateboxTargetDate = function(date) {
@@ -1492,191 +1205,61 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     target.input.focus();
   };
 
-  FabGrid.prototype.moveDateboxMonth = function(action) {
-    var state = this.dateboxState || {
-      year: new Date().getFullYear(),
-      month: new Date().getMonth(),
-      selected: null,
-      mode: 'calendar'
-    };
-    var date = new Date(state.year, state.month, 1);
-    if (action === 'prev-year') {
-      date.setFullYear(date.getFullYear() - 1);
-    } else if (action === 'next-year') {
-      date.setFullYear(date.getFullYear() + 1);
-    } else if (action === 'prev-month') {
-      date.setMonth(date.getMonth() - 1);
-    } else if (action === 'next-month') {
-      date.setMonth(date.getMonth() + 1);
-    }
-    this.dateboxState = {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      selected: state.selected,
-      mode: state.mode || 'calendar'
-    };
-    this.renderDateboxPanel();
-  };
-
   FabGrid.prototype.renderDateboxPanel = function() {
-    var state = this.dateboxState || {};
-    var year = state.year || new Date().getFullYear();
-    var month = state.month == null ? new Date().getMonth() : state.month;
-    var mode = state.mode || 'calendar';
-    var selectedIso = state.selected ? formatDateIso(state.selected) : '';
-    var todayIso = formatDateIso(new Date());
-    var first = new Date(year, month, 1);
-    var start = new Date(year, month, 1 - first.getDay());
-    var labels = this.getWeekdayNames();
-    var html = [];
-    var i;
-    var d;
-    var iso;
-    var className;
-    html.push('<div class="fg-datebox-header">');
-    html.push('<button type="button" class="fg-datebox-control" data-action="prev-year">«</button>');
-    html.push('<button type="button" class="fg-datebox-control" data-action="prev-month">‹</button>');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-title fg-datebox-title-button" data-action="months">' + this.getMonthTitle(year, month) + '</button>');
-    html.push('<button type="button" class="fg-datebox-control" data-action="next-month">›</button>');
-    html.push('<button type="button" class="fg-datebox-control" data-action="next-year">»</button>');
-    html.push('</div>');
-    if (mode === 'months') {
-      this.renderDateboxMonthView(html, year, month);
-      if (!isYearMonthDateboxTarget(this.dateboxTarget)) {
-        this.renderDateboxFooter(html);
-      }
-      this.dateboxPanel.innerHTML = html.join('');
-      return;
+    if (!this.datePopup) return;
+    if (this.dateboxTarget) {
+      this.syncDateboxPanelToTarget(this.dateboxTarget);
+    } else {
+      this.datePopup.render();
     }
-    html.push('<div class="fg-datebox-weekdays">');
-    for (i = 0; i < labels.length; i += 1) {
-      html.push('<span>' + escapeHtml(labels[i]) + '</span>');
-    }
-    html.push('</div>');
-    html.push('<div class="fg-datebox-days">');
-    for (i = 0; i < 42; i += 1) {
-      d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-      iso = formatDateIso(d);
-      className = 'fg-datebox-day';
-      if (d.getMonth() !== month) {
-        className += ' fg-datebox-other-month';
-      }
-      if (d.getDay() === 0) {
-        className += ' fg-datebox-sunday';
-      } else if (d.getDay() === 6) {
-        className += ' fg-datebox-saturday';
-      }
-      if (iso === todayIso) {
-        className += ' fg-datebox-today';
-      }
-      if (iso === selectedIso) {
-        className += ' fg-datebox-selected';
-      }
-      html.push('<button type="button" class="' + className + '" data-date="' + iso + '">' + d.getDate() + '</button>');
-    }
-    html.push('</div>');
-    this.renderDateboxFooter(html);
-    this.dateboxPanel.innerHTML = html.join('');
-  };
-
-  FabGrid.prototype.renderDateboxMonthView = function(html, year, month) {
-    var labels = this.getMonthNames();
-    var i;
-    var className;
-    html.push('<div class="fg-datebox-month-view">');
-    html.push('<div class="fg-datebox-year-row">');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="prev-year">«</button>');
-    html.push('<input class="fg-datebox-year-input" type="number" min="1" max="9999" value="' + year + '" aria-label="' + escapeHtml(this.getText('aria.year')) + '">');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-year-control" data-action="next-year">»</button>');
-    html.push('</div>');
-    html.push('<div class="fg-datebox-months">');
-    for (i = 0; i < labels.length; i += 1) {
-      className = 'fg-datebox-month';
-      if (i === month) {
-        className += ' fg-datebox-month-selected';
-      }
-      html.push('<button type="button" class="' + className + '" data-month="' + i + '">' + escapeHtml(labels[i]) + '</button>');
-    }
-    html.push('</div>');
-    html.push('</div>');
-  };
-
-  FabGrid.prototype.renderDateboxFooter = function(html) {
-    html.push('<div class="fg-datebox-footer">');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="today">' + escapeHtml(this.getText('datebox.today')) + '</button>');
-    html.push('<button type="button" class="fg-datebox-control fg-datebox-footer-button" data-action="close">' + escapeHtml(this.getText('datebox.close')) + '</button>');
-    html.push('</div>');
-  };
-
-  FabGrid.prototype.getMonthNames = function() {
-    var names = this.getText('datebox.months');
-    return names && names.length ? names : [];
-  };
-
-  FabGrid.prototype.getWeekdayNames = function() {
-    var names = this.getText('datebox.weekdays');
-    return names && names.length ? names : [];
-  };
-
-  FabGrid.prototype.getMonthTitle = function(year, month) {
-    var names = this.getMonthNames();
-    return escapeHtml(formatLocaleText(this.getText('datebox.monthTitle'), {
-      month: names[month] || String(month + 1),
-      year: year
-    }));
   };
 
   FabGrid.prototype.positionDateboxPanel = function(left, top, width) {
-    var panelWidth = Math.max(250, width);
-    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
-    var maxTop = Math.max(0, this.root.clientHeight - 282);
-    this.dateboxPanel.style.left = clamp(left, 0, maxLeft) + 'px';
-    this.dateboxPanel.style.top = clamp(top, 0, maxTop) + 'px';
-    this.dateboxPanel.style.width = panelWidth + 'px';
+    if (!this.datePopup) return;
+    this.datePopup.setOptions({
+      anchor: this.dateboxTarget && this.dateboxTarget.input ?
+        this.dateboxTarget.input :
+        this.editor,
+      panelWidth: Math.max(250, width)
+    });
+    this.datePopup.position();
   };
 
   FabGrid.prototype.positionComboboxPanel = function(left, top, width) {
     var maxWidth = Math.max(120, this.root.clientWidth - 4);
-    var contentWidth = this.measureComboboxPanelWidth();
-    var panelWidth = Math.min(maxWidth, Math.max(120, width, contentWidth));
-    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
-    var maxTop = Math.max(0, this.root.clientHeight - 180);
-    this.comboboxPanel.style.left = clamp(left, 0, maxLeft) + 'px';
-    this.comboboxPanel.style.top = clamp(top, 0, maxTop) + 'px';
-    this.comboboxPanel.style.width = panelWidth + 'px';
+    if (!this.comboPopup) return;
+    this.comboPopup.setLayout({
+      anchor: this.comboboxTarget && this.comboboxTarget.input ?
+        this.comboboxTarget.input :
+        this.editor,
+      panelWidth: Math.max(120, width),
+      panelMaxWidth: maxWidth,
+      fitContent: true
+    });
+    this.comboPopup.position();
   };
 
   FabGrid.prototype.positionColorPanel = function(left, top) {
     var panelWidth = Math.min(420, Math.max(260, this.root.clientWidth - 4));
-    var panelHeight = Math.max(190, this.colorPanel.offsetHeight || 210);
-    var maxLeft = Math.max(0, this.root.clientWidth - panelWidth - 2);
-    var maxTop = Math.max(0, this.root.clientHeight - panelHeight - 2);
-    this.colorPanel.style.left = clamp(left, 0, maxLeft) + 'px';
-    this.colorPanel.style.top = clamp(top, 0, maxTop) + 'px';
-    this.colorPanel.style.width = panelWidth + 'px';
+    if (!this.colorPopup) return;
+    this.colorPopup.setOptions({
+      anchor: this.colorTarget && this.colorTarget.input ?
+        this.colorTarget.input :
+        this.editor,
+      panelWidth: panelWidth
+    });
+    this.colorPopup.position();
   };
 
   FabGrid.prototype.measureComboboxPanelWidth = function() {
-    var previousWidth;
-    var width;
-    if (!this.comboboxPanel) {
-      return 0;
-    }
-    previousWidth = this.comboboxPanel.style.width;
-    this.comboboxPanel.style.width = 'auto';
-    width = Math.ceil(this.comboboxPanel.scrollWidth || this.comboboxPanel.offsetWidth || 0);
-    this.comboboxPanel.style.width = previousWidth;
-    return width + 2;
+    return this.comboPopup ? this.comboPopup.measureContentWidth() : 0;
   };
 
   FabGrid.prototype.clearEditingState = function() {
     this.editing = null;
     this.editorConfig = null;
     this.editorIconConfigs = [];
-    this.dateboxState = null;
     this.comboboxItems = [];
-    this.colorState = null;
-    this.colorDragState = null;
     if (this.editor) {
       this.editor.style.display = 'none';
     }

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "jQuery wrapper for FabUI EditBox.",
+  "description": "jQuery wrapper for fabui.EditBox.",
   "main": "dist/fabeditbox-jquery.js",
   "module": "dist/fabeditbox-jquery.esm.js",
   "types": "index.d.ts",

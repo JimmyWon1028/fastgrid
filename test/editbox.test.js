@@ -4,6 +4,12 @@ import EditBox, {
   EditBox as NamedEditBox,
   editorDefinitions
 } from '../src/editbox/editbox.js';
+import coreFabui from '../src/fabui.js';
+
+test('FabUI core publishes EditBox with shared editor definitions', function() {
+  assert.equal(typeof coreFabui.EditBox, 'function');
+  assert.equal(coreFabui.EditBox.editorDefinitions, coreFabui.editorDefinitions);
+});
 
 test('EditBox exposes one class with simplified editor type names', function() {
   assert.equal(EditBox, NamedEditBox);

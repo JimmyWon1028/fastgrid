@@ -1143,6 +1143,9 @@ export function installFabGridSelection(FabGrid, context) {
       if (event.target === this.editor && this.handleMaskedEditorDelete(event)) {
         return;
       }
+      if (event.target === this.editor && this.handleDateboxKeyDown(event, this.editor)) {
+        return;
+      }
       if (event.target === this.editor && this.handleComboboxKeyDown(event)) {
         return;
       }

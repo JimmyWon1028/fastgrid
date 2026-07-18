@@ -17,10 +17,11 @@
   --fui-tabs-selected-right-bg: #fafafa;
   --fui-tabs-pill-bg: #c8d47b;
   --fui-tabs-pill-text: #404040;
+  --fui-tabs-drag-indicator: #8170db;
 }
 
 .fui-tabs.fg-theme-metro-green .fui-tabs-close,
-.fui-tabs.fg-theme-metro-green .fui-tabs-scroller-left,
-.fui-tabs.fg-theme-metro-green .fui-tabs-scroller-right {
+.fui-tabs.fg-theme-metro-green .fui-tabs-scroll-prev,
+.fui-tabs.fg-theme-metro-green .fui-tabs-scroll-next {
   background-image: url('images/tabs_icons.png');
 }

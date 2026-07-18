@@ -1,6 +1,14 @@
 var activeRowDrag = null;
 var rowDragGrids = [];
 
+export function calculateRowDropIndicatorWidth(bodyWidth, fixedLeftWidth, totalColumnWidth, verticalScrollbarGutterSize) {
+  var availableWidth = Math.max(0, Number(bodyWidth) || 0) -
+    Math.max(0, Number(verticalScrollbarGutterSize) || 0);
+  var columnAreaWidth = Math.max(0, Number(fixedLeftWidth) || 0) +
+    Math.max(0, Number(totalColumnWidth) || 0);
+  return Math.max(0, Math.min(availableWidth, columnAreaWidth));
+}
+
 export function installFabGridDrag(FabGrid, context) {
   var bind = context.bind;
   var closest = context.closest;
@@ -473,6 +481,9 @@ export function installFabGridDrag(FabGrid, context) {
     var rootRect;
     var bodyRect;
     var rowRect;
+    var fixedLeftWidth;
+    var verticalScrollbarGutterSize;
+    var indicatorWidth;
     var top;
     if (!this.rowDropIndicator) {
       this.rowDropIndicator = document.createElement('div');
@@ -482,9 +493,19 @@ export function installFabGridDrag(FabGrid, context) {
     rootRect = this.root.getBoundingClientRect();
     bodyRect = this.body.getBoundingClientRect();
     rowRect = target.element ? target.element.getBoundingClientRect() : null;
+    fixedLeftWidth = typeof this.getFixedLeftWidth === 'function' ? this.getFixedLeftWidth() : 0;
+    verticalScrollbarGutterSize = typeof this.getVerticalScrollbarGutterSize === 'function' ?
+      this.getVerticalScrollbarGutterSize() :
+      0;
+    indicatorWidth = calculateRowDropIndicatorWidth(
+      bodyRect.width,
+      fixedLeftWidth,
+      this.totalWidth,
+      verticalScrollbarGutterSize
+    );
     this.rowDropIndicator.className = 'fg-row-drop-indicator fg-row-drop-' + target.position;
     this.rowDropIndicator.style.left = Math.max(0, bodyRect.left - rootRect.left) + 'px';
-    this.rowDropIndicator.style.width = Math.max(0, bodyRect.width) + 'px';
+    this.rowDropIndicator.style.width = indicatorWidth + 'px';
     if (target.position === 'inside' && rowRect) {
       this.rowDropIndicator.style.top = rowRect.top - rootRect.top + 'px';
       this.rowDropIndicator.style.height = rowRect.height + 'px';

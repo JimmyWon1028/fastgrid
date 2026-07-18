@@ -1,5 +1,5 @@
 /*! FabGrid theme metro-gray | performance-first data grid */
-@import './metro-gray/tabs.css';
+@import './metro-gray/tabs.css?v=20260718-tabs-drag-right-v1';
 @import './metro-gray/components.css';
 .fg-root.fg-theme-metro-gray,
 .fui-tabs.fg-theme-metro-gray {

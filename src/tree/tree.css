@@ -1,0 +1,460 @@
+.fui-tree,
+.fui-tree * {
+  box-sizing: border-box;
+}
+
+.fui-tree {
+  --fui-tree-text: var(--fg-cell-text, #000000);
+  --fui-tree-muted: #666666;
+  --fui-tree-hover-bg: var(--fg-cell-hover-bg, #eaf2ff);
+  --fui-tree-hover-border: #b7d2ff;
+  --fui-tree-selected-bg: var(--fg-row-selected-bg, #ffe48d);
+  --fui-tree-selected-border: #ffab3f;
+  --fui-tree-focus: rgba(38, 132, 255, 0.42);
+  --fui-tree-line: #cccccc;
+  --fui-tree-checkbox-border: #8a8a8a;
+  --fui-tree-checkbox-bg: #ffffff;
+  --fui-tree-checkbox-mark: #2468a2;
+  --fui-tree-drag-indicator: var(--fg-border-strong, #95b8e7);
+  min-width: 0;
+  margin: 0;
+  padding: 3px;
+  outline: 0;
+  color: var(--fui-tree-text);
+  font: 14px Arial, Helvetica, sans-serif;
+  line-height: 22px;
+  list-style: none;
+  user-select: none;
+}
+
+.fui-tree-root,
+.fui-tree-children {
+  display: block;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fui-tree-children[hidden] {
+  display: none;
+}
+
+.fui-tree-item {
+  position: relative;
+  display: block;
+  min-width: max-content;
+  margin: 0;
+  padding: 0;
+}
+
+.fui-tree-node {
+  position: relative;
+  display: flex;
+  min-width: max-content;
+  height: 24px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  outline: 0;
+  cursor: default;
+}
+
+.fui-tree-node:hover {
+  border-color: var(--fui-tree-hover-border);
+  background: var(--fui-tree-hover-bg);
+}
+
+.fui-tree-node:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--fui-tree-focus);
+}
+
+.fui-tree-node-selected {
+  border-color: var(--fui-tree-selected-border);
+  background: var(--fui-tree-selected-bg);
+}
+
+.fui-tree-node-selected:hover {
+  border-color: var(--fui-tree-selected-border);
+  background: var(--fui-tree-selected-bg);
+}
+
+.fui-tree-indent,
+.fui-tree-expander,
+.fui-tree-checkbox,
+.fui-tree-icon {
+  position: relative;
+  display: inline-flex;
+  width: 18px;
+  height: 22px;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.fui-tree-expander,
+.fui-tree-checkbox {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.fui-tree-expander::before {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid currentColor;
+  content: "";
+  transform-origin: 2px 4px;
+  transition: transform 160ms ease;
+}
+
+.fui-tree-expander-open::before {
+  transform: rotate(90deg);
+}
+
+.fui-tree-expander-empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.fui-tree-checkbox::before {
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--fui-tree-checkbox-border);
+  border-radius: 2px;
+  background: var(--fui-tree-checkbox-bg);
+  content: "";
+}
+
+.fui-tree-checkbox-checked::after {
+  position: absolute;
+  top: 6px;
+  left: 5px;
+  width: 7px;
+  height: 4px;
+  border-bottom: 2px solid var(--fui-tree-checkbox-mark);
+  border-left: 2px solid var(--fui-tree-checkbox-mark);
+  content: "";
+  transform: rotate(-45deg);
+}
+
+.fui-tree-checkbox-mixed::after {
+  position: absolute;
+  top: 10px;
+  left: 5px;
+  width: 8px;
+  height: 2px;
+  background: var(--fui-tree-checkbox-mark);
+  content: "";
+}
+
+.fui-tree-icon {
+  margin-right: 2px;
+}
+
+.fui-tree-icon::before {
+  position: absolute;
+  content: "";
+}
+
+.fui-tree-icon-folder::before,
+.fui-tree-icon-folder-open::before {
+  top: 6px;
+  left: 2px;
+  width: 14px;
+  height: 10px;
+  border: 1px solid #bd8b23;
+  border-radius: 1px;
+  background: #f6c65b;
+}
+
+.fui-tree-icon-folder::after,
+.fui-tree-icon-folder-open::after {
+  position: absolute;
+  top: 4px;
+  left: 3px;
+  width: 7px;
+  height: 4px;
+  border: 1px solid #bd8b23;
+  border-bottom: 0;
+  border-radius: 1px 1px 0 0;
+  background: #f6c65b;
+  content: "";
+}
+
+.fui-tree-icon-folder-open::before {
+  border-color: #b9851d;
+  background: #ffd87a;
+  transform: skewX(-10deg);
+}
+
+.fui-tree-icon-file::before {
+  top: 3px;
+  left: 4px;
+  width: 10px;
+  height: 14px;
+  border: 1px solid #7f91a5;
+  border-radius: 1px;
+  background: #ffffff;
+}
+
+.fui-tree-icon-file::after {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  width: 6px;
+  height: 1px;
+  background: #9eacba;
+  box-shadow: 0 3px 0 #9eacba, 0 6px 0 #9eacba;
+  content: "";
+}
+
+.fui-tree-title {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 22px;
+  padding: 0 4px 0 1px;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fui-tree-editor {
+  width: max(120px, 100%);
+  height: 22px;
+  margin: 0;
+  padding: 1px 4px;
+  border: 1px solid var(--fui-tree-selected-border);
+  border-radius: 2px;
+  outline: 0;
+  background: var(--fg-cell-bg, #ffffff);
+  color: var(--fui-tree-text);
+  font: inherit;
+  line-height: 18px;
+  user-select: text;
+}
+
+.fui-tree-node-loading .fui-tree-icon::before {
+  top: 5px;
+  left: 5px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: var(--fui-tree-checkbox-mark);
+  border-radius: 50%;
+  background: transparent;
+  animation: fui-tree-spin 700ms linear infinite;
+}
+
+.fui-tree-node-loading .fui-tree-icon::after {
+  display: none;
+}
+
+.fui-tree-lines .fui-tree-indent-line::before {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 8px;
+  border-left: 1px dotted var(--fui-tree-line);
+  content: "";
+}
+
+.fui-tree-lines .fui-tree-expander::after {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  width: 7px;
+  border-top: 1px dotted var(--fui-tree-line);
+  content: "";
+  pointer-events: none;
+}
+
+.fui-tree-animate .fui-tree-expander::before {
+  transition-duration: 180ms;
+}
+
+.fui-tree-dnd .fui-tree-node {
+  cursor: grab;
+}
+
+.fui-tree-node-dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.fui-tree-drop-before::before,
+.fui-tree-drop-after::after {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fui-tree-drag-indicator);
+  content: "";
+  opacity: var(--fg-drag-indicator-opacity, 0.55);
+  pointer-events: none;
+}
+
+.fui-tree-drop-before::before {
+  top: -2px;
+}
+
+.fui-tree-drop-after::after {
+  bottom: -2px;
+}
+
+.fui-tree-drop-append {
+  border-color: var(--fui-tree-drag-indicator);
+  background: color-mix(in srgb, var(--fui-tree-drag-indicator) 18%, transparent);
+}
+
+.fui-tree.fg-theme-bootstrap {
+  --fui-tree-hover-bg: #e6e6e6;
+  --fui-tree-hover-border: #adadad;
+  --fui-tree-selected-bg: #337ab7;
+  --fui-tree-selected-border: #2e6da4;
+  --fui-tree-checkbox-mark: #337ab7;
+}
+
+.fui-tree.fg-theme-cupertino {
+  --fui-tree-text: #2779aa;
+  --fui-tree-hover-bg: #d7ebf9;
+  --fui-tree-hover-border: #74b2e2;
+  --fui-tree-selected-bg: #3baae3;
+  --fui-tree-selected-border: #2694e8;
+  --fui-tree-checkbox-mark: #2779aa;
+}
+
+.fui-tree.fg-theme-material,
+.fui-tree.fg-theme-material-blue,
+.fui-tree.fg-theme-material-teal {
+  --fui-tree-hover-bg: #eeeeee;
+  --fui-tree-hover-border: #dddddd;
+  --fui-tree-selected-bg: #e0e0e0;
+  --fui-tree-selected-border: #bdbdbd;
+}
+
+.fui-tree.fg-theme-material-blue {
+  --fui-tree-hover-bg: #e1f5fe;
+  --fui-tree-hover-border: #00bbee;
+  --fui-tree-selected-bg: #b3e5fc;
+  --fui-tree-selected-border: #03a9f4;
+  --fui-tree-checkbox-mark: #03a9f4;
+}
+
+.fui-tree.fg-theme-material-teal {
+  --fui-tree-hover-bg: #e0f2f1;
+  --fui-tree-hover-border: #39c5bb;
+  --fui-tree-selected-bg: #b2dfdb;
+  --fui-tree-selected-border: #26a69a;
+  --fui-tree-checkbox-mark: #26a69a;
+}
+
+.fui-tree.fg-theme-metro,
+.fui-tree.fg-theme-metro-blue,
+.fui-tree.fg-theme-metro-gray,
+.fui-tree.fg-theme-metro-green,
+.fui-tree.fg-theme-metro-orange,
+.fui-tree.fg-theme-metro-red {
+  --fui-tree-hover-bg: #e6e6e6;
+  --fui-tree-hover-border: #bbbbbb;
+  --fui-tree-selected-bg: #cccccc;
+  --fui-tree-selected-border: #999999;
+}
+
+.fui-tree.fg-theme-metro-blue {
+  --fui-tree-hover-bg: #d9edf7;
+  --fui-tree-hover-border: #28a9e0;
+  --fui-tree-selected-bg: #9bd2ea;
+  --fui-tree-selected-border: #28a9e0;
+  --fui-tree-checkbox-mark: #28a9e0;
+}
+
+.fui-tree.fg-theme-metro-gray {
+  --fui-tree-selected-bg: #c9cbd0;
+  --fui-tree-selected-border: #8b909b;
+  --fui-tree-checkbox-mark: #8b909b;
+}
+
+.fui-tree.fg-theme-metro-green {
+  --fui-tree-hover-bg: #eaf2c7;
+  --fui-tree-hover-border: #7e8f24;
+  --fui-tree-selected-bg: #d4e58d;
+  --fui-tree-selected-border: #7e8f24;
+  --fui-tree-checkbox-mark: #7e8f24;
+}
+
+.fui-tree.fg-theme-metro-orange {
+  --fui-tree-hover-bg: #fff0e6;
+  --fui-tree-hover-border: #ff8c3a;
+  --fui-tree-selected-bg: #ffd0ad;
+  --fui-tree-selected-border: #ff8c3a;
+  --fui-tree-checkbox-mark: #ff8c3a;
+}
+
+.fui-tree.fg-theme-metro-red {
+  --fui-tree-hover-bg: #fde9e9;
+  --fui-tree-hover-border: #d9534f;
+  --fui-tree-selected-bg: #f5baba;
+  --fui-tree-selected-border: #d9534f;
+  --fui-tree-checkbox-mark: #d9534f;
+}
+
+.fui-tree.fg-theme-sunny {
+  --fui-tree-hover-bg: #feeebd;
+  --fui-tree-hover-border: #f9dd34;
+  --fui-tree-selected-bg: #ffd35b;
+  --fui-tree-selected-border: #e9b800;
+  --fui-tree-checkbox-mark: #b27500;
+}
+
+.fui-tree.fg-theme-pepper-grinder {
+  --fui-tree-hover-bg: #f5f3e5;
+  --fui-tree-hover-border: #d9d6c4;
+  --fui-tree-selected-bg: #f4f0cb;
+  --fui-tree-selected-border: #c9c17d;
+  --fui-tree-checkbox-mark: #654b24;
+}
+
+.fui-tree.fg-theme-dark-hive,
+.fui-tree.fg-theme-black {
+  --fui-tree-text: #ffffff;
+  --fui-tree-line: #777777;
+  --fui-tree-checkbox-bg: #303030;
+  --fui-tree-checkbox-border: #8a8a8a;
+  --fui-tree-hover-bg: #333333;
+  --fui-tree-hover-border: #666666;
+  --fui-tree-selected-bg: #555555;
+  --fui-tree-selected-border: #999999;
+  --fui-tree-checkbox-mark: #ffffff;
+}
+
+.fui-tree.fg-theme-black {
+  --fui-tree-hover-bg: #1f1f1f;
+  --fui-tree-hover-border: #555555;
+  --fui-tree-selected-bg: #3b3b3b;
+  --fui-tree-selected-border: #777777;
+}
+
+@keyframes fui-tree-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fui-tree *,
+  .fui-tree *::before,
+  .fui-tree *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

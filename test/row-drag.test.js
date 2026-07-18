@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installFabGridDrag } from '../src/grid/fabgrid-drag.js';
+import {
+  calculateRowDropIndicatorWidth,
+  installFabGridDrag
+} from '../src/grid/fabgrid-drag.js';
 
 function createGrid(rows, allowDragging) {
   function TestGrid() {}
@@ -26,6 +29,62 @@ test('row dragging modes enable rows and all for local data', function() {
   grid.options.allowDragging = 'Rows';
   grid.options.remote = true;
   assert.equal(grid.canDragRows(), false);
+});
+
+test('row drop indicator width stops at the column area and excludes the vertical scrollbar', function() {
+  assert.equal(calculateRowDropIndicatorWidth(800, 46, 420, 12), 466);
+  assert.equal(calculateRowDropIndicatorWidth(800, 46, 1200, 12), 788);
+  assert.equal(calculateRowDropIndicatorWidth(800, 0, 0, 12), 0);
+  assert.equal(calculateRowDropIndicatorWidth(-1, 46, 420, 12), 0);
+});
+
+test('row drop indicator uses the calculated column area width', function() {
+  var grid = createGrid([], 'Rows');
+  var originalDocument = globalThis.document;
+  var indicator = {
+    className: '',
+    style: {},
+    setAttribute: function() {}
+  };
+  grid.root = {
+    appendChild: function() {},
+    classList: { add: function() {} },
+    getBoundingClientRect: function() {
+      return { left: 100, top: 20 };
+    }
+  };
+  grid.body = {
+    getBoundingClientRect: function() {
+      return { left: 100, bottom: 520, width: 800 };
+    }
+  };
+  grid.totalWidth = 420;
+  grid.getFixedLeftWidth = function() { return 46; };
+  grid.getVerticalScrollbarGutterSize = function() { return 12; };
+
+  globalThis.document = {
+    createElement: function() {
+      return indicator;
+    }
+  };
+  try {
+    grid.showRowDropIndicator({
+      element: {
+        getBoundingClientRect: function() {
+          return { top: 120, bottom: 150, height: 30 };
+        }
+      },
+      position: 'before'
+    });
+    assert.equal(indicator.style.left, '0px');
+    assert.equal(indicator.style.width, '466px');
+  } finally {
+    if (originalDocument === undefined) {
+      delete globalThis.document;
+    } else {
+      globalThis.document = originalDocument;
+    }
+  }
 });
 
 test('flat row helpers reorder, insert and remove items', function() {

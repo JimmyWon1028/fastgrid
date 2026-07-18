@@ -8,8 +8,7 @@
   "module": "dist/fabui.esm.js",
   "style": "dist/fabui.css",
   "scripts": {
-    "build": "node build/build.cjs && node build/build-editbox.cjs && node build/build-vue.cjs && node build/build-jquery.cjs && node build/build-editbox-jquery.cjs",
-    "build:editbox": "node build/build-editbox.cjs",
+    "build": "node build/build.cjs && node build/build-vue.cjs && node build/build-jquery.cjs && node build/build-editbox-jquery.cjs",
     "build:editbox-jquery": "node build/build-editbox-jquery.cjs",
     "build:vue": "node build/build-vue.cjs",
     "build:jquery": "node build/build-jquery.cjs && node build/build-editbox-jquery.cjs",

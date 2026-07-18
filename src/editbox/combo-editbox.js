@@ -1,3 +1,6 @@
+import { ComboPopup } from './combo-popup.js?v=20260718-final-audit-v1';
+import { normalizeEditorIconDescriptors } from './editor-icons.js?v=20260718-editor-icons-v1';
+
 export function createComboBoxFactory(TextBox, editorDefinitions) {
   'use strict';
 
@@ -75,11 +78,6 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
 
   function resolveElement(element) {
     return typeof element === 'string' ? document.querySelector(element) : element;
-  }
-
-  function cssSize(value, fallback) {
-    if (value == null || value === '') return fallback + 'px';
-    return typeof value === 'number' ? value + 'px' : String(value);
   }
 
   function uniqueStrings(values) {
@@ -190,7 +188,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
       this._textboxSource = source;
     }
 
-    icons = Array.isArray(this._options.icons) ? this._options.icons.slice() : [];
+    icons = normalizeEditorIconDescriptors(this._options.icons);
     if (this._options.hasDownArrow) {
       icons.push({
         iconCls: 'fui-combobox-arrow',
@@ -223,7 +221,44 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     }
     this._field = this._editor.closest('.fui-textbox-field');
     this._shell = this._editor.closest('.fui-textbox');
-    this._buildPanel();
+    this._comboPopup = new ComboPopup({
+      anchor: this._shell,
+      openClassHost: this._shell,
+      ariaLabel: this._options.openListText,
+      multiple: this._options.multiple,
+      closeOnSelect: !this._options.multiple,
+      containsTarget: function(target) {
+        return self._shell.contains(target);
+      },
+      onSelect: function(descriptor) {
+        var row = descriptor.data;
+        if (!row) return;
+        if (typeof self._options.onClick === 'function') {
+          self._options.onClick.call(self._source, row);
+        }
+        self._emit('click', { record: row });
+        self._chooseRow(row);
+      },
+      onActiveChange: function(index) {
+        self._activeIndex = index;
+      },
+      onShow: function() {
+        self._panelVisible = true;
+        if (typeof self._options.onShowPanel === 'function') {
+          self._options.onShowPanel.call(self);
+        }
+        self._emit('showPanel', { panel: self._comboPopup.panel });
+      },
+      onHide: function() {
+        self._panelVisible = false;
+        self._activeIndex = -1;
+        if (typeof self._options.onHidePanel === 'function') {
+          self._options.onHidePanel.call(self);
+        }
+        self._emit('hidePanel', { panel: self._comboPopup.panel });
+      }
+    });
+    this._panel = this._comboPopup.panel;
     this._bind();
     source.__fabuiComboBox = this;
 
@@ -279,16 +314,6 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     return uniqueStrings(values.filter(function(item) { return item !== ''; }));
   };
 
-  ComboBox.prototype._buildPanel = function() {
-    var panel = document.createElement('div');
-    panel.className = 'fui-combobox-panel';
-    panel.hidden = true;
-    panel.setAttribute('role', 'listbox');
-    panel.setAttribute('aria-multiselectable', this._options.multiple ? 'true' : 'false');
-    document.body.appendChild(panel);
-    this._panel = panel;
-  };
-
   ComboBox.prototype._bind = function() {
     var self = this;
     this._onInput = function() { self._handleInput(); };
@@ -301,38 +326,12 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
         }
       }, 60);
     };
-    this._onPanelMouseDown = function(event) { event.preventDefault(); };
-    this._onPanelClick = function(event) { self._handlePanelClick(event); };
-    this._onPanelMouseOver = function(event) {
-      var item = event.target.closest('.fui-combobox-item');
-      if (!item || item.classList.contains('fui-combobox-item-disabled')) return;
-      self._setActiveIndex(Number(item.getAttribute('data-index')), false);
-    };
-    this._onDocumentPointerDown = function(event) {
-      if (!self._panelVisible) return;
-      if (self._panel.contains(event.target) || self._shell.contains(event.target)) return;
-      self.hidePanel();
-    };
-    this._onDocumentKeyDown = function(event) {
-      if (!self._panelVisible || event.key !== 'Escape') return;
-      event.preventDefault();
-      self.hidePanel();
-    };
-    this._onWindowResize = function() { if (self._panelVisible) self._positionPanel(); };
-    this._onWindowScroll = function() { if (self._panelVisible) self._positionPanel(); };
     this._onFormReset = function() {
       window.setTimeout(function() { if (!self._destroyed) self.reset(); }, 0);
     };
     this._editor.addEventListener('input', this._onInput);
     this._editor.addEventListener('keydown', this._onKeyDown);
     this._editor.addEventListener('blur', this._onBlur);
-    this._panel.addEventListener('mousedown', this._onPanelMouseDown);
-    this._panel.addEventListener('click', this._onPanelClick);
-    this._panel.addEventListener('mouseover', this._onPanelMouseOver);
-    document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
-    document.addEventListener('keydown', this._onDocumentKeyDown);
-    window.addEventListener('resize', this._onWindowResize);
-    window.addEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
   };
 
@@ -424,29 +423,13 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   };
 
   ComboBox.prototype._setActiveIndex = function(index, selectRow) {
-    var active;
-    this._activeIndex = index;
-    Array.prototype.forEach.call(this._panel.querySelectorAll('.fui-combobox-item-active'), function(item) {
-      item.classList.remove('fui-combobox-item-active');
-    });
-    active = this._panel.querySelector('.fui-combobox-item[data-index="' + index + '"]');
-    if (active) {
-      active.classList.add('fui-combobox-item-active');
-      if (active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
-      if (selectRow && this._filteredData[index]) this._chooseRow(this._filteredData[index], true);
+    this._comboPopup.setActiveIndex(index);
+    this._activeIndex = this._comboPopup.activeIndex;
+    if (selectRow && this._filteredData[this._activeIndex]) {
+      this._chooseRow(this._filteredData[this._activeIndex], true);
+      this._comboPopup.setActiveIndex(index);
+      this._activeIndex = this._comboPopup.activeIndex;
     }
-  };
-
-  ComboBox.prototype._handlePanelClick = function(event) {
-    var item = event.target.closest('.fui-combobox-item');
-    var row;
-    if (!item || item.classList.contains('fui-combobox-item-disabled')) return;
-    row = this._filteredData[Number(item.getAttribute('data-index'))];
-    if (!row) return;
-    if (typeof this._options.onClick === 'function') this._options.onClick.call(this._source, row);
-    this._emit('click', { record: row });
-    this._chooseRow(row);
-    if (!this._options.multiple) this.hidePanel();
   };
 
   ComboBox.prototype._chooseRow = function(row, remainOpen) {
@@ -476,77 +459,70 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   ComboBox.prototype._renderPanel = function() {
     var self = this;
     var lastGroup;
-    this._panel.textContent = '';
-    this._filteredData.forEach(function(row, index) {
+    var descriptors = [];
+    this._filteredData.forEach(function(row) {
       var group = self._options.groupField ? row[self._options.groupField] : null;
-      var groupElement;
-      var item;
-      var icon;
       var text;
       var code;
       var output;
       var value = String(row[self._options.valueField]);
+      var descriptor = {
+        value: value,
+        text: '',
+        data: row,
+        disabled: row.disabled === true,
+        selected: self._values.indexOf(value) >= 0,
+        group: group,
+        groupSticky: self._options.groupPosition === 'sticky',
+        iconClass: self._options.showItemIcon && row.iconCls ?
+          row.iconCls :
+          ''
+      };
       if (group != null && group !== lastGroup) {
-        groupElement = document.createElement('div');
-        groupElement.className = 'fui-combobox-group' + (self._options.groupPosition === 'sticky' ? ' fui-combobox-group-sticky' : '');
         if (typeof self._options.groupFormatter === 'function') {
-          output = self._options.groupFormatter.call(self._source, group);
-          self._appendFormatted(groupElement, output);
+          descriptor.groupContent = self._options.groupFormatter.call(
+            self._source,
+            group
+          );
         } else {
-          groupElement.textContent = String(group);
+          descriptor.groupContent = String(group);
         }
-        self._panel.appendChild(groupElement);
         lastGroup = group;
-      }
-      item = document.createElement('div');
-      item.className = 'fui-combobox-item' + (group != null ? ' fui-combobox-group-item' : '');
-      item.setAttribute('data-index', index);
-      item.setAttribute('data-value', value);
-      item.setAttribute('role', 'option');
-      item.setAttribute('aria-selected', self._values.indexOf(value) >= 0 ? 'true' : 'false');
-      if (row.disabled) item.classList.add('fui-combobox-item-disabled');
-      if (self._values.indexOf(value) >= 0) item.classList.add('fui-combobox-item-selected');
-      if (self._options.showItemIcon && row.iconCls) {
-        icon = document.createElement('span');
-        icon.className = 'fui-combobox-item-icon ' + row.iconCls;
-        item.appendChild(icon);
       }
       if (typeof self._options.formatter === 'function') {
         output = self._options.formatter.call(self._source, row);
-        self._appendFormatted(item, output);
+        descriptor.content = output;
       } else {
         text = String(row[self._options.textField] == null ? '' : row[self._options.textField]);
         code = String(row[self._options.valueField] == null ? '' : row[self._options.valueField]);
+        descriptor.text = text;
         if (self._options.showValueInList && code && code !== text) {
-          output = document.createElement('span');
-          output.className = 'fui-combobox-item-text';
-          output.textContent = text;
-          item.appendChild(output);
-          output = document.createElement('span');
-          output.className = 'fui-combobox-item-value';
-          output.textContent = '(' + code + ')';
-          item.appendChild(output);
-          item.setAttribute('aria-label', text + ' (' + code + ')');
-        } else {
-          item.appendChild(document.createTextNode(text));
+          descriptor.secondaryText = '(' + code + ')';
         }
       }
-      self._panel.appendChild(item);
+      descriptors.push(descriptor);
     });
-    if (!this._filteredData.length) {
-      var empty = document.createElement('div');
-      empty.className = 'fui-combobox-empty';
-      empty.textContent = '';
-      this._panel.appendChild(empty);
-    }
-  };
-
-  ComboBox.prototype._appendFormatted = function(element, output) {
-    if (output && output.nodeType) {
-      element.appendChild(output);
-    } else {
-      element.insertAdjacentHTML('beforeend', output == null ? '' : String(output));
-    }
+    this._comboPopup.setOptions({
+      anchor: this._shell,
+      openClassHost: this._shell,
+      ariaLabel: this._options.openListText,
+      panelWidth: this._options.panelWidth,
+      panelHeight: this._options.panelHeight,
+      panelMinWidth: this._options.panelMinWidth,
+      panelMaxWidth: this._options.panelMaxWidth,
+      panelMinHeight: this._options.panelMinHeight,
+      panelMaxHeight: this._options.panelMaxHeight,
+      panelAlign: this._options.panelAlign,
+      panelValign: this._options.panelValign,
+      multiple: this._options.multiple,
+      closeOnSelect: !this._options.multiple,
+      items: descriptors,
+      renderGroup: function(group, descriptor) {
+        return Object.prototype.hasOwnProperty.call(descriptor, 'groupContent') ?
+          descriptor.groupContent :
+          String(group);
+      }
+    });
   };
 
   ComboBox.prototype._findRow = function(value) {
@@ -612,29 +588,7 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
   };
 
   ComboBox.prototype._positionPanel = function() {
-    var rect;
-    var width;
-    var height;
-    var left;
-    var top;
-    if (!this._panelVisible) return;
-    rect = this._shell.getBoundingClientRect();
-    width = this._options.panelWidth == null ? rect.width : parseFloat(this._options.panelWidth) || rect.width;
-    this._panel.style.width = cssSize(width, rect.width);
-    this._panel.style.height = this._options.panelHeight === 'auto' ? 'auto' : cssSize(this._options.panelHeight, 300);
-    this._panel.style.minWidth = this._options.panelMinWidth == null ? '' : cssSize(this._options.panelMinWidth, 0);
-    this._panel.style.maxWidth = this._options.panelMaxWidth == null ? '' : cssSize(this._options.panelMaxWidth, width);
-    this._panel.style.minHeight = this._options.panelMinHeight == null ? '' : cssSize(this._options.panelMinHeight, 0);
-    this._panel.style.maxHeight = this._options.panelMaxHeight == null ? '' : cssSize(this._options.panelMaxHeight, 300);
-    height = this._panel.offsetHeight;
-    left = this._options.panelAlign === 'right' ? rect.right + window.pageXOffset - width : rect.left + window.pageXOffset;
-    top = rect.bottom + window.pageYOffset;
-    if (this._options.panelValign === 'top' || (this._options.panelValign === 'auto' && rect.bottom + height > document.documentElement.clientHeight && rect.top > height)) {
-      top = rect.top + window.pageYOffset - height;
-    }
-    if (left + width > window.pageXOffset + document.documentElement.clientWidth) left = Math.max(window.pageXOffset, window.pageXOffset + document.documentElement.clientWidth - width);
-    this._panel.style.left = Math.round(left) + 'px';
-    this._panel.style.top = Math.round(top) + 'px';
+    if (this._comboPopup) this._comboPopup.position();
   };
 
   ComboBox.prototype._emit = function(name, detail) {
@@ -787,26 +741,15 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
 
   ComboBox.prototype.showPanel = function() {
     if (this._options.disabled || this._panelVisible) return this;
-    this._panelVisible = true;
-    this._panel.hidden = false;
-    this._shell.classList.add('fui-combobox-open');
     this._filteredData = this._data.slice();
     this._renderPanel();
-    this._positionPanel();
+    this._comboPopup.show();
     this.scrollTo(this.getValue());
-    if (typeof this._options.onShowPanel === 'function') this._options.onShowPanel.call(this);
-    this._emit('showPanel', { panel: this._panel });
     return this;
   };
 
   ComboBox.prototype.hidePanel = function() {
-    if (!this._panelVisible) return this;
-    this._panelVisible = false;
-    this._panel.hidden = true;
-    this._shell.classList.remove('fui-combobox-open');
-    this._activeIndex = -1;
-    if (typeof this._options.onHidePanel === 'function') this._options.onHidePanel.call(this);
-    this._emit('hidePanel', { panel: this._panel });
+    if (this._comboPopup) this._comboPopup.hide();
     return this;
   };
 
@@ -847,15 +790,8 @@ export function createComboBoxFactory(TextBox, editorDefinitions) {
     this._editor.removeEventListener('input', this._onInput);
     this._editor.removeEventListener('keydown', this._onKeyDown);
     this._editor.removeEventListener('blur', this._onBlur);
-    this._panel.removeEventListener('mousedown', this._onPanelMouseDown);
-    this._panel.removeEventListener('click', this._onPanelClick);
-    this._panel.removeEventListener('mouseover', this._onPanelMouseOver);
-    document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
-    document.removeEventListener('keydown', this._onDocumentKeyDown);
-    window.removeEventListener('resize', this._onWindowResize);
-    window.removeEventListener('scroll', this._onWindowScroll, true);
     if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);
-    if (this._panel.parentNode) this._panel.parentNode.removeChild(this._panel);
+    this._comboPopup.destroy();
     this._textbox.destroy();
     if (this._source.tagName === 'SELECT') {
       if (this._textboxSource.parentNode) this._textboxSource.parentNode.removeChild(this._textboxSource);

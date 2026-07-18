@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabGrid + Chart 共用資料來源</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260716-cell-range-v2">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260718-tabs-v1">
   <link rel="stylesheet" href="../src/chart/chart.css?v=20260712-pie-label-rotate-v1">
   <style>
     * { box-sizing: border-box; }
@@ -24,7 +24,7 @@
     @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .header { align-items: start; flex-direction: column; } }
   </style>
 </head>
-<body>
+<body class="fg-theme-default">
   <main class="page">
     <header class="header">
       <div>
@@ -63,7 +63,7 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260717-pivot-workspace-v2';
+    import fabui from '../src/fabui.js?v=20260718-final-audit-v1';
 
     const itemsSource = [
       { month: '1月', revenue: 75, cost: 48, orders: 12 },

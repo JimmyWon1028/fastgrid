@@ -294,6 +294,7 @@
   border-radius: 1px;
   background: var(--fg-selected-border);
   box-shadow: 0 0 0 1px var(--fg-cell-bg);
+  opacity: var(--fg-drag-indicator-opacity, 0.55);
   pointer-events: none;
 }
 

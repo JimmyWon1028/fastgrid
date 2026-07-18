@@ -1,5 +1,5 @@
 /*! FabGrid theme sunny | performance-first data grid */
-@import './sunny/tabs.css';
+@import './sunny/tabs.css?v=20260718-tabs-drag-right-v1';
 @import './sunny/components.css';
 .fg-root.fg-theme-sunny,
 .fui-tabs.fg-theme-sunny {
