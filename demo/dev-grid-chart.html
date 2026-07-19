@@ -65,6 +65,9 @@
   <script type="module">
     import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
+    window.fabui = fabui;
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260719-demo-parity-v1');
+
     const itemsSource = [
       { month: '1月', revenue: 75, cost: 48, orders: 12 },
       { month: '2月', revenue: 210, cost: 95, orders: 48 },

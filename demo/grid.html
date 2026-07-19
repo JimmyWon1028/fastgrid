@@ -18,10 +18,13 @@
     />
     <link
       rel="stylesheet"
-      href="./style/grid2.css?v=20260719-toolbar-button-text-v1"
+      href="./style/grid2.css?v=20260719-toolbar-icon-only-v1"
     />
   </head>
-  <body class="fg-theme-default grid2-demo">
+  <body
+    class="fg-theme-default grid2-demo"
+    data-grid-toolbar-icon-only="true"
+  >
     <main class="page">
       <section data-fabgrid-demo-toolbar></section>
 
@@ -46,6 +49,7 @@
                 autocomplete="off"
               />
               <a
+                data-fabui-button
                 id="demoFilterMode"
                 class="demo-filter-mode"
                 href="javascript:void(0)"
@@ -55,6 +59,7 @@
                 OR
               </a>
               <a
+                data-fabui-button
                 id="demoFilterClear"
                 href="javascript:void(0)"
                 aria-label="清除篩選"
@@ -69,15 +74,15 @@
     </main>
 
     <script src="../dist/fabui.min.js?v=20260712-download-blob-v1"></script>
-    <script src="./js/grid-toolbar.js?v=20260719-button-anchor-v1"></script>
+    <script src="./js/grid-toolbar.js?v=20260719-toolbar-icon-only-v1"></script>
     <script src="./js/grid-data.js?v=20260715-remove-currency-v1"></script>
     <script src="./js/grid-locales.js?v=20260716-filtering-toggle-v1"></script>
     <script src="./js/grid-query.js?v=20260715-grid-names-v1"></script>
     <script type="module">
-      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260719-toolbar-button-text-v1";
+      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260719-demo-parity-v2";
 
       const grid2Components = createGrid2FabuiDemo(window.fabui);
-      await import("./js/grid.js?v=20260719-toolbar-button-text-v1");
+      await import("./js/grid.js?v=20260719-toolbar-icon-only-v1");
       grid2Components.complete();
     </script>
     <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>

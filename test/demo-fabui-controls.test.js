@@ -26,6 +26,83 @@ function getBuildPages() {
     });
 }
 
+function readAttribute(source, name) {
+  var match = source.match(new RegExp('\\b' + name + '="([^"]*)"'));
+  return match ? match[1] : '';
+}
+
+function normalizeShowcaseText(value) {
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[^;]+;/g, ' ')
+    .replace(/開發版|正式版|Build Demo|Build|Source-mode：|Build-mode：/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function readShowcaseSignature(html) {
+  var bodyMatch = html.match(/<body\b([^>]*)>([\s\S]*?)<\/body>/i);
+  var bodyAttributes = bodyMatch ? bodyMatch[1] : '';
+  var body = bodyMatch ? bodyMatch[2] : '';
+  var markup = body.replace(/<script\b[\s\S]*?<\/script>/gi, '');
+  var ids = Array.from(markup.matchAll(/\bid="([^"]+)"/g))
+    .map(function(match) {
+      return match[1];
+    });
+  var inputs = Array.from(markup.matchAll(/<input\b([^>]*)>/gi))
+    .map(function(match) {
+      return {
+        id: readAttribute(match[1], 'id'),
+        type: readAttribute(match[1], 'type') || 'text',
+        checked: /\bchecked(?:\s|>|$)/.test(match[1])
+      };
+    });
+  var selects = Array.from(
+    markup.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi)
+  ).map(function(match) {
+    return {
+      id: readAttribute(match[1], 'id'),
+      options: Array.from(match[2].matchAll(/<option\b([^>]*)>/gi))
+        .map(function(optionMatch) {
+          return {
+            value: readAttribute(optionMatch[1], 'value'),
+            selected: /\bselected(?:\s|>|$)/.test(optionMatch[1])
+          };
+        })
+    };
+  });
+  var textBlocks = Array.from(
+    markup.matchAll(/<(h[1-3]|p)\b[^>]*>([\s\S]*?)<\/\1>/gi)
+  ).map(function(match) {
+    return normalizeShowcaseText(match[2]);
+  }).filter(Boolean);
+
+  return {
+    toolbarIconOnly: readAttribute(
+      bodyAttributes,
+      'data-grid-toolbar-icon-only'
+    ),
+    ids: ids,
+    inputs: inputs,
+    selects: selects,
+    textBlocks: textBlocks
+  };
+}
+
+function readShowcasePairs() {
+  var devIndex = readFileSync(new URL('dev.html', demoDirectory), 'utf8');
+
+  return Array.from(devIndex.matchAll(
+    /<tr><td>(.*?)<\/td><td><a href="\.\/(dev-[^"]+)">.*?<\/a><\/td><td><a href="\.\/([^"]+)">.*?<\/a><\/td><\/tr>/g
+  )).map(function(match) {
+    return {
+      label: match[1],
+      dev: match[2],
+      build: match[3]
+    };
+  });
+}
+
 test('Every source-mode Demo loads the shared FabUI control enhancer', function() {
   var pages = readdirSync(demoDirectory)
     .filter(function(name) {
@@ -157,6 +234,22 @@ test('Demo indexes expose source-mode and build-mode pages separately', function
     /(?:src|href)=["'][^"']*(?:src|dist)\/fabui|data-fabui-button|class=["'][^"']*\bfui-button\b/i
   );
   assert.doesNotMatch(indexHtml + devHtml, /<script\b/i);
+});
+
+test('Every build-mode Demo mirrors its source-mode showcase', function() {
+  var pairs = readShowcasePairs();
+
+  assert.equal(pairs.length, 30);
+  pairs.forEach(function(pair) {
+    var devHtml = readFileSync(new URL(pair.dev, demoDirectory), 'utf8');
+    var buildHtml = readFileSync(new URL(pair.build, demoDirectory), 'utf8');
+
+    assert.deepEqual(
+      readShowcaseSignature(buildHtml),
+      readShowcaseSignature(devHtml),
+      pair.label + ': ' + pair.dev + ' <=> ' + pair.build
+    );
+  });
 });
 
 test('Source-mode Demo styles do not repaint FabUI button hosts', function() {

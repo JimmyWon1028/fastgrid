@@ -26,8 +26,8 @@
   <main class="page">
     <header class="header">
       <div>
-        <h1>FabGrid + Chart Build</h1>
-        <p>使用 dist browser global bundle，共用 itemsSource 並由 selectionSource 自動連動。</p>
+        <h1>FabGrid + Chart</h1>
+        <p>共用同一個 itemsSource；資料變動自動重繪，Grid 與 Chart 選取會互相連動。</p>
       </div>
       <label class="field">
         <span>圖表類型</span>
@@ -45,7 +45,7 @@
       <article class="card"><h2 class="card-title">營收與成本趨勢</h2><div id="lineChart"></div></article>
       <article class="card"><h2 class="card-title">每月訂單占比</h2><div id="pieChart"></div></article>
     </section>
-    <p class="note">本頁沒有 ES module、const、let 或箭頭函式，只引用 build 後的 dist 檔案。</p>
+    <p class="note">Grid 與 Chart 接收到的是同一個陣列參照，不會複製或維護第二份資料。</p>
   </main>
 
   <script src="../dist/fabui.min.js?v=20260712-grid-chart-es5-v1"></script>

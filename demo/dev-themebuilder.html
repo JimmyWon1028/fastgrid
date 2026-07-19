@@ -14,6 +14,9 @@
   <script type="module">
     import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
 
+    window.fabui = fabui;
+    await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260719-demo-parity-v1');
+
     window.mountFabUIThemeBuilder(fabui);
   </script>
   <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>

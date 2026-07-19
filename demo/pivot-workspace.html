@@ -11,7 +11,9 @@
     body { margin: 0; background: #f3f4f6; color: #1f2937; font-family: helvetica, tahoma, verdana, sans-serif; }
     .page { display: flex; width: 100%; height: 100vh; height: 100dvh; min-height: 0; padding: 10px; flex-direction: column; gap: 8px; }
     .header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; }
-    .header h1 { margin: 0; font-size: 21px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .header p { margin: 2px 0 0; color: #64748b; font-size: 13px; }
+    .badge { padding: 4px 8px; border: 1px solid #93c5fd; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; }
     .toolbar { display: flex; flex: 0 0 auto; align-items: center; gap: 8px 12px; min-width: 0; overflow-x: auto; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; scrollbar-width: none; }
     .toolbar::-webkit-scrollbar { display: none; }
     .toolbar label { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; font-size: 13px; white-space: nowrap; }
@@ -19,12 +21,20 @@
     .stats { flex: 0 0 auto; color: #475569; font-size: 12px; white-space: nowrap; }
     #pivotWorkspace { flex: 1 1 auto; min-width: 0; min-height: 0; border-radius: 5px; }
     .fg-pivot-panel-insert-line { opacity: .55; }
+    @media (max-width: 760px) {
+      .header p, .badge { display: none; }
+      .header h1 { font-size: 18px; }
+    }
   </style>
 </head>
 <body class="fg-theme-default">
   <main class="page">
     <header class="header">
-      <h1>fabui.pivot.PivotWorkspace</h1>
+      <div>
+        <h1>fabui.pivot.PivotWorkspace</h1>
+        <p>PivotPanel、PivotGrid、PivotChart 共用同一個 PivotEngine，分隔線可拖曳調整。</p>
+      </div>
+      <span class="badge">FabUI Demo · PivotWorkspace</span>
     </header>
     <section id="toolbar" class="toolbar" aria-label="PivotWorkspace 工具列">
       <label>
@@ -236,7 +246,9 @@
                 region: regions[regionIndex].name,
                 product: products[productIndex].name,
                 platform: platforms[platformIndex].name,
-                sales: Math.round(products[productIndex].sales * factor)
+                agent: ['Amy', 'Cindy', 'Eva'][(quarterIndex + regionIndex + productIndex + platformIndex) % 3],
+                sales: Math.round(products[productIndex].sales * factor),
+                downloads: Math.round((productIndex + 1) * 18000 * factor)
               });
               id += 1;
             }
@@ -251,7 +263,9 @@
           { key: 'region', binding: 'region', header: '區域', width: 92 },
           { key: 'product', binding: 'product', header: '產品', width: 108 },
           { key: 'platform', binding: 'platform', header: '平台', width: 100 },
-          { key: 'sales', binding: 'sales', header: '銷售額', dataType: 'number', aggregate: 'Sum', format: 'n0', width: 112 }
+          { key: 'agent', binding: 'agent', header: '業務', width: 92 },
+          { key: 'sales', binding: 'sales', header: '銷售額', dataType: 'number', aggregate: 'Sum', format: 'n0', width: 112 },
+          { key: 'downloads', binding: 'downloads', header: '下載數', dataType: 'number', aggregate: 'Sum', format: 'n0', width: 112 }
         ],
         rowFields: ['quarter', 'region'],
         columnFields: ['product'],
@@ -261,15 +275,26 @@
         showColumnTotals: 'Subtotals',
         locale: 'zh-TW',
         gridTitle: '銷售分析',
+        compactBreakpoint: 1050,
+        panelSize: 300,
+        chartSize: '40%',
         gridOptions: {
           rowHeight: 31,
           pivotHeaderHeight: 30,
-          collapsibleSubtotals: true
+          overscanRows: 8,
+          overscanColumns: 3,
+          collapsibleSubtotals: true,
+          showDetailOnDoubleClick: true,
+          customContextMenu: true
         },
         chartOptions: {
-          chartType: 'Column',
+          chartType: 'Pie',
           showTitle: false,
-          showLegend: 'Auto'
+          showLegend: 'Auto',
+          showTotals: false,
+          maxPoints: 100,
+          maxSeries: 12,
+          animation: true
         }
       });
       workspace.root.classList.add('fg-theme-default');

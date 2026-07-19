@@ -30,7 +30,7 @@
 </head>
 <body class="fg-theme-default">
   <h1>fabui.Tree Demo</h1>
-  <p>Pure JavaScript Tree：展開收合、checkbox、線條、圖示、動態 API、右鍵、編輯、拖放、搜尋、鍵盤與非同步載入。</p>
+  <p>Pure JavaScript Tree，參考 EasyUI Tree，支援資料／markup、展開收合、checkbox、線條、圖示、動態 API、右鍵、編輯、拖放、搜尋、鍵盤與非同步載入。</p>
   <div class="demo-toolbar">
     <label for="tree-theme">主題</label>
     <select id="tree-theme">
@@ -65,8 +65,8 @@
       <div class="tree-stage">
         <ul id="tree-basic">
           <li data-id="documents"><span>我的文件</span><ul>
-            <li data-id="photos" data-state="closed"><span>相片</span><ul><li>朋友</li><li>家人</li><li>公司</li></ul></li>
-            <li><span>應用程式</span><ul><li>FabGrid</li><li>Browser</li><li>Office</li></ul></li>
+            <li data-id="photos" data-state="closed"><span>相片</span><ul><li data-id="friends">朋友</li><li data-id="family">家人</li><li data-id="company">公司</li></ul></li>
+            <li data-id="programs"><span>應用程式</span><ul><li>FabGrid</li><li>Browser</li><li>Office</li></ul></li>
             <li>index.html</li><li>about.html</li>
           </ul></li>
         </ul>
@@ -89,7 +89,7 @@
     <section class="demo-card"><h2>Async／Lazy Load</h2><p>展開「伺服器資料」時才呼叫 Promise loader。</p><div id="tree-lazy" class="tree-stage"></div></section>
   </div>
   <script src="../dist/fabui.min.js"></script>
-  <script src="./js/tree-demo.js?v=20260718-tree-v1"></script>
+  <script src="./js/tree-demo.js?v=20260719-tree-theme-v2"></script>
   <script>
     window.mountFabUITreeDemo(window.fabui);
   </script>

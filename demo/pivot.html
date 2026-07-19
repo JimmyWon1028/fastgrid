@@ -4,200 +4,394 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotGrid Build Demo</title>
-  <link rel="stylesheet" href="../dist/fabui.css?v=20260716-pivot-build-v11">
+  <link rel="stylesheet" href="../dist/fabui.css?v=20260719-demo-parity-v1">
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
     body { margin: 0; color: #1f2937; background: #f3f4f6; font-family: helvetica, tahoma, verdana, sans-serif; }
-    .page { display: flex; width: 100%; height: 100vh; height: 100dvh; min-height: 0; margin: 0; padding: 10px; flex-direction: column; }
-    .header { display: flex; flex: 0 0 auto; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
-    .header h1 { margin: 0; font-size: 24px; }
-    .toolbar { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; scrollbar-width: none; }
+    .page { display: flex; width: min(1880px, 100%); height: 100vh; height: 100dvh; min-height: 0; margin: 0 auto; padding: 14px 20px; flex-direction: column; }
+    .page-header { display: flex; flex: 0 0 auto; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 10px; }
+    .page-header h1 { margin: 0 0 5px; font-size: 24px; }
+    .page-header p { margin: 0; color: #64748b; font-size: 14px; }
+    .badge { padding: 5px 9px; border: 1px solid #93c5fd; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; }
+    .toolbar { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 10px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; scrollbar-width: none; }
     .toolbar::-webkit-scrollbar { display: none; }
-    .toolbar > label, .toolbar > .fui-button, .toolbar > span { flex: 0 0 auto; }
-    .toolbar span { margin-left: auto; color: #64748b; font-size: 13px; }
-    .card { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
-    .workspace { display: grid; min-width: 0; min-height: 0; overflow: hidden; flex: 1 1 auto; gap: 12px; grid-template-columns: 320px minmax(0, 1fr); }
-    .workspace.pivot-panel-hidden { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+    .toolbar > label, .toolbar > .fui-button, .toolbar > .stats { flex: 0 0 auto; }
+    .toolbar .spacer { flex: 1 1 auto; }
+    .stats { color: #475569; font-size: 13px; white-space: nowrap; }
+    .card { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 8%); }
+    .workspace { display: grid; min-width: 0; min-height: 0; overflow: hidden; flex: 1 1 auto; gap: 12px; grid-template-columns: 310px minmax(480px, 1fr) minmax(340px, .75fr); }
+    .workspace.pivot-panel-hidden { grid-template-columns: minmax(480px, 1fr) minmax(340px, .75fr); }
+    .workspace.pivot-chart-hidden { grid-template-columns: 310px minmax(0, 1fr); }
+    .workspace.pivot-panel-hidden.pivot-chart-hidden { grid-template-columns: minmax(0, 1fr); }
     .workspace.pivot-panel-hidden .panel-card { display: none; }
-    .panel-card, .pivot-card { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
-    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 38px; margin: 0; padding: 0 12px; border-bottom: 1px solid #cbd5e1; font-size: 14px; }
-    .panel-title-actions { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
-    #pivotPanel, #pivotGrid { min-height: 0; height: 100%; flex: 1 1 auto; }
+    .workspace.pivot-chart-hidden .chart-card { display: none; }
+    .panel-card, .pivot-card, .chart-card { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+    .card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 40px; margin: 0; padding: 0 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    .card-title-note { color: #64748b; font-size: 12px; font-weight: normal; }
+    .card-title-actions { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
+    .chart-controls { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+    #pivotGrid, #pivotPanel, #pivotChart { min-height: 0; height: 100%; flex: 1 1 auto; }
     #pivotPanel { border: 0; }
-    .fg-pivot-panel-insert-line { opacity: .55; }
-    @media (max-width: 900px) {
-      .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-      .workspace.pivot-panel-hidden { grid-template-rows: minmax(0, 1fr); }
+    #pivotChart { border: 0; }
+    @media (max-width: 1180px) {
+      .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+      .workspace.pivot-panel-hidden, .workspace.pivot-chart-hidden { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+      .workspace.pivot-panel-hidden.pivot-chart-hidden { grid-template-rows: minmax(0, 1fr); }
     }
-    @media (max-width: 640px) {
-      .page { padding: 10px; }
-      .header { align-items: center; margin-bottom: 8px; }
-      .header h1 { margin: 0; font-size: 20px; }
+    @media (max-width: 760px) {
+      .page { padding: 10px 12px; }
+      .page-header { align-items: center; margin-bottom: 8px; }
+      .page-header h1 { margin: 0; font-size: 20px; }
+      .page-header p, .badge, .pivot-card .card-title-note { display: none; }
       .toolbar { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; margin-bottom: 8px; padding: 6px 8px; }
       .workspace { gap: 8px; }
+      .chart-controls .fui-editbox { min-width: 72px; }
     }
   </style>
 </head>
 <body class="fg-theme-default">
   <main class="page">
-    <header class="header">
-      <div><h1>fabui.pivot.PivotGrid Build Demo</h1></div>
+    <header class="page-header">
+      <div>
+        <h1>fabui.pivot.PivotGrid</h1>
+        <p>144 筆差異化銷售資料，使用 PivotEngine 建立多層列／欄彙總。</p>
+      </div>
+      <span class="badge">FabUI Demo · PivotGrid</span>
     </header>
-    <section class="toolbar">
-      <select id="viewSelect" aria-label="View">
-        <option value="region-product-sales">季度／區域／產品（銷售額）</option>
-        <option value="platform-sales">季度／平台（銷售額）</option>
-        <option value="region-sales">季度／區域（銷售額）</option>
-      </select>
+    <section class="toolbar" aria-label="PivotGrid 工具列">
+      <label>Theme
+        <select id="themeSelect">
+          <option value="default" selected>Default</option>
+          <option value="metro-blue">Metro Blue</option>
+          <option value="material">Material</option>
+          <option value="cupertino">Cupertino</option>
+          <option value="dark-hive">Dark Hive</option>
+        </select>
+      </label>
+      <label>View
+        <select id="viewSelect">
+          <option value="region-product-sales">季度／區域／產品（銷售額）</option>
+          <option value="platform-sales">季度／平台（銷售額）</option>
+          <option value="region-sales">季度／區域（銷售額）</option>
+          <option value="month-downloads">月份／產品（下載數）</option>
+        </select>
+      </label>
       <a id="saveView" href="javascript:void(0)">儲存 View</a>
       <a id="loadView" href="javascript:void(0)">載入 View</a>
-      <span id="stats"></span>
+      <label>語系
+        <select id="localeSelect">
+          <option value="zh-TW">繁體中文</option>
+          <option value="zh-CN">简体中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <label>列總計
+        <select id="rowTotalsSelect">
+          <option value="None">None</option>
+          <option value="GrandTotals">Grand Totals</option>
+          <option value="Subtotals" selected>Subtotals</option>
+        </select>
+      </label>
+      <label>欄總計
+        <select id="columnTotalsSelect">
+          <option value="None">None</option>
+          <option value="GrandTotals">Grand Totals</option>
+          <option value="Subtotals" selected>Subtotals</option>
+        </select>
+      </label>
+      <label><input id="totalsBeforeData" type="checkbox">總計顯示在資料前</label>
+      <span class="spacer"></span>
+      <span id="stats" class="stats">準備資料...</span>
     </section>
     <div id="pivotWorkspace" class="workspace">
-      <section id="pivotPanelCard" class="card panel-card"><h2 class="panel-title">定義 View</h2><div id="pivotPanel"></div></section>
+      <section id="pivotPanelCard" class="card panel-card">
+        <h2 class="card-title">定義 View <span class="card-title-note">拖曳或勾選欄位</span></h2>
+        <div id="pivotPanel"></div>
+      </section>
       <section class="card pivot-card">
-        <h2 class="panel-title">
+        <h2 class="card-title">
           銷售分析
-          <span class="panel-title-actions">
+          <span class="card-title-actions">
             <a id="togglePivotPanel" aria-controls="pivotPanelCard" aria-expanded="true" href="javascript:void(0)">隱藏定義</a>
+            <a id="toggleChartPanel" aria-controls="pivotChartCard" aria-expanded="true" href="javascript:void(0)">隱藏圖表</a>
           </span>
         </h2>
         <div id="pivotGrid"></div>
       </section>
+      <section id="pivotChartCard" class="card chart-card">
+        <h2 class="card-title">
+          Pivot 圖表
+          <span class="chart-controls">
+            <select id="chartTypeSelect" aria-label="圖表類型">
+              <option value="Column">Column</option>
+              <option value="Bar">Bar</option>
+              <option value="Line">Line</option>
+              <option value="Pie">Pie</option>
+            </select>
+            <select id="chartLegendSelect" aria-label="圖例顯示">
+              <option value="Auto">Legend: Auto</option>
+              <option value="Always">Legend: Always</option>
+              <option value="Never">Legend: Never</option>
+            </select>
+            <select id="chartSeriesSelect" aria-label="圓餅圖系列" hidden></select>
+          </span>
+        </h2>
+        <div id="pivotChart"></div>
+      </section>
     </div>
   </main>
 
-  <script src="../dist/fabui.min.js?v=20260716-pivot-build-v11"></script>
-  <script>
-    (function() {
-      var regions = [
-        { name: '北區', factor: 1.25 },
-        { name: '南區', factor: .75 }
-      ];
-      var platforms = [
-        { name: 'Web', factor: 1 },
-        { name: 'Mobile', factor: .6 }
-      ];
-      var products = [
-        { name: 'FabGrid', sales: 520000, downloads: 18000, revenueFactor: 1.25 },
-        { name: 'FabChart', sales: 240000, downloads: 42000, revenueFactor: 1.08 },
-        { name: 'FabForms', sales: 80000, downloads: 96000, revenueFactor: .92 }
-      ];
-      var agents = ['Amy', 'Cindy', 'Eva'];
-      var quarterFactors = [.6, .9, 1.35, 1.9];
-      var monthFactors = [.9, 1, 1.1];
-      var rows = [];
-      var id = 1;
-      var quarterIndex;
-      var monthIndex;
-      var productIndex;
-      var regionIndex;
-      var platformIndex;
-      var factor;
-      var sales;
-      var downloads;
-      var engine;
-      var pivot;
-      var panel;
-      var definitions;
+  <script src="../dist/fabui.min.js?v=20260719-demo-parity-v1"></script>
+  <script type="module">
+    import { getPivotDemoLocale } from './js/pivot-locales.js?v=20260717-pivot-chart-locale-v1';
 
-      for (quarterIndex = 0; quarterIndex < quarterFactors.length; quarterIndex += 1) {
-        for (monthIndex = 0; monthIndex < monthFactors.length; monthIndex += 1) {
-          for (productIndex = 0; productIndex < products.length; productIndex += 1) {
-            for (regionIndex = 0; regionIndex < regions.length; regionIndex += 1) {
-              for (platformIndex = 0; platformIndex < platforms.length; platformIndex += 1) {
-                factor = quarterFactors[quarterIndex] * monthFactors[monthIndex] *
-                  regions[regionIndex].factor * platforms[platformIndex].factor;
-                sales = Math.round(products[productIndex].sales * factor);
-                downloads = Math.round(products[productIndex].downloads * factor);
-                rows.push({
-                  id: id,
-                  quarter: '2026 Q' + (quarterIndex + 1),
-                  agent: agents[(quarterIndex + productIndex + regionIndex + platformIndex) % agents.length],
-                  region: regions[regionIndex].name,
-                  platform: platforms[platformIndex].name,
-                  product: products[productIndex].name,
-                  sales: sales,
-                  downloads: downloads,
-                  revenue: Math.round(sales * products[productIndex].revenueFactor * 100) / 100
-                });
-                id += 1;
-              }
-            }
-          }
-        }
-      }
-      engine = new fabui.pivot.PivotEngine({
-        itemsSource: rows,
-        fields: [
-          { key: 'quarter', binding: 'quarter', header: '季度', width: 120 },
-          { key: 'agent', binding: 'agent', header: '業務', width: 100 },
-          { key: 'region', binding: 'region', header: '區域', width: 100 },
-          { key: 'platform', binding: 'platform', header: '平台', width: 110 },
-          { key: 'product', binding: 'product', header: '產品', width: 118 },
-          { key: 'sales', binding: 'sales', header: '銷售額', dataType: 'number', aggregate: 'Sum', format: 'n0' },
-          { key: 'downloads', binding: 'downloads', header: '下載數', dataType: 'number', aggregate: 'Sum', format: 'n0' },
-          { key: 'revenue', binding: 'revenue', header: '營收', dataType: 'number', aggregate: 'Sum', format: 'n2' }
-        ],
-        rowFields: ['quarter', 'region'],
-        columnFields: ['product'],
-        valueFields: ['sales'],
-        filterFields: ['platform'],
-        showRowTotals: 'Subtotals',
-        showColumnTotals: 'Subtotals'
+    var fabui = window.fabui;
+    var regions = [
+      { name: '北區', factor: 1.25 },
+      { name: '南區', factor: .75 }
+    ];
+    var platforms = [
+      { name: 'Web', factor: 1 },
+      { name: 'Mobile', factor: .6 }
+    ];
+    var products = [
+      { name: 'FabGrid', sales: 520000, downloads: 18000, revenueFactor: 1.25 },
+      { name: 'FabChart', sales: 240000, downloads: 42000, revenueFactor: 1.08 },
+      { name: 'FabForms', sales: 80000, downloads: 96000, revenueFactor: .92 }
+    ];
+    var agents = ['Amy', 'Cindy', 'Eva'];
+    var quarterFactors = [.6, .9, 1.35, 1.9];
+    var monthFactors = [.9, 1, 1.1];
+    var rows = [];
+    var id = 1;
+
+    quarterFactors.forEach(function(quarterFactor, quarterIndex) {
+      monthFactors.forEach(function(monthFactor, monthIndex) {
+        products.forEach(function(product, productIndex) {
+          regions.forEach(function(region, regionIndex) {
+            platforms.forEach(function(platform, platformIndex) {
+              var factor = quarterFactor * monthFactor * region.factor * platform.factor;
+              var sales = Math.round(product.sales * factor);
+              var downloads = Math.round(product.downloads * factor);
+              rows.push({
+                id: id,
+                date: new Date(2026, quarterIndex * 3 + monthIndex, 15),
+                agent: agents[(quarterIndex + productIndex + regionIndex + platformIndex) % agents.length],
+                region: region.name,
+                platform: platform.name,
+                product: product.name,
+                sales: sales,
+                downloads: downloads,
+                revenue: Math.round(sales * product.revenueFactor * 100) / 100
+              });
+              id += 1;
+            });
+          });
+        });
       });
-      pivot = new fabui.pivot.PivotGrid('#pivotGrid', {
-        itemsSource: engine,
-        locale: 'zh-TW',
-        collapsibleSubtotals: true,
-        showDetailOnDoubleClick: true,
-        customContextMenu: true
+    });
+
+    var engine = new fabui.pivot.PivotEngine({
+      itemsSource: rows,
+      fields: [
+        { key: 'quarter', binding: 'date', header: '季度', dataType: 'date', groupBy: 'Quarter', width: 120 },
+        { key: 'month', binding: 'date', header: '月份', dataType: 'date', groupBy: 'Month', width: 120 },
+        { key: 'agent', binding: 'agent', header: '業務', width: 100 },
+        { key: 'region', binding: 'region', header: '區域', width: 100 },
+        { key: 'platform', binding: 'platform', header: '平台', width: 110 },
+        { key: 'product', binding: 'product', header: '產品', width: 118 },
+        { key: 'sales', binding: 'sales', header: '銷售額', dataType: 'number', aggregate: 'Sum', format: 'n0', width: 112 },
+        { key: 'downloads', binding: 'downloads', header: '下載數', dataType: 'number', aggregate: 'Sum', format: 'n0', width: 112 },
+        { key: 'revenue', binding: 'revenue', header: '營收', dataType: 'number', aggregate: 'Sum', format: 'n2', width: 124 }
+      ],
+      rowFields: ['quarter', 'region'],
+      columnFields: ['product'],
+      valueFields: ['sales'],
+      filterFields: ['platform'],
+      showRowTotals: 'Subtotals',
+      showColumnTotals: 'Subtotals'
+    });
+    var pivot = new fabui.pivot.PivotGrid('#pivotGrid', {
+      itemsSource: engine,
+      locale: 'zh-TW',
+      rowHeight: 32,
+      headerHeight: 32,
+      pivotHeaderHeight: 30,
+      overscanRows: 10,
+      overscanColumns: 3,
+      collapsibleSubtotals: true,
+      showDetailOnDoubleClick: true,
+      customContextMenu: true,
+      alternatingRowStep: 1
+    });
+    var panel = new fabui.pivot.PivotPanel('#pivotPanel', {
+      itemsSource: engine,
+      locale: 'zh-TW'
+    });
+    var pivotChart = new fabui.pivot.PivotChart('#pivotChart', {
+      itemsSource: engine,
+      locale: 'zh-TW',
+      chartType: 'Column',
+      showTitle: false,
+      showLegend: 'Auto',
+      showTotals: false,
+      maxPoints: 100,
+      maxSeries: 12,
+      selectionSource: pivot,
+      animation: true
+    });
+    var themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive'];
+
+    function updateStats() {
+      document.getElementById('stats').textContent =
+        '原始 ' + engine.itemsSource.length.toLocaleString() +
+        ' 筆 · Pivot ' + pivot.view.length.toLocaleString() +
+        ' 列 × ' + pivot.visibleColumns.length.toLocaleString() +
+        ' 欄 · Chart ' + pivotChart.model.categories.length.toLocaleString() +
+        ' 類別 × ' + pivotChart.model.series.length.toLocaleString() + ' 系列';
+    }
+
+    function setTheme(theme) {
+      themes.forEach(function(name) {
+        pivot.root.classList.remove('fg-theme-' + name);
+        panel.hostElement.classList.remove('fg-theme-' + name);
+        pivotChart.hostElement.classList.remove('fg-theme-' + name);
       });
-      panel = new fabui.pivot.PivotPanel('#pivotPanel', { itemsSource: engine, locale: 'zh-TW' });
-      pivot.root.classList.add('fg-theme-default');
-      panel.hostElement.classList.add('fg-theme-default');
-      definitions = {
+      pivot.root.classList.add('fg-theme-' + theme);
+      panel.hostElement.classList.add('fg-theme-' + theme);
+      pivotChart.hostElement.classList.add('fg-theme-' + theme);
+    }
+
+    function updateChartSeriesOptions() {
+      var select = document.getElementById('chartSeriesSelect');
+      var selected = Math.max(
+        0,
+        Math.min(pivotChart.selectedSeries, Math.max(0, pivotChart.model.series.length - 1))
+      );
+      select.innerHTML = '';
+      pivotChart.model.series.forEach(function(series, index) {
+        var option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = series.name;
+        select.appendChild(option);
+      });
+      select.value = String(selected);
+      select.hidden = pivotChart.chartType !== 'Pie' || pivotChart.model.series.length <= 1;
+      if (pivotChart.selectedSeries !== selected) pivotChart.selectedSeries = selected;
+    }
+
+    function updateChartTypeOptions(locale) {
+      var labels = getPivotDemoLocale(locale);
+      var select = document.getElementById('chartTypeSelect');
+      Array.from(select.options).forEach(function(option) {
+        option.textContent = labels.chartTypes[option.value] || option.value;
+      });
+      select.setAttribute('aria-label', labels.chartTypeLabel);
+      document.documentElement.lang = locale;
+    }
+
+    function applyView(name) {
+      var definitions = {
         'region-product-sales': { rowFields: ['quarter', 'region'], columnFields: ['product'], valueFields: ['sales'], filterFields: ['platform'] },
         'platform-sales': { rowFields: ['quarter'], columnFields: ['platform'], valueFields: ['sales'], filterFields: ['region'] },
-        'region-sales': { rowFields: ['quarter'], columnFields: ['region'], valueFields: ['sales'], filterFields: ['platform'] }
+        'region-sales': { rowFields: ['quarter'], columnFields: ['region'], valueFields: ['sales'], filterFields: ['platform'] },
+        'month-downloads': { rowFields: ['month'], columnFields: ['product'], valueFields: ['downloads'], filterFields: ['region'] }
       };
-      document.getElementById('togglePivotPanel').onclick = function(event) {
-        var workspace = document.getElementById('pivotWorkspace');
-        var hidden = workspace.classList.toggle('pivot-panel-hidden');
-        event.currentTarget.textContent = hidden ? '開啟定義' : '隱藏定義';
-        event.currentTarget.setAttribute('aria-expanded', hidden ? 'false' : 'true');
-        window.requestAnimationFrame(function() {
-          pivot.refresh();
-        });
-      };
-      document.getElementById('viewSelect').onchange = function(event) {
-        var selected = definitions[event.target.value];
-        var definition = engine.viewDefinition;
-        definition.rowFields = selected.rowFields;
-        definition.columnFields = selected.columnFields;
-        definition.valueFields = selected.valueFields;
-        definition.filterFields = selected.filterFields;
-        engine.viewDefinition = definition;
-      };
-      document.getElementById('saveView').onclick = function() {
-        localStorage.setItem('fabui.pivot.viewDefinition', panel.viewDefinition);
-      };
-      document.getElementById('loadView').onclick = function() {
-        var definition = localStorage.getItem('fabui.pivot.viewDefinition');
-        if (definition) panel.viewDefinition = definition;
-      };
-      function updateStats() {
-        document.getElementById('stats').textContent = '原始 ' + rows.length.toLocaleString() +
-          ' 筆 · Pivot ' + pivot.view.length.toLocaleString() + ' 列 × ' + pivot.visibleColumns.length.toLocaleString() + ' 欄';
-      }
-      engine.updatedView.addHandler(updateStats);
-      pivot.updatedView.addHandler(updateStats);
-      updateStats();
-      window.pivotEngine = engine;
-      window.pivotGrid = pivot;
-      window.pivotPanel = panel;
-    }());
+      var selected = definitions[name];
+      var definition = engine.viewDefinition;
+      if (!selected) return;
+      definition.rowFields = selected.rowFields;
+      definition.columnFields = selected.columnFields;
+      definition.valueFields = selected.valueFields;
+      definition.filterFields = selected.filterFields;
+      engine.viewDefinition = definition;
+    }
+
+    document.getElementById('themeSelect').addEventListener('change', function(event) {
+      setTheme(event.target.value);
+    });
+    document.getElementById('localeSelect').addEventListener('change', function(event) {
+      pivot.setLocale(event.target.value);
+      panel.setLocale(event.target.value);
+      pivotChart.setLocale(event.target.value);
+      updateChartTypeOptions(event.target.value);
+    });
+    document.getElementById('viewSelect').addEventListener('change', function(event) {
+      applyView(event.target.value);
+    });
+    document.getElementById('saveView').addEventListener('click', function() {
+      localStorage.setItem('fabui.pivot.viewDefinition', panel.viewDefinition);
+    });
+    document.getElementById('loadView').addEventListener('click', function() {
+      var definition = localStorage.getItem('fabui.pivot.viewDefinition');
+      if (definition) panel.viewDefinition = definition;
+    });
+    document.getElementById('rowTotalsSelect').addEventListener('change', function(event) {
+      engine.showRowTotals = event.target.value;
+      engine.refresh();
+    });
+    document.getElementById('columnTotalsSelect').addEventListener('change', function(event) {
+      engine.showColumnTotals = event.target.value;
+      engine.refresh();
+    });
+    document.getElementById('totalsBeforeData').addEventListener('change', function(event) {
+      engine.totalsBeforeData = event.target.checked;
+      engine.refresh();
+    });
+    document.getElementById('togglePivotPanel').addEventListener('click', function(event) {
+      var workspace = document.getElementById('pivotWorkspace');
+      var hidden = workspace.classList.toggle('pivot-panel-hidden');
+      event.currentTarget.textContent = hidden ? '開啟定義' : '隱藏定義';
+      event.currentTarget.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+      requestAnimationFrame(function() {
+        pivot.refresh();
+        pivotChart.resize();
+      });
+    });
+    document.getElementById('toggleChartPanel').addEventListener('click', function(event) {
+      var workspace = document.getElementById('pivotWorkspace');
+      var hidden = workspace.classList.toggle('pivot-chart-hidden');
+      event.currentTarget.textContent = hidden ? '開啟圖表' : '隱藏圖表';
+      event.currentTarget.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+      requestAnimationFrame(function() {
+        pivot.refresh();
+        pivotChart.resize();
+      });
+    });
+    document.getElementById('chartTypeSelect').addEventListener('change', function(event) {
+      pivotChart.setType(event.target.value);
+      updateChartSeriesOptions();
+    });
+    document.getElementById('chartLegendSelect').addEventListener('change', function(event) {
+      pivotChart.showLegend = event.target.value;
+    });
+    document.getElementById('chartSeriesSelect').addEventListener('change', function(event) {
+      pivotChart.selectedSeries = Number(event.target.value);
+    });
+    pivot.selectionChanged.addHandler(function() {
+      requestAnimationFrame(updateChartSeriesOptions);
+    });
+    pivot.refreshed.addHandler(function() {
+      requestAnimationFrame(function() {
+        updateChartSeriesOptions();
+        updateStats();
+      });
+    });
+    engine.updatedView.addHandler(function() {
+      requestAnimationFrame(function() {
+        updateChartSeriesOptions();
+        updateStats();
+      });
+    });
+    setTheme('default');
+    updateChartTypeOptions('zh-TW');
+    updateChartSeriesOptions();
+    updateStats();
+    window.pivotEngine = engine;
+    window.pivotGrid = pivot;
+    window.pivotPanel = panel;
+    window.pivotChart = pivotChart;
   </script>
   <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
 </body>

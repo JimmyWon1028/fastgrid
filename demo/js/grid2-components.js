@@ -463,8 +463,8 @@ export function createGrid2FabuiDemo(fabui) {
   createButton("demoFilterClear", {
     width: 34,
     height: 30,
-    iconCls: "icon-clear",
-    text: "",
+    iconCls: "",
+    text: "🧹",
     plain: true,
   });
   createCheckBox("searchRowInput", "searchRowLabel");

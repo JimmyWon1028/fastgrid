@@ -26,7 +26,6 @@
   <h1>fabui.Window Demo</h1>
   <p>Pure JavaScript Window，預設提供最大化／還原與關閉；可選擇啟用帶動畫的收合與最小化。</p>
   <div class="demo-toolbar">
-    <label for="window-theme">主題</label>
     <select id="window-theme">
       <option value="default" selected>Default</option><option value="bootstrap">Bootstrap</option>
       <option value="cupertino">Cupertino</option><option value="material">Material</option>
@@ -60,9 +59,12 @@
     <a id="close-modal" href="javascript:void(0)">關閉</a>
   </div>
   <script src="../dist/fabui.min.js"></script>
-  <script src="./js/window-demo.js?v=20260718-window-motion-v2"></script>
+  <script src="./js/window-demo.js?v=20260719-window-fabui-controls-v2"></script>
   <script>
-    window.mountFabUIWindowDemo(window.fabui);
+    window.mountFabUIWindowDemo(window.fabui, {
+      useFabUIControls: true
+    });
+    window.fabWindowDemo.basic.open().center();
   </script>
   <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
 </body>
