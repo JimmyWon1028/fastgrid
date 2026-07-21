@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabGrid TreeGrid Source Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260718-tabs-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260721-initial-filter-rules-v1">
   <link rel="stylesheet" href="./style/treegrid.css?v=20260717-tree-context-menu-core-v1">
 </head>
 <body class="fg-theme-default">
@@ -66,14 +66,14 @@
     <p class="tree-note">可點擊節點箭頭收合／展開；可在樹欄任一資料 cell 按滑鼠右鍵切換全部展開／全部疊合；聚焦樹欄後也可使用鍵盤左右方向鍵操作。</p>
   </main>
 
-  <script src="./js/treegrid-data.js?v=20260715-treegrid-v1"></script>
+  <script src="./js/treegrid-data.js?v=20260721-initial-filter-rules-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260719-button-anchor-v1';
+    import fabui from '../src/fabui.js?v=20260721-initial-filter-rules-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260716-excel-filter-escape-v1');
-    await import('./js/treegrid.js?v=20260717-tree-context-menu-core-v1');
+    await import('./js/treegrid.js?v=20260721-initial-filter-rules-v1');
   </script>
-  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
+  <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>
 </body>
 </html>

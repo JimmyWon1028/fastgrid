@@ -191,7 +191,9 @@
 .fui-button.fg-theme-metro-gray,
 .fui-button.fg-theme-metro-green,
 .fui-button.fg-theme-metro-orange,
-.fui-button.fg-theme-metro-red {
+.fui-button.fg-theme-metro-red,
+.fui-button.fg-theme-mono-red,
+.fui-button.fg-theme-mono-green {
   --fui-button-bg-start: #fff;
   --fui-button-bg-end: #fff;
   --fui-button-bg-hover: #e6e6e6;

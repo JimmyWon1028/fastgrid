@@ -15,6 +15,9 @@ var GRID2_THEMES = [
   { value: "pepper-grinder", text: "Pepper Grinder" },
   { value: "dark-hive", text: "Dark Hive" },
   { value: "black", text: "Black" },
+  { value: "mono", text: "Mono" },
+  { value: "mono-red", text: "Mono Red" },
+  { value: "mono-green", text: "Mono Green" },
 ];
 
 function findPropertyDescriptor(element, name) {

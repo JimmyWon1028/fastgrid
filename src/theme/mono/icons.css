@@ -1,0 +1,171 @@
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .pagination-first {
+  background-image: url('./images/pagination-first.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .pagination-prev {
+  background-image: url('./images/pagination-prev.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .pagination-next {
+  background-image: url('./images/pagination-next.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .pagination-last {
+  background-image: url('./images/pagination-last.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .pagination-load {
+  background-image: url('./images/pagination-load.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .pagination-loading,
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .fui-tabs-loading {
+  background-image: url('./images/loading.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-datebox {
+  background-image: url('./images/datebox_arrow.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-refwin,
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-window {
+  background-image: url('./images/refwin.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-export {
+  background-image: url('./images/export.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-import {
+  background-image: url('./images/import.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-excel {
+  background-image: url('./images/excel.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-add {
+  background-image: url('./images/edit_add.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-edit,
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-pencil {
+  background-image: url('./images/pencil.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-remove {
+  background-image: url('./images/edit_remove.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-save {
+  background-image: url('./images/filesave.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-cut {
+  background-image: url('./images/cut.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-ok {
+  background-image: url('./images/ok.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-cancel {
+  background-image: url('./images/cancel.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-close {
+  background-image: url('./images/close.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-clear,
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .fg-filter-menu-clear .fg-filter-menu-funnel {
+  background-image: url('./images/clear.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-check {
+  background-image: url('./images/check.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-fullscreen {
+  background-image: url('./images/fullscreen.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-projector-screen {
+  background-image: url('./images/projector-screen.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-search {
+  background-image: url('./images/search.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-print {
+  background-image: url('./images/print.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-reload {
+  background-image: url('./images/reload.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-help {
+  background-image: url('./images/help.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-back {
+  background-image: url('./images/back.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-undo {
+  background-image: url('./images/undo.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-redo {
+  background-image: url('./images/redo.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-row-number {
+  background-image: url('./images/row-number.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-filter {
+  background-image: url('./images/filter.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-lock {
+  background-image: url('./images/lock.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-man {
+  background-image: url('./images/man.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-mini-add {
+  background-image: url('./images/mini_add.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-mini-edit {
+  background-image: url('./images/mini_edit.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-mini-refresh {
+  background-image: url('./images/mini_refresh.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-more {
+  background-image: url('./images/more.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-no {
+  background-image: url('./images/no.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-sum {
+  background-image: url('./images/sum.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-tip {
+  background-image: url('./images/tip.svg');
+}
+
+:is(.fg-theme-mono, .fg-theme-mono-red, .fg-theme-mono-green) .icon-blank {
+  background-image: url('./images/blank.svg');
+}

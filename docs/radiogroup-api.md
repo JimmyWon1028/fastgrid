@@ -30,11 +30,11 @@ var group = new fabui.RadioGroup('#fruit-group', {
 | `dir` | string | `'h'` | `h` 水平或 `v` 垂直。 |
 | `itemStyle` | object | `{ height: 30 }` | 套用到每個項目容器的 inline style。 |
 | `labelWidth` | number/string | `'auto'` | 每個 label 寬度。 |
-| `labelPosition` | string | `'after'` | `before` 或 `after`。 |
+| `labelPosition` | string | `'after'` | `before` 或 `after`；預設每個項目文字顯示在選項按鈕後方。 |
 | `labelAlign` | string | `'left'` | `left` 或 `right`。 |
 | `disabled` | boolean | `false` | 是否停用整組。 |
 | `locale` | string | `'en'` | `en`、`zh-TW` 或 `zh-CN`。 |
-| `theme` | string | `'inherit'` | 繼承外層或指定 16 組 FabUI theme。 |
+| `theme` | string | `'inherit'` | 繼承外層或指定 19 組 FabUI theme。 |
 | `ariaLabel` | string | `''` | radiogroup accessible name。 |
 | `onChange` | function | `null` | 選取值改變時接收 `(value)`。 |
 

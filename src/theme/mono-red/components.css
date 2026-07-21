@@ -1,0 +1,28 @@
+/* Metro Red control colors with the shared Mono SVG icon layer. */
+.fg-theme-mono-red {
+  --fui-control-border: #f6c1bc;
+  --fui-control-focus: #f0978f;
+  --fui-control-radius: 0;
+  --fui-control-bg: #ffffff;
+  --fui-control-text: #000000;
+  --fui-control-placeholder: #aaaaaa;
+  --fui-control-icon: #404040;
+  --fui-control-label-text: #000000;
+  --fui-control-disabled-bg: #f5f5f5;
+  --fui-control-trigger-bg: #f0e1e3;
+  --fui-control-button-bg: #f5f5f5;
+  --fui-control-button-text: #404040;
+  --fui-control-hover: #fff0e7;
+  --fui-control-hover-text: #404040;
+  --fui-control-selected: #f09090;
+  --fui-control-selected-text: #404040;
+  --fui-checkbox-accent: #f09090;
+  --fui-propertygrid-border: #dedede;
+  --fui-propertygrid-group-bg: #f0e1e3;
+  --fui-propertygrid-header-text: #404040;
+  --fui-propertygrid-group-text: #404040;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #8d8d8d;
+}

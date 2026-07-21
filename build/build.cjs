@@ -34,6 +34,7 @@ const javascriptSources = [
   'editbox/editor-icons.js',
   'editbox/text-editbox.js',
   'editbox/number-editbox.js',
+  'editbox/time-editbox.js',
   'editbox/date-popup.js',
   'editbox/date-editbox.js',
   'editbox/combo-popup.js',
@@ -111,10 +112,13 @@ function rewriteCssUrls(source, sourceFile) {
   const sourceDir = path.dirname(sourceFile);
   return source.replace(/url\((['"]?)([^)'"\s]+)\1\)/g, function(match, quote, url) {
     const asset = path.resolve(sourceDir, url);
-    const relative = path.relative(srcDir, asset).split(path.sep).join('/');
+    let relative = path.relative(srcDir, asset).split(path.sep).join('/');
     if (/^(?:data:|https?:|#)/i.test(url) || !fs.existsSync(asset) || !fs.statSync(asset).isFile()) return match;
     if (relative.indexOf('../') === 0) {
       throw new Error('CSS asset must be located inside src: ' + asset);
+    }
+    if (relative.indexOf('theme/mono/images/') === 0) {
+      relative = relative.replace('theme/mono/images/', 'theme/mono/');
     }
     return 'url("' + relative + '")';
   });
@@ -140,6 +144,7 @@ function copyThemeImages(sourceDir, outputDir) {
     const output = path.join(outputDir, entry.name);
     if (!entry.isDirectory() || entry.name === '.DS_Store') return;
     if (entry.name === 'images') {
+      if (path.resolve(source) === path.join(srcDir, 'theme', 'mono', 'images')) return;
       fs.cpSync(source, output, {
         recursive: true,
         filter: function(file) {
@@ -164,12 +169,25 @@ function copyThemeOutput() {
       const output = path.join(outputThemeDir, outputName);
       const css = stripStandaloneThemeSelectors(fs.readFileSync(source, 'utf8').replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)(?:[?#][^'"]*)?\1\)?\s*;/g, function(match, quote, request) {
         return isStandaloneComponentStyle(request) ? '' : match;
-      }));
+      })).replace(
+        /url\((['"]?)mono\/images\//g,
+        'url($1mono/'
+      );
       fs.writeFileSync(output, css, 'utf8');
       fs.writeFileSync(output.replace(/\.css$/i, '.min.css'), minifyCss(css), 'utf8');
     }
   });
   copyThemeImages(sourceThemeDir, outputThemeDir);
+  fs.cpSync(
+    path.join(sourceThemeDir, 'mono', 'images'),
+    path.join(outputThemeDir, 'mono'),
+    {
+      recursive: true,
+      filter: function(file) {
+        return path.basename(file) !== '.DS_Store';
+      }
+    }
+  );
 }
 
 function readSource(file) {
@@ -385,8 +403,19 @@ function verifyBuildOutput() {
   verifyCssAssets(path.join(distDir, 'fabui.min.css'));
 }
 
-fs.rmSync(distDir, { recursive: true, force: true });
 fs.mkdirSync(distDir, { recursive: true });
+[
+  'fabui.js',
+  'fabui.min.js',
+  'fabui.css',
+  'fabui.min.css',
+  'fabui.esm.js',
+  'fabui.esm.min.js'
+].forEach(function(file) {
+  fs.rmSync(path.join(distDir, file), { force: true });
+});
+fs.rmSync(path.join(distDir, 'theme'), { recursive: true, force: true });
+fs.rmSync(path.join(distDir, 'images-mono'), { recursive: true, force: true });
 
 const javascript = createJavascriptBundle();
 const css = banner('styles') + bundleCss(path.join(srcDir, 'fabui.css'));

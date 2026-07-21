@@ -3,3 +3,64 @@
   ime-mode: disabled;
   text-align: right;
 }
+
+.fui-numberbox-spinner {
+  display: inline-flex;
+  flex: 0 0 28px;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 28px;
+  height: 100%;
+  background: transparent;
+}
+
+.fui-numberbox-spinner-button {
+  position: relative;
+  flex: 1 1 50%;
+  box-sizing: border-box;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--fui-control-trigger-bg, #e0ecff);
+  color: var(--fui-control-icon, #555);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.fui-numberbox-spinner-button + .fui-numberbox-spinner-button {
+  border-top: 1px solid var(--fui-control-border, #95b8e7);
+}
+
+.fui-numberbox-spinner-button::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+.fui-numberbox-spinner-up::before {
+  border-bottom: 4px solid currentColor;
+}
+
+.fui-numberbox-spinner-down::before {
+  border-top: 4px solid currentColor;
+}
+
+.fui-numberbox-spinner-button:hover,
+.fui-numberbox-spinner-button:focus-visible {
+  outline: 0;
+  background: var(--fui-control-hover, #eaf2ff);
+  color: var(--fui-control-icon, #555);
+  opacity: 1;
+}
+
+.fui-numberbox-spinner-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

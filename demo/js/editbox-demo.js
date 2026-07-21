@@ -47,6 +47,23 @@
       groupSeparator: ',',
       prefix: '$'
     });
+    if (document.getElementById('edit-spinner-true')) {
+      boxes.spinnerTrue = new fabui.EditBox('#edit-spinner-true', {
+        editor: 'number',
+        width: 280,
+        spinner: true
+      });
+      boxes.spinnerRight = new fabui.EditBox('#edit-spinner-right', {
+        editor: 'number',
+        width: 280,
+        spinner: 'right'
+      });
+      boxes.spinnerLeft = new fabui.EditBox('#edit-spinner-left', {
+        editor: 'number',
+        width: 280,
+        spinner: 'left'
+      });
+    }
     boxes.date = new fabui.EditBox('#edit-date', {
       editor: 'date',
       width: 280,
@@ -61,6 +78,20 @@
       mask: '9999/99',
       autoUnmask: true
     });
+    if (document.getElementById('edit-time')) {
+      boxes.time = new fabui.EditBox('#edit-time', {
+        editor: 'time',
+        width: 280,
+        locale: 'zh-TW'
+      });
+      boxes.timeSeconds = new fabui.EditBox('#edit-time-seconds', {
+        editor: 'time',
+        width: 280,
+        locale: 'zh-TW',
+        mask: '99:99:99',
+        spinner: true
+      });
+    }
     boxes.status = new fabui.EditBox('#edit-status', {
       editor: 'combo',
       width: 280,
@@ -82,15 +113,33 @@
     });
 
     render = function() {
-      output.textContent = [
+      var lines = [
         '元件主題：' + themeSelect.value,
         '姓名：' + text(boxes.name.getValue()),
-        '金額：' + text(boxes.amount.getValue()),
+        '金額：' + text(boxes.amount.getValue())
+      ];
+      if (boxes.spinnerTrue) {
+        lines.push(
+          'Spinner true：' + text(boxes.spinnerTrue.getValue()),
+          'Spinner right：' + text(boxes.spinnerRight.getValue()),
+          'Spinner left：' + text(boxes.spinnerLeft.getValue())
+        );
+      }
+      lines = lines.concat([
         '日期：' + text(boxes.date.getValue()),
-        '年月：' + text(boxes.month.getValue()),
+        '年月：' + text(boxes.month.getValue())
+      ]);
+      if (boxes.time) {
+        lines.push(
+          '時間：' + text(boxes.time.getValue()),
+          '時間（含秒）：' + text(boxes.timeSeconds.getValue())
+        );
+      }
+      lines = lines.concat([
         '狀態：' + text(boxes.status.getValue()),
         '顏色：' + text(boxes.color.getValue())
-      ].join('\n');
+      ]);
+      output.textContent = lines.join('\n');
     };
 
     Object.keys(boxes).forEach(function(name) {

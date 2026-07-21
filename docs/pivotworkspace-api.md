@@ -101,7 +101,7 @@ Panel／Grid 與 Grid／Chart 之間各有一條 `role="separator"` 分隔線：
 | `chartOptions` | `{}` | 傳給 PivotChart 的 options。 |
 | `locale` | `en` | Workspace 與三個子元件的語系。 |
 | `messages` | `null` | 自訂 locale messages。 |
-| `theme` | `inherit` | 從外層 theme 繼承，或指定 16 組內建 theme；同步套用到 nested Panel／Grid／Chart root。 |
+| `theme` | `inherit` | 從外層 theme 繼承，或指定 19 組內建 theme；同步套用到 nested Panel／Grid／Chart root。 |
 | `layout` | `Auto` | `Auto`、`Horizontal`、`Vertical`。 |
 | `compactBreakpoint` | `1050` | Auto 切換為 Vertical 的 host 寬度界線。 |
 | `panelSize` | `300` | Horizontal Panel 初始寬度。 |

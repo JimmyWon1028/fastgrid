@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 var themes = [
   'default',
@@ -18,7 +18,10 @@ var themes = [
   'metro-orange',
   'metro-red',
   'pepper-grinder',
-  'sunny'
+  'sunny',
+  'mono',
+  'mono-red',
+  'mono-green'
 ];
 
 test('Every FabUI theme defines the new component palette variables', function() {
@@ -37,6 +40,170 @@ test('Every FabUI theme defines the new component palette variables', function()
     assert.match(css, /--fui-control-placeholder:\s*#[0-9a-f]{3,6}/i, theme);
     assert.match(css, /--fui-control-selected:\s*#[0-9a-f]{3,6}/i, theme);
     assert.match(css, /--fui-control-selected-text:\s*#[0-9a-f]{3,6}/i, theme);
+  });
+});
+
+test('Mono theme keeps its icon assets SVG-only and maps every referenced file', function() {
+  var directory = new URL('../src/theme/mono/images/', import.meta.url);
+  var files = readdirSync(directory);
+  var cssFiles = [
+    '../src/theme/mono/icons.css',
+    '../src/theme/mono/default-alias.css',
+    '../src/theme/mono/tabs.css',
+    '../src/theme/mono-red/tabs.css',
+    '../src/theme/mono-green/tabs.css',
+    '../src/theme/fabgrid.mono.css',
+    '../src/theme/fabgrid.mono-red.css',
+    '../src/theme/fabgrid.mono-green.css'
+  ];
+  var cssEntries = cssFiles.map(function(file) {
+    var url = new URL(file, import.meta.url);
+    return {
+      css: readFileSync(url, 'utf8'),
+      url: url
+    };
+  });
+  var css = cssEntries.map(function(entry) {
+    return entry.css;
+  }).join('\n');
+  var requiredFiles = [
+    'accordion-collapse.svg',
+    'accordion-expand.svg',
+    'layout-down.svg',
+    'layout-left.svg',
+    'layout-right.svg',
+    'layout-up.svg',
+    'pagination-first.svg',
+    'pagination-last.svg',
+    'pagination-load.svg',
+    'pagination-next.svg',
+    'pagination-prev.svg',
+    'panel-close.svg',
+    'panel-collapse.svg',
+    'panel-expand.svg',
+    'panel-maximize.svg',
+    'panel-minimize.svg',
+    'panel-restore.svg',
+    'tabs-close.svg',
+    'tabs-next.svg',
+    'tabs-prev.svg',
+    'tree-checkbox-checked.svg',
+    'tree-checkbox-mixed.svg',
+    'tree-checkbox-unchecked.svg',
+    'tree-collapse.svg',
+    'tree-expand.svg',
+    'tree-file.svg',
+    'tree-folder-open.svg',
+    'tree-folder.svg'
+  ];
+
+  files.forEach(function(file) {
+    assert.match(file, /\.svg$/i, file);
+    assert.match(readFileSync(new URL(file, directory), 'utf8'), /<svg\b/i, file);
+  });
+  requiredFiles.forEach(function(file) {
+    assert.equal(files.includes(file), true, file);
+  });
+  cssEntries.forEach(function(entry) {
+    Array.from(entry.css.matchAll(/url\(['\"]?([^'\")]+)['\"]?\)/g)).forEach(function(match) {
+      assert.equal(existsSync(new URL(match[1], entry.url)), true, match[1]);
+    });
+  });
+  assert.doesNotMatch(css, /default\/images|\.(?:png|gif)\b/i);
+  assert.doesNotMatch(
+    css,
+    /(?:accordion_arrows|layout_arrows|pagination_icons|panel_tools|tabs_icons|tree_icons)/i
+  );
+});
+
+test('Mono theme uses the Metro Gray palette with its own SVG icon layer', function() {
+  function variables(css) {
+    return Object.fromEntries(Array.from(
+      css.matchAll(/(--[\w-]+):\s*([^;]+);/g),
+      function(match) {
+        return [match[1], match[2].trim().toLowerCase()];
+      }
+    ));
+  }
+
+  var monoGrid = variables(readFileSync(
+    new URL('../src/theme/fabgrid.mono.css', import.meta.url),
+    'utf8'
+  ));
+  var metroGrid = variables(readFileSync(
+    new URL('../src/theme/fabgrid.metro-gray.css', import.meta.url),
+    'utf8'
+  ));
+  var monoComponents = variables(readFileSync(
+    new URL('../src/theme/mono/components.css', import.meta.url),
+    'utf8'
+  ));
+  var metroComponents = variables(readFileSync(
+    new URL('../src/theme/metro-gray/components.css', import.meta.url),
+    'utf8'
+  ));
+  var monoTabs = variables(readFileSync(
+    new URL('../src/theme/mono/tabs.css', import.meta.url),
+    'utf8'
+  ));
+  var metroTabs = variables(readFileSync(
+    new URL('../src/theme/metro-gray/tabs.css', import.meta.url),
+    'utf8'
+  ));
+  var monoAliasSource = readFileSync(
+    new URL('../src/theme/mono/default-alias.css', import.meta.url),
+    'utf8'
+  );
+  var monoAliases = variables(monoAliasSource.split('/* Mono Red')[0]);
+
+  assert.deepEqual(monoGrid, metroGrid);
+  assert.deepEqual(monoComponents, metroComponents);
+  assert.deepEqual(monoTabs, metroTabs);
+  assert.equal(monoAliases['--fui-accordion-selected-bg'], '#84909c');
+  assert.equal(monoAliases['--fui-layout-splitter-active'], '#84909c');
+  assert.equal(monoAliases['--fui-panel-header-bg'], '#c7ccd1');
+  assert.equal(monoAliases['--fui-switchbutton-on-bg'], '#84909c');
+  assert.equal(monoAliases['--fui-tree-selected-bg'], '#84909c');
+  assert.equal(monoAliases['--fui-window-frame'], '#c7ccd1');
+  assert.equal(monoAliases['--fui-datebox-footer-bg'], '#c7ccd1');
+});
+
+test('Mono Red and Mono Green reuse their matching Metro palettes and Mono icons', function() {
+  function variables(file) {
+    var css = readFileSync(new URL(file, import.meta.url), 'utf8');
+    return Object.fromEntries(Array.from(
+      css.matchAll(/(--[\w-]+):\s*([^;]+);/g),
+      function(match) {
+        return [match[1], match[2].trim().toLowerCase()];
+      }
+    ));
+  }
+
+  [
+    { mono: 'mono-red', metro: 'metro-red' },
+    { mono: 'mono-green', metro: 'metro-green' }
+  ].forEach(function(pair) {
+    var grid = variables('../src/theme/fabgrid.' + pair.mono + '.css');
+    var metroGrid = variables('../src/theme/fabgrid.' + pair.metro + '.css');
+    var components = variables('../src/theme/' + pair.mono + '/components.css');
+    var metroComponents = variables('../src/theme/' + pair.metro + '/components.css');
+    var tabs = variables('../src/theme/' + pair.mono + '/tabs.css');
+    var metroTabs = variables('../src/theme/' + pair.metro + '/tabs.css');
+    var rootCss = readFileSync(
+      new URL('../src/theme/fabgrid.' + pair.mono + '.css', import.meta.url),
+      'utf8'
+    );
+    var tabsCss = readFileSync(
+      new URL('../src/theme/' + pair.mono + '/tabs.css', import.meta.url),
+      'utf8'
+    );
+
+    assert.deepEqual(grid, metroGrid, pair.mono + ' grid palette');
+    assert.deepEqual(components, metroComponents, pair.mono + ' component palette');
+    assert.deepEqual(tabs, metroTabs, pair.mono + ' tabs palette');
+    assert.match(rootCss, /mono\/images\/pagination-first\.svg/);
+    assert.match(tabsCss, /\.\.\/mono\/images\/tabs-close\.svg/);
+    assert.doesNotMatch(rootCss + tabsCss, /\.(?:png|gif)\b/i);
   });
 });
 

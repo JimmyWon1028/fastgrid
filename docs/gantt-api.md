@@ -120,7 +120,7 @@ var dependencies = [
 | `showDependencies` | `true` | 顯示相依線。 |
 | `currentTimeMarker` | `true` | 範圍內顯示目前時間線。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`，含中文別名正規化。 |
-| `theme` | `'inherit'` | 繼承或指定 16 組 FabUI theme。 |
+| `theme` | `'inherit'` | 繼承或指定 19 組 FabUI theme。 |
 
 ## 方法
 

@@ -43,10 +43,10 @@
 | `disabled` | `false` | 停用 input、label 與 pointer 操作。 |
 | `label` | `null` | 與 input 綁定的 label 文字。 |
 | `labelWidth` | `'auto'` | Label 寬度。 |
-| `labelPosition` | `'before'` | `'before'`、`'after'`、`'top'`。 |
+| `labelPosition` | `'after'` | `'before'`、`'after'`、`'top'`；預設文字顯示在核取方塊後方。 |
 | `labelAlign` | `'left'` | `'left'` 或 `'right'`。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`，用於沒有 label 時的 ARIA 名稱。 |
-| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 16 組 FabUI theme。 |
+| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 19 組 FabUI theme。 |
 | `cls` | `''` | 加到外層 wrapper 的自訂 class。 |
 | `ariaLabel` | `''` | 覆寫原生 input 的可及性名稱。 |
 | `onChange(checked)` | `null` | 勾選狀態改變後觸發。 |

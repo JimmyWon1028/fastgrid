@@ -2,7 +2,7 @@
 
 `fabui.Accordion` 是 FabUI core 內建的 pure JavaScript 摺疊面板集合。API 與視覺參考 jQuery EasyUI Accordion，但不依賴 jQuery 或 EasyUI runtime。每個 pane 都直接建立既有 `fabui.Panel`；Accordion 只管理集合、展開狀態、排列、尺寸與鍵盤，不複製 Panel renderer、遠端 loader 或 lifecycle。
 
-16 組主題的容器、一般 header、selected header、文字與 `accordion_arrows.png` 均對應本機 EasyUI theme 參考；收合狀態顯示 expand 箭頭，展開狀態顯示 collapse 箭頭。正式 source 與 build 使用 `src/theme/<theme>/images/`，不依賴 `res/`。
+既有 16 組主題的容器、一般 header、selected header、文字與 `accordion_arrows.png` 均對應本機 EasyUI theme 參考；`mono` 沿用 Default 結構並套用單色 SVG icon。收合狀態顯示 expand 箭頭，展開狀態顯示 collapse 箭頭。正式 source 與 build 使用 `src/theme/<theme>/images/`，不依賴 `res/`。
 
 ## 建立 Accordion
 
@@ -46,7 +46,7 @@ Markup pane 可使用 `title`／`data-title`、`iconCls`／`data-icon-cls`、`se
 | `panels` | `[]` | 以 options 建立的初始 panes。 |
 | `cls` | `''` | Accordion host 自訂 class。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`；含繁簡別名正規化。 |
-| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定 16 組內建 theme。 |
+| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定 19 組內建 theme。 |
 
 ## Pane options
 

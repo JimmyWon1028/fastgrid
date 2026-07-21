@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotGrid Build Demo</title>
-  <link rel="stylesheet" href="../dist/fabui.css?v=20260720-dist-style-fabui-v1">
+  <link rel="stylesheet" href="../dist/fabui.css?v=20260721-mono-theme-v3">
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -67,6 +67,7 @@
           <option value="material">Material</option>
           <option value="cupertino">Cupertino</option>
           <option value="dark-hive">Dark Hive</option>
+          <option value="mono">Mono</option><option value="mono-red">Mono Red</option><option value="mono-green">Mono Green</option>
         </select>
       </label>
       <label>View
@@ -142,9 +143,9 @@
     </div>
   </main>
 
-  <script src="../dist/fabui.min.js?v=20260719-demo-parity-v1"></script>
+  <script src="../dist/fabui.min.js?v=20260721-mono-theme-v2"></script>
   <script type="module">
-    import { getPivotDemoLocale } from './js/pivot-locales.js?v=20260717-pivot-chart-locale-v1';
+    import { getPivotDemoLocale } from './js/pivot-locales.js?v=20260721-mono-variants-v1';
 
     var fabui = window.fabui;
     var regions = [
@@ -241,7 +242,7 @@
       selectionSource: pivot,
       animation: true
     });
-    var themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive'];
+    var themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono', 'mono-red', 'mono-green'];
 
     function updateStats() {
       document.getElementById('stats').textContent =
@@ -393,6 +394,6 @@
     window.pivotPanel = panel;
     window.pivotChart = pivotChart;
   </script>
-  <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
+  <script type="module" src="./js/dist-controls.js?v=20260721-mono-variants-v1"></script>
 </body>
 </html>

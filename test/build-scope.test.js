@@ -4,9 +4,21 @@ import fs from 'node:fs';
 
 test('default build compiles FabUI core without wrapper bundles', function() {
   var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  var buildSource = fs.readFileSync('build/build.cjs', 'utf8');
   var smokeSource = fs.readFileSync('build/smoke.cjs', 'utf8');
 
   assert.equal(packageJson.scripts.build, 'node build/build.cjs');
+  assert.doesNotMatch(
+    buildSource,
+    /rmSync\(distDir,\s*\{\s*recursive:\s*true/
+  );
+  assert.match(buildSource, /'fabui\.js',[\s\S]*'fabui\.min\.css'/);
+  assert.match(
+    buildSource,
+    /rmSync\(path\.join\(distDir, 'theme'\), \{ recursive: true, force: true \}\)/
+  );
+  assert.match(buildSource, /'editbox\/time-editbox\.js'/);
+  assert.match(buildSource, /path\.join\(outputThemeDir, 'mono'\)/);
   assert.doesNotMatch(smokeSource, /wrapper outputs are incomplete/);
   assert.doesNotMatch(smokeSource, /'wrapper'/);
 });
@@ -34,6 +46,16 @@ test('all build commands omit ESM output files', function() {
   });
 });
 
+test('Lite build keeps Mono family assets in the shared flat directory', function() {
+  var buildSource = fs.readFileSync('build/build-lite.cjs', 'utf8');
+
+  assert.match(buildSource, /replace\('theme\/mono\/images\/', 'theme\/mono\/'\)/);
+  assert.match(
+    buildSource,
+    /rmSync\(path\.join\(distDir, 'theme', 'mono', 'images'\), \{ recursive: true, force: true \}\)/
+  );
+});
+
 test('EditBox jQuery wrapper remains removed', function() {
   var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   var removedPaths = [
@@ -55,4 +77,17 @@ test('EditBox jQuery wrapper remains removed', function() {
   removedPaths.forEach(function(filePath) {
     assert.equal(fs.existsSync(filePath), false, filePath + ' should not exist');
   });
+});
+
+test('build command contract supports comma-separated scopes', function() {
+  var agents = fs.readFileSync('AGENTS.md', 'utf8');
+  var readme = fs.readFileSync('README.md', 'utf8');
+
+  assert.match(agents, /`build`／`build fabui`/);
+  assert.match(agents, /`build <scope>,<scope> \[min\]`/);
+  assert.match(agents, /`build fabui,diagram min`/);
+  assert.match(agents, /逗號左右不得有空白/);
+  assert.match(agents, /`all` 與 `clear` 必須單獨使用/);
+  assert.match(readme, /`build fabui,diagram min`/);
+  assert.match(readme, /`fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`theme`/);
 });

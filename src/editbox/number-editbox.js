@@ -7,6 +7,20 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
 
   editorDefinitions = editorDefinitions || {};
   var editorDefinition = editorDefinitions.number || editorDefinitions.numberbox || null;
+  var localePacks = {
+    en: {
+      increaseValueText: 'Increase value',
+      decreaseValueText: 'Decrease value'
+    },
+    'zh-TW': {
+      increaseValueText: '增加數值',
+      decreaseValueText: '減少數值'
+    },
+    'zh-CN': {
+      increaseValueText: '增加数值',
+      decreaseValueText: '减少数值'
+    }
+  };
 
   var numberDefaults = {
     min: null,
@@ -20,6 +34,12 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     parser: null,
     formatter: null,
     filter: null,
+    spinner: false,
+    increment: 1,
+    iconWidth: 28,
+    locale: 'en',
+    increaseValueText: null,
+    decreaseValueText: null,
     onChange: null
   };
 
@@ -78,9 +98,42 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     return isFinite(value) && value >= 0 ? Math.min(20, value) : null;
   }
 
+  function normalizeLocale(value) {
+    var name = String(value || 'en').trim().replace(/_/g, '-');
+    var lower = name.toLowerCase();
+    if (lower === 'zh-hant' || lower === 'zh-hant-tw' || lower === 'zh-tw') return 'zh-TW';
+    if (lower === 'zh-hans' || lower === 'zh-hans-cn' || lower === 'zh-cn') return 'zh-CN';
+    return localePacks[name] ? name : 'en';
+  }
+
+  function normalizeSpinner(value) {
+    if (editorDefinition && typeof editorDefinition.normalizeSpinner === 'function') {
+      return editorDefinition.normalizeSpinner(value);
+    }
+    if (value === true || String(value).toLowerCase() === 'right') return 'right';
+    if (String(value).toLowerCase() === 'left') return 'left';
+    return false;
+  }
+
+  function cssSize(value, fallback) {
+    if (value == null || value === '') return fallback + 'px';
+    return typeof value === 'number' ? value + 'px' : String(value);
+  }
+
+  function decimalPlaces(value) {
+    var text = String(value == null ? '' : value).toLowerCase();
+    var exponentIndex = text.indexOf('e');
+    var exponent = exponentIndex >= 0 ? Number(text.slice(exponentIndex + 1)) || 0 : 0;
+    var decimalIndex;
+    if (exponentIndex >= 0) text = text.slice(0, exponentIndex);
+    decimalIndex = text.indexOf('.');
+    return Math.max(0, (decimalIndex < 0 ? 0 : text.length - decimalIndex - 1) - exponent);
+  }
+
   function NumberBox(element, options) {
     var sourceValue;
     var textBoxOptions;
+    var locale;
     if (!(this instanceof NumberBox)) {
       return new NumberBox(element, options);
     }
@@ -95,7 +148,26 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     options = options || {};
     sourceValue = Object.prototype.hasOwnProperty.call(options, 'value') ? options.value : this._source.value;
     this._options = assign({}, TextBox.defaults || {}, numberDefaults, readElementOptions(this._source), options);
+    if (!Object.prototype.hasOwnProperty.call(options, 'disabled')) {
+      this._options.disabled = this._source.disabled;
+    }
+    if (!Object.prototype.hasOwnProperty.call(options, 'readonly')) {
+      this._options.readonly = this._source.readOnly;
+    }
     this._options.precision = normalizePrecision(this._options.precision);
+    this._options.spinner = normalizeSpinner(this._options.spinner);
+    this._options.increment = Number(this._options.increment);
+    if (!isFinite(this._options.increment) || this._options.increment <= 0) {
+      this._options.increment = 1;
+    }
+    this._options.locale = normalizeLocale(this._options.locale);
+    locale = localePacks[this._options.locale];
+    if (!Object.prototype.hasOwnProperty.call(options, 'increaseValueText')) {
+      this._options.increaseValueText = locale.increaseValueText;
+    }
+    if (!Object.prototype.hasOwnProperty.call(options, 'decreaseValueText')) {
+      this._options.decreaseValueText = locale.decreaseValueText;
+    }
     if (!this._options.groupSeparator && (
       this._options.thousandsSeparator === true ||
       this._options.useThousandsSeparator === true ||
@@ -122,12 +194,48 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
       this._editor.classList.add('textbox-f', 'numberbox-f', 'fg-editor-numberbox');
     }
     this._editor.inputMode = editorDefinition && editorDefinition.inputMode ? editorDefinition.inputMode : 'decimal';
+    this._editor.setAttribute('role', 'spinbutton');
     this._initialValue = this._normalizeValue(sourceValue);
     this._lastCommittedValue = '';
+    this._buildSpinner();
     this._bind();
     this._source.__fabuiNumberBox = this;
     this.setValue(sourceValue, true);
   }
+
+  NumberBox.prototype._buildSpinner = function() {
+    var addon;
+    var spinner;
+    var increaseButton;
+    var decreaseButton;
+    if (!this._options.spinner) return;
+    addon = this._options.spinner === 'left' ? this._textbox._beforeAddon : this._textbox._afterAddon;
+    spinner = document.createElement('span');
+    increaseButton = document.createElement('button');
+    decreaseButton = document.createElement('button');
+    spinner.className = 'fui-numberbox-spinner fui-numberbox-spinner-' + this._options.spinner;
+    spinner.style.width = cssSize(this._options.iconWidth, 28);
+    spinner.style.flexBasis = cssSize(this._options.iconWidth, 28);
+    increaseButton.type = 'button';
+    increaseButton.className = 'fui-numberbox-spinner-button fui-numberbox-spinner-up';
+    increaseButton.title = this._options.increaseValueText;
+    increaseButton.setAttribute('aria-label', this._options.increaseValueText);
+    decreaseButton.type = 'button';
+    decreaseButton.className = 'fui-numberbox-spinner-button fui-numberbox-spinner-down';
+    decreaseButton.title = this._options.decreaseValueText;
+    decreaseButton.setAttribute('aria-label', this._options.decreaseValueText);
+    spinner.appendChild(increaseButton);
+    spinner.appendChild(decreaseButton);
+    if (this._options.spinner === 'left') {
+      addon.insertBefore(spinner, addon.firstChild);
+    } else {
+      addon.appendChild(spinner);
+    }
+    this._spinner = spinner;
+    this._increaseButton = increaseButton;
+    this._decreaseButton = decreaseButton;
+    this._updateSpinnerState();
+  };
 
   NumberBox.prototype._bind = function() {
     var self = this;
@@ -147,6 +255,14 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     this._onCopy = function(event) {
       self._handleCopy(event);
     };
+    this._onSpinnerPointerDown = function(event) {
+      event.preventDefault();
+    };
+    this._onSpinnerClick = function(event) {
+      var button = event.target.closest('.fui-numberbox-spinner-button');
+      if (!button || button.disabled) return;
+      self._spin(button === self._increaseButton ? 1 : -1);
+    };
     this._onFormReset = function() {
       window.setTimeout(function() {
         if (!self._destroyed) self.reset();
@@ -157,6 +273,10 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     this._editor.addEventListener('keydown', this._onKeyDown);
     this._editor.addEventListener('input', this._onInput);
     this._editor.addEventListener('copy', this._onCopy);
+    if (this._spinner) {
+      this._spinner.addEventListener('pointerdown', this._onSpinnerPointerDown);
+      this._spinner.addEventListener('click', this._onSpinnerClick);
+    }
     if (this._source.form) this._source.form.addEventListener('reset', this._onFormReset);
   };
 
@@ -170,6 +290,11 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
       event.preventDefault();
       this.fix();
       this._editor.select();
+      return;
+    }
+    if (this._spinner && (key === 'ArrowUp' || key === 'ArrowDown')) {
+      event.preventDefault();
+      this._spin(key === 'ArrowUp' ? 1 : -1);
       return;
     }
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || key.length !== 1) {
@@ -204,6 +329,50 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     event.preventDefault();
   };
 
+  NumberBox.prototype._spin = function(direction) {
+    var current;
+    var precision;
+    var nextValue;
+    if (!this._spinner || this._options.disabled || this._options.readonly) return this;
+    current = this._normalizeValue(this._editor.value);
+    current = current === '' ? 0 : Number(current);
+    if (editorDefinition && typeof editorDefinition.getSpinValue === 'function') {
+      this.setValue(editorDefinition.getSpinValue(current, direction, this._options));
+      this._editor.focus();
+      this._editor.select();
+      return this;
+    }
+    precision = this._options.precision;
+    if (precision == null) {
+      precision = Math.min(20, Math.max(
+        decimalPlaces(current),
+        decimalPlaces(this._options.increment)
+      ));
+    }
+    nextValue = current + (direction < 0 ? -1 : 1) * this._options.increment;
+    nextValue = Number(nextValue.toFixed(precision));
+    this.setValue(nextValue);
+    this._editor.focus();
+    this._editor.select();
+    return this;
+  };
+
+  NumberBox.prototype._updateSpinnerState = function() {
+    var value;
+    var disabled;
+    var readonly;
+    if (!this._spinner) return;
+    value = this.getNumber();
+    disabled = Boolean(this._options.disabled);
+    readonly = Boolean(this._options.readonly);
+    this._increaseButton.disabled = disabled || readonly || (
+      value != null && this._options.max != null && value >= Number(this._options.max)
+    );
+    this._decreaseButton.disabled = disabled || readonly || (
+      value != null && this._options.min != null && value <= Number(this._options.min)
+    );
+  };
+
   NumberBox.prototype._syncLiveValue = function() {
     var text;
     var number;
@@ -211,6 +380,7 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     text = this._stripFormatting(this._editor.value);
     number = editorDefinition && typeof editorDefinition.parse === 'function' ? editorDefinition.parse(text, this._options) : parseFloat(text);
     this._source.value = number != null && isFinite(number) ? String(number) : '';
+    this._updateSpinnerState();
   };
 
   NumberBox.prototype._sanitizeEditingText = function() {
@@ -408,6 +578,13 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     this._source.value = normalized;
     this._options.value = normalized;
     this._lastCommittedValue = normalized;
+    if (normalized === '') this._editor.removeAttribute('aria-valuenow');
+    else this._editor.setAttribute('aria-valuenow', normalized);
+    if (this._options.min == null) this._editor.removeAttribute('aria-valuemin');
+    else this._editor.setAttribute('aria-valuemin', String(this._options.min));
+    if (this._options.max == null) this._editor.removeAttribute('aria-valuemax');
+    else this._editor.setAttribute('aria-valuemax', String(this._options.max));
+    this._updateSpinnerState();
     if (!silent && normalized !== oldValue) {
       if (typeof this._options.onChange === 'function') {
         this._options.onChange.call(this, normalized, oldValue);
@@ -449,24 +626,44 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
   NumberBox.prototype.disable = function() {
     this._textbox.disable();
     this._options.disabled = true;
+    this._updateSpinnerState();
     return this;
   };
 
   NumberBox.prototype.enable = function() {
     this._textbox.enable();
     this._options.disabled = false;
+    this._updateSpinnerState();
     return this;
   };
 
   NumberBox.prototype.readonly = function(mode) {
     this._textbox.readonly(mode);
     this._options.readonly = mode !== false;
+    this._updateSpinnerState();
     return this;
   };
 
   NumberBox.prototype.setEditable = function(mode) {
     this._textbox.setEditable(mode);
     this._options.editable = mode !== false;
+    return this;
+  };
+
+  NumberBox.prototype.setLocale = function(locale, messages) {
+    var name = String(locale || 'en').trim().replace(/_/g, '-');
+    var pack;
+    if (messages) localePacks[name] = assign({}, localePacks.en, messages);
+    this._options.locale = normalizeLocale(name);
+    pack = localePacks[this._options.locale] || localePacks.en;
+    this._options.increaseValueText = pack.increaseValueText;
+    this._options.decreaseValueText = pack.decreaseValueText;
+    if (this._increaseButton) {
+      this._increaseButton.title = this._options.increaseValueText;
+      this._increaseButton.setAttribute('aria-label', this._options.increaseValueText);
+      this._decreaseButton.title = this._options.decreaseValueText;
+      this._decreaseButton.setAttribute('aria-label', this._options.decreaseValueText);
+    }
     return this;
   };
 
@@ -494,6 +691,10 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
     this._editor.removeEventListener('keydown', this._onKeyDown);
     this._editor.removeEventListener('input', this._onInput);
     this._editor.removeEventListener('copy', this._onCopy);
+    if (this._spinner) {
+      this._spinner.removeEventListener('pointerdown', this._onSpinnerPointerDown);
+      this._spinner.removeEventListener('click', this._onSpinnerClick);
+    }
     if (this._source.form) this._source.form.removeEventListener('reset', this._onFormReset);
     delete this._source.__fabuiNumberBox;
     this._textbox.destroy();
@@ -502,5 +703,9 @@ export function createNumberBoxFactory(TextBox, editorDefinitions) {
 
   NumberBox.defaults = assign({}, TextBox.defaults || {}, numberDefaults);
   NumberBox.editorDefinition = editorDefinition;
+  NumberBox.locales = localePacks;
+  NumberBox.extendLocale = function(name, pack) {
+    if (name && pack) localePacks[name] = assign({}, localePacks.en, pack);
+  };
   return NumberBox;
 }

@@ -1002,7 +1002,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     }
     config = getColumnEditorConfig(column);
     text = String(event.data);
-    if (isDateLikeEditorType(config.type) && /[^0-9]/.test(text)) {
+    if ((isDateLikeEditorType(config.type) || config.type === 'time') && /[^0-9]/.test(text)) {
       event.preventDefault();
     }
   };

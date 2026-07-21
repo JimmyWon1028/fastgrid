@@ -65,7 +65,7 @@ test('SwitchButton publishes all required locale packs and themes', function() {
   assert.equal(fabui.SwitchButton.locales['zh-CN'].switchbutton, '切换按钮');
   assert.deepEqual(
     fabui.SwitchButton.themes.slice().sort(),
-    Object.keys(themePalettes).sort()
+    Object.keys(themePalettes).concat('mono', 'mono-red', 'mono-green').sort()
   );
 });
 
@@ -73,6 +73,9 @@ test('SwitchButton normalizes themes and label layout options', function() {
   assert.equal(normalizeSwitchButtonTheme('metro-green'), 'metro-green');
   assert.equal(normalizeSwitchButtonTheme('pepper'), 'pepper-grinder');
   assert.equal(normalizeSwitchButtonTheme(' BLACK '), 'black');
+  assert.equal(normalizeSwitchButtonTheme('mono'), 'mono');
+  assert.equal(normalizeSwitchButtonTheme('mono-red'), 'mono-red');
+  assert.equal(normalizeSwitchButtonTheme('mono-green'), 'mono-green');
   assert.equal(normalizeSwitchButtonTheme('unknown'), 'default');
   assert.equal(normalizeSwitchButtonLabelPosition('after'), 'after');
   assert.equal(normalizeSwitchButtonLabelPosition('top'), 'top');

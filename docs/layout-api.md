@@ -2,7 +2,7 @@
 
 `fabui.Layout` 是以 `fabui.Panel` 組成的五區 pure JavaScript 版面容器。支援 north、south、east、west、center、拖曳 Splitter、收合區域、動態加入／移除與巢狀 Layout，不依賴 jQuery 或 EasyUI runtime。
 
-Layout 的 Splitter、拖曳 active 色、collapsed bar、border、文字與箭頭 sprite 會分別對應 16 組 EasyUI `layout.css`／`layout_arrows.png` 視覺；收合與展開 icon 不顯示滑鼠 hover 效果，鍵盤 `focus-visible` 提示只在未 hover 時顯示。正式 source 與 build 使用 `src/theme/<theme>/images/`，不依賴本機參考用的 `res/`。
+Layout 的 Splitter、拖曳 active 色、collapsed bar、border、文字與箭頭 sprite 會分別對應既有 16 組 EasyUI `layout.css`／`layout_arrows.png` 視覺；`mono` 沿用 Default 結構並套用單色 SVG icon。收合與展開 icon 不顯示滑鼠 hover 效果，鍵盤 `focus-visible` 提示只在未 hover 時顯示。正式 source 與 build 使用 `src/theme/<theme>/images/`，不依賴本機參考用的 `res/`。
 
 ## 建立
 

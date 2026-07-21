@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>fabui.Gantt Build Demo</title>
-  <link rel="stylesheet" href="../dist/fabui.css?v=20260720-dist-style-fabui-v1">
-  <link rel="stylesheet" href="../dist/fabui.gantt.css?v=20260720-gantt-v2">
+  <link rel="stylesheet" href="../dist/fabui.css?v=20260721-mono-theme-v3">
+  <link rel="stylesheet" href="../dist/fabui.gantt.css?v=20260721-mono-theme-v2">
   <link rel="stylesheet" href="./css/gantt-demo.css?v=20260720-gantt-v2">
 </head>
 <body class="fg-theme-default">
@@ -29,7 +29,7 @@
         <option value="sunny">sunny</option>
         <option value="pepper-grinder">pepper-grinder</option>
         <option value="dark-hive">dark-hive</option>
-        <option value="black">black</option>
+        <option value="black">black</option><option value="mono">mono</option><option value="mono-red">mono red</option><option value="mono-green">mono green</option>
       </select>
       <select id="gantt-locale">
         <option value="zh-TW" selected>繁體中文</option>
@@ -44,12 +44,12 @@
     <div id="gantt"></div>
     <p id="gantt-status" aria-live="polite"></p>
   </main>
-  <script src="../dist/fabui.js?v=20260720-gantt-core-v1"></script>
-  <script src="../dist/fabui.gantt.js?v=20260720-gantt-v2"></script>
-  <script src="./js/gantt-demo.js?v=20260720-gantt-v2"></script>
+  <script src="../dist/fabui.js?v=20260721-mono-theme-v2"></script>
+  <script src="../dist/fabui.gantt.js?v=20260721-mono-theme-v2"></script>
+  <script src="./js/gantt-demo.js?v=20260721-mono-variants-v1"></script>
   <script>
     mountFabUIGanttDemo(fabui);
   </script>
-  <script type="module" src="./js/dist-controls.js?v=20260719-all-demos-v1"></script>
+  <script type="module" src="./js/dist-controls.js?v=20260721-mono-variants-v1"></script>
 </body>
 </html>

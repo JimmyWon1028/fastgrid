@@ -49,6 +49,7 @@ test('RadioGroup normalizes data without mutating source items', function() {
 test('RadioGroup normalizes direction, labels and themes', function() {
   assert.equal(normalizeRadioGroupDirection('V'), 'v');
   assert.equal(normalizeRadioGroupDirection('grid'), 'h');
+  assert.equal(normalizeRadioGroupLabelPosition(), 'after');
   assert.equal(normalizeRadioGroupLabelPosition('before'), 'before');
   assert.equal(normalizeRadioGroupLabelPosition('top'), 'after');
   assert.equal(normalizeRadioGroupLabelAlign('RIGHT'), 'right');

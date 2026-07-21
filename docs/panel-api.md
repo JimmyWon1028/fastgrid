@@ -2,7 +2,7 @@
 
 `fabui.Panel` 是 FabUI core 內建的 pure JavaScript 內容容器。API 與視覺參考 jQuery EasyUI Panel／Default theme，但不依賴 jQuery 或 EasyUI runtime。
 
-收合、展開、最小化、最大化、還原與關閉工具使用各 theme 對應的 `panel_tools.png` sprite。16 組主題的 header、body、footer、邊框、文字、gradient 與其他 tool hover 色均對應本機 `res/themes/<theme>/panel.css`；收合與展開 icon 不顯示滑鼠 hover 效果，鍵盤 `focus-visible` 提示仍保留。正式 source 與 build 不依賴 `res/`。
+收合、展開、最小化、最大化、還原與關閉工具使用各 theme 對應的 `panel_tools.png` sprite。既有 16 組主題的 header、body、footer、邊框、文字、gradient 與其他 tool hover 色均對應本機 `res/themes/<theme>/panel.css`；`mono` 沿用 Default 結構並套用單色 SVG icon。收合與展開 icon 不顯示滑鼠 hover 效果，鍵盤 `focus-visible` 提示仍保留。正式 source 與 build 不依賴 `res/`。
 
 ## 建立
 

@@ -26,7 +26,7 @@ test('RadioButton exposes the official EasyUI-compatible defaults', function() {
   assert.equal(fabui.RadioButton.defaults.disabled, false);
   assert.equal(fabui.RadioButton.defaults.label, null);
   assert.equal(fabui.RadioButton.defaults.labelWidth, 'auto');
-  assert.equal(fabui.RadioButton.defaults.labelPosition, 'before');
+  assert.equal(fabui.RadioButton.defaults.labelPosition, 'after');
   assert.equal(fabui.RadioButton.defaults.labelAlign, 'left');
 });
 
@@ -46,8 +46,10 @@ test('RadioButton normalizes themes, label position and label alignment', functi
   assert.equal(normalizeRadioButtonTheme(' BLACK '), 'black');
   assert.equal(normalizeRadioButtonTheme('unknown'), 'default');
   assert.equal(normalizeRadioButtonLabelPosition('after'), 'after');
+  assert.equal(normalizeRadioButtonLabelPosition('before'), 'before');
   assert.equal(normalizeRadioButtonLabelPosition('top'), 'top');
-  assert.equal(normalizeRadioButtonLabelPosition('bottom'), 'before');
+  assert.equal(normalizeRadioButtonLabelPosition(), 'after');
+  assert.equal(normalizeRadioButtonLabelPosition('bottom'), 'after');
   assert.equal(normalizeRadioButtonLabelAlign('right'), 'right');
   assert.equal(normalizeRadioButtonLabelAlign('center'), 'left');
 });

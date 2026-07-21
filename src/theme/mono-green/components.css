@@ -1,0 +1,28 @@
+/* Metro Green control colors with the shared Mono SVG icon layer. */
+.fg-theme-mono-green {
+  --fui-control-border: #b1c242;
+  --fui-control-focus: #909e33;
+  --fui-control-radius: 0;
+  --fui-control-bg: #ffffff;
+  --fui-control-text: #000000;
+  --fui-control-placeholder: #aaaaaa;
+  --fui-control-icon: #404040;
+  --fui-control-label-text: #000000;
+  --fui-control-disabled-bg: #f5f5f5;
+  --fui-control-trigger-bg: #e5f0c9;
+  --fui-control-button-bg: #f5f5f5;
+  --fui-control-button-text: #404040;
+  --fui-control-hover: #E0F892;
+  --fui-control-hover-text: #404040;
+  --fui-control-selected: #c8d47b;
+  --fui-control-selected-text: #404040;
+  --fui-checkbox-accent: #c8d47b;
+  --fui-propertygrid-border: #dedede;
+  --fui-propertygrid-group-bg: #e5f0c9;
+  --fui-propertygrid-header-text: #404040;
+  --fui-propertygrid-group-text: #404040;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #404040;
+}

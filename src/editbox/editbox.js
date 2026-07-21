@@ -1,16 +1,17 @@
-import { createEditorDefinitions } from './editbox-definitions.js?v=20260717-editbox-v21';
+import { createEditorDefinitions } from './editbox-definitions.js?v=20260721-time-editbox-v1';
 import { createColorEditBoxFactory } from './color-editbox.js?v=20260719-i18n-theme-audit-v1';
 import { createTextBoxFactory } from './text-editbox.js?v=20260718-editor-icons-v1';
-import { createNumberBoxFactory } from './number-editbox.js?v=20260717-editbox-v21';
+import { createNumberBoxFactory } from './number-editbox.js?v=20260721-grid-number-spinner-v1';
+import { createTimeBoxFactory } from './time-editbox.js?v=20260721-time-editbox-v1';
 import { createDateBoxFactory } from './date-editbox.js?v=20260719-i18n-theme-audit-v1';
 import { createComboBoxFactory } from './combo-editbox.js?v=20260719-combo-fit-content-v1';
 
-var EDITOR_TYPES = ['text', 'number', 'date', 'combo', 'color'];
+var EDITOR_TYPES = ['text', 'number', 'time', 'date', 'combo', 'color'];
 var EDITBOX_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black'
+  'black', 'mono', 'mono-red', 'mono-green'
 ];
 
 function assignEditBoxOptions(target) {
@@ -36,6 +37,7 @@ function normalizeEditorType(value) {
   var type = String(value == null ? '' : value).toLowerCase();
   if (type === 'text' || type === 'textbox') return 'text';
   if (type === 'number' || type === 'numberbox' || type === 'numeric') return 'number';
+  if (type === 'time' || type === 'timebox') return 'time';
   if (type === 'date' || type === 'datebox' || type === 'calendar') return 'date';
   if (type === 'combo' || type === 'combobox' || type === 'select' || type === 'dropdown') return 'combo';
   if (type === 'colour' || type === 'colorbox' || type === 'colourbox') return 'color';
@@ -65,12 +67,14 @@ export function createEditBoxFactory(editorDefinitions) {
   var definitions = editorDefinitions || createEditorDefinitions();
   var TextBox = createTextBoxFactory(definitions);
   var NumberBox = createNumberBoxFactory(TextBox, definitions);
+  var TimeBox = createTimeBoxFactory(TextBox, definitions);
   var DateBox = createDateBoxFactory(TextBox, definitions);
   var ComboBox = createComboBoxFactory(TextBox, definitions);
   var ColorEditBox = createColorEditBoxFactory(TextBox, definitions);
   var factories = {
     text: TextBox,
     number: NumberBox,
+    time: TimeBox,
     date: DateBox,
     combo: ComboBox,
     color: ColorEditBox
@@ -171,6 +175,11 @@ export function createEditBoxFactory(editorDefinitions) {
   EditBox.prototype.getDate = function() {
     if (typeof this._control.getDate !== 'function') return null;
     return this._control.getDate();
+  };
+
+  EditBox.prototype.getTime = function() {
+    if (typeof this._control.getTime !== 'function') return null;
+    return this._control.getTime();
   };
 
   EditBox.prototype.getData = function() {
@@ -354,18 +363,24 @@ export function createEditBoxFactory(editorDefinitions) {
   EditBox.locales = {
     en: assignEditBoxOptions(
       {},
+      NumberBox.locales.en,
+      TimeBox.locales.en,
       DateBox.locales.en,
       ComboBox.locales.en,
       ColorEditBox.locales.en
     ),
     'zh-TW': assignEditBoxOptions(
       {},
+      NumberBox.locales['zh-TW'],
+      TimeBox.locales['zh-TW'],
       DateBox.locales['zh-TW'],
       ComboBox.locales['zh-TW'],
       ColorEditBox.locales['zh-TW']
     ),
     'zh-CN': assignEditBoxOptions(
       {},
+      NumberBox.locales['zh-CN'],
+      TimeBox.locales['zh-CN'],
       DateBox.locales['zh-CN'],
       ComboBox.locales['zh-CN'],
       ColorEditBox.locales['zh-CN']

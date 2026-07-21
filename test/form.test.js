@@ -25,7 +25,7 @@ test('Form exposes the official EasyUI-compatible defaults', function() {
   assert.equal(fabui.Form.defaults.url, null);
   assert.equal(fabui.Form.defaults.locale, 'en');
   assert.equal(fabui.Form.defaults.theme, 'inherit');
-  assert.equal(fabui.Form.themes.length, 16);
+  assert.equal(fabui.Form.themes.length, 19);
   assert.equal(fabui.Form.locales['zh-TW'].valueMissing, '此欄位為必填。');
   assert.equal(fabui.Form.locales['zh-CN'].valueMissing, '此字段为必填项。');
 });

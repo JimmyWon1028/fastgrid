@@ -34,7 +34,7 @@ test('Gantt publishes complete locale and theme metadata', function() {
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black'
+    'black', 'mono', 'mono-red', 'mono-green'
   ]);
   assert.equal(Gantt.normalizeLocale('zh_Hant_TW'), 'zh-TW');
   assert.equal(Gantt.normalizeLocale('zh-Hans'), 'zh-CN');

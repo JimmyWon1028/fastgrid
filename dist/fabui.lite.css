@@ -5590,6 +5590,366 @@ button.fg-pivot-workspace-control:focus-visible,
   background: url("theme/metro/images/pagination_icons.png") no-repeat -64px center;
 }
 
+/*! FabGrid theme mono-green | Metro Green palette with monochrome SVG icons */
+
+
+.fg-root.fg-theme-mono-green {
+  --fg-border: #bbb;
+  --fg-border-strong: #bbb;
+  --fg-frozen-divider: #aaa;
+  --fg-header-bg: #EBECED;
+  --fg-header-text: gray;
+  --fg-cell-bg: #fafafa;
+  --fg-cell-text: #404040;
+  --fg-cell-hover-bg: #E0F892;
+  --fg-row-hover-bg: #E0F892;
+  --fg-row-selected-bg: #c8d47b;
+  --fg-row-header-bg: #EBECED;
+  --fg-row-header-text: gray;
+  --fg-selected-bg: #E0F892;
+  --fg-selected-border: #ee7f7d;
+  --fg-editor-border: #f29c9b;
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-header,
+.fg-root.fg-theme-mono-green .fg-header-frozen,
+.fg-root.fg-theme-mono-green .fg-header-frozen-right,
+.fg-root.fg-theme-mono-green .fg-footer,
+.fg-root.fg-theme-mono-green .fg-footer-frozen,
+.fg-root.fg-theme-mono-green .fg-footer-frozen-right {
+  background: #EBECED;
+}
+
+.fg-root.fg-theme-mono-green .fg-row-header-top,
+.fg-root.fg-theme-mono-green .fg-selection-top,
+.fg-root.fg-theme-mono-green .fg-header-cell,
+.fg-root.fg-theme-mono-green .fg-footer-row-header,
+.fg-root.fg-theme-mono-green .fg-footer-selection,
+.fg-root.fg-theme-mono-green .fg-footer-cell,
+.fg-root.fg-theme-mono-green .fg-row-header-cell {
+  background-color: var(--fg-header-bg);
+  color: gray;
+}
+
+.fg-root.fg-theme-mono-green .fg-body,
+.fg-root.fg-theme-mono-green .fg-frozen-pane,
+.fg-root.fg-theme-mono-green .fg-frozen-pane-right,
+.fg-root.fg-theme-mono-green .fg-selection-pane,
+.fg-root.fg-theme-mono-green .fg-cell,
+.fg-root.fg-theme-mono-green .fg-selection-cell {
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-even,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-even,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-alt,
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-alt {
+  background-color: #f5f5f5;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-hovered,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-hovered,
+.fg-root.fg-theme-mono-green .fg-cell:hover,
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-hovered:hover {
+  background: #E0F892;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-selected,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-selected,
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-selected:hover,
+.fg-root.fg-theme-mono-green .fg-row-selected.fg-selected {
+  background: #c8d47b;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-selected {
+  background: #E0F892;
+  color: #404040;
+  outline-color: #ee7f7d;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-selected.fg-selected {
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
+}
+
+.fg-root.fg-theme-mono-green .fg-sort-asc {
+  border-bottom-color: #333;
+}
+
+.fg-root.fg-theme-mono-green .fg-sort-desc {
+  border-top-color: #333;
+}
+
+.fg-root.fg-theme-mono-green .fg-editor {
+  border-color: #f29c9b;
+}
+
+.fg-root.fg-theme-mono-green .pagination-first {
+  background: url("theme/mono/pagination-first.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-prev {
+  background: url("theme/mono/pagination-prev.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-next {
+  background: url("theme/mono/pagination-next.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-last {
+  background: url("theme/mono/pagination-last.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-load {
+  background: url("theme/mono/pagination-load.svg") no-repeat center;
+}
+
+/*! FabGrid theme mono-red | Metro Red palette with monochrome SVG icons */
+
+
+.fg-root.fg-theme-mono-red {
+  --fg-border: #bbb;
+  --fg-border-strong: #bbb;
+  --fg-frozen-divider: #aaa;
+  --fg-header-bg: #EBECED;
+  --fg-header-text: gray;
+  --fg-cell-bg: #fafafa;
+  --fg-cell-text: #404040;
+  --fg-cell-hover-bg: #fff0e7;
+  --fg-row-hover-bg: #fff0e7;
+  --fg-row-selected-bg: #f09090;
+  --fg-row-header-bg: #EBECED;
+  --fg-row-header-text: gray;
+  --fg-selected-bg: #fff0e7;
+  --fg-selected-border: rgb(109, 203, 66);
+  --fg-editor-border: #a9cf97;
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-red .fg-header,
+.fg-root.fg-theme-mono-red .fg-header-frozen,
+.fg-root.fg-theme-mono-red .fg-header-frozen-right,
+.fg-root.fg-theme-mono-red .fg-footer,
+.fg-root.fg-theme-mono-red .fg-footer-frozen,
+.fg-root.fg-theme-mono-red .fg-footer-frozen-right {
+  background: #EBECED;
+}
+
+.fg-root.fg-theme-mono-red .fg-row-header-top,
+.fg-root.fg-theme-mono-red .fg-selection-top,
+.fg-root.fg-theme-mono-red .fg-header-cell,
+.fg-root.fg-theme-mono-red .fg-footer-row-header,
+.fg-root.fg-theme-mono-red .fg-footer-selection,
+.fg-root.fg-theme-mono-red .fg-footer-cell,
+.fg-root.fg-theme-mono-red .fg-row-header-cell {
+  background-color: var(--fg-header-bg);
+  color: gray;
+}
+
+.fg-root.fg-theme-mono-red .fg-body,
+.fg-root.fg-theme-mono-red .fg-frozen-pane,
+.fg-root.fg-theme-mono-red .fg-frozen-pane-right,
+.fg-root.fg-theme-mono-red .fg-selection-pane,
+.fg-root.fg-theme-mono-red .fg-cell,
+.fg-root.fg-theme-mono-red .fg-selection-cell {
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-red .fg-cell.fg-row-even,
+.fg-root.fg-theme-mono-red .fg-selection-cell.fg-row-even,
+.fg-root.fg-theme-mono-red .fg-selection-cell.fg-row-alt,
+.fg-root.fg-theme-mono-red .fg-cell.fg-row-alt {
+  background-color: #f5f5f5;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-red .fg-cell.fg-row-hovered,
+.fg-root.fg-theme-mono-red .fg-selection-cell.fg-row-hovered,
+.fg-root.fg-theme-mono-red .fg-cell:hover,
+.fg-root.fg-theme-mono-red .fg-cell.fg-row-hovered:hover {
+  background: #fff0e7;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-red .fg-cell.fg-row-selected,
+.fg-root.fg-theme-mono-red .fg-selection-cell.fg-row-selected,
+.fg-root.fg-theme-mono-red .fg-cell.fg-row-selected:hover,
+.fg-root.fg-theme-mono-red .fg-row-selected.fg-selected {
+  background: #f09090;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-red .fg-selected {
+  background: #fff0e7;
+  color: #404040;
+  outline-color: rgb(109, 203, 66);
+}
+
+.fg-root.fg-theme-mono-red .fg-cell.fg-row-selected.fg-selected {
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
+}
+
+.fg-root.fg-theme-mono-red .fg-sort-asc {
+  border-bottom-color: #333;
+}
+
+.fg-root.fg-theme-mono-red .fg-sort-desc {
+  border-top-color: #333;
+}
+
+.fg-root.fg-theme-mono-red .fg-editor {
+  border-color: #a9cf97;
+}
+
+.fg-root.fg-theme-mono-red .pagination-first {
+  background: url("theme/mono/pagination-first.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-red .pagination-prev {
+  background: url("theme/mono/pagination-prev.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-red .pagination-next {
+  background: url("theme/mono/pagination-next.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-red .pagination-last {
+  background: url("theme/mono/pagination-last.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono-red .pagination-load {
+  background: url("theme/mono/pagination-load.svg") no-repeat center;
+}
+
+/*! FabGrid theme mono | Metro Gray palette with monochrome SVG icons */
+
+
+.fg-root.fg-theme-mono {
+  --fg-border: #dedede;
+  --fg-border-strong: #dedede;
+  --fg-frozen-divider: #c0c0c0;
+  --fg-header-bg: #EBECED;
+  --fg-header-text: gray;
+  --fg-cell-bg: #fafafa;
+  --fg-cell-text: #404040;
+  --fg-cell-hover-bg: #E6E6E6;
+  --fg-row-hover-bg: #E6E6E6;
+  --fg-row-selected-bg: #84909c;
+  --fg-row-header-bg: #EBECED;
+  --fg-row-header-text: gray;
+  --fg-selected-bg: #E6E6E6;
+  --fg-selected-border: #de8f3a;
+  --fg-editor-border: #dc944a;
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono .fg-header,
+.fg-root.fg-theme-mono .fg-header-frozen,
+.fg-root.fg-theme-mono .fg-header-frozen-right,
+.fg-root.fg-theme-mono .fg-footer,
+.fg-root.fg-theme-mono .fg-footer-frozen,
+.fg-root.fg-theme-mono .fg-footer-frozen-right {
+  background: #EBECED;
+}
+
+.fg-root.fg-theme-mono .fg-row-header-top,
+.fg-root.fg-theme-mono .fg-selection-top,
+.fg-root.fg-theme-mono .fg-header-cell,
+.fg-root.fg-theme-mono .fg-footer-row-header,
+.fg-root.fg-theme-mono .fg-footer-selection,
+.fg-root.fg-theme-mono .fg-footer-cell,
+.fg-root.fg-theme-mono .fg-row-header-cell {
+  background-color: var(--fg-header-bg);
+  color: gray;
+}
+
+.fg-root.fg-theme-mono .fg-body,
+.fg-root.fg-theme-mono .fg-frozen-pane,
+.fg-root.fg-theme-mono .fg-frozen-pane-right,
+.fg-root.fg-theme-mono .fg-selection-pane,
+.fg-root.fg-theme-mono .fg-cell,
+.fg-root.fg-theme-mono .fg-selection-cell {
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono .fg-cell.fg-row-even,
+.fg-root.fg-theme-mono .fg-selection-cell.fg-row-even,
+.fg-root.fg-theme-mono .fg-selection-cell.fg-row-alt,
+.fg-root.fg-theme-mono .fg-cell.fg-row-alt {
+  background-color: #f5f5f5;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono .fg-cell.fg-row-hovered,
+.fg-root.fg-theme-mono .fg-selection-cell.fg-row-hovered,
+.fg-root.fg-theme-mono .fg-cell:hover,
+.fg-root.fg-theme-mono .fg-cell.fg-row-hovered:hover {
+  background: #E6E6E6;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono .fg-cell.fg-row-selected,
+.fg-root.fg-theme-mono .fg-selection-cell.fg-row-selected,
+.fg-root.fg-theme-mono .fg-cell.fg-row-selected:hover,
+.fg-root.fg-theme-mono .fg-row-selected.fg-selected {
+  background: #84909c;
+  color: #fff;
+}
+
+.fg-root.fg-theme-mono .fg-selected {
+  background: #E6E6E6;
+  color: #404040;
+  outline-color: #de8f3a;
+}
+
+.fg-root.fg-theme-mono .fg-cell.fg-row-selected.fg-selected {
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
+}
+
+.fg-root.fg-theme-mono .fg-sort-asc {
+  border-bottom-color: #333;
+}
+
+.fg-root.fg-theme-mono .fg-sort-desc {
+  border-top-color: #333;
+}
+
+.fg-root.fg-theme-mono .fg-editor {
+  border-color: #dc944a;
+}
+
+.fg-root.fg-theme-mono .pagination-first {
+  background: url("theme/mono/pagination-first.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono .pagination-prev {
+  background: url("theme/mono/pagination-prev.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono .pagination-next {
+  background: url("theme/mono/pagination-next.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono .pagination-last {
+  background: url("theme/mono/pagination-last.svg") no-repeat center;
+}
+
+.fg-root.fg-theme-mono .pagination-load {
+  background: url("theme/mono/pagination-load.svg") no-repeat center;
+}
+
 /*! FabGrid theme pepper-grinder | performance-first data grid */
 
 

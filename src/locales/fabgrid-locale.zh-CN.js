@@ -136,6 +136,7 @@
     validation: {
       invalidValue: '输入值无效',
       invalidDate: '日期格式错误',
+      invalidTime: '时间格式错误',
       invalidYearMonth: '年月格式错误',
       invalidColor: '色码格式错误',
       comboboxLimitToList: '请从列表选择有效项目'
@@ -156,6 +157,8 @@
     },
     aria: {
       cellEditor: '单元格编辑器',
+      increaseValue: '增加数值',
+      decreaseValue: '减少数值',
       openDatePicker: '打开日期选择器',
       datePicker: '日期选择器',
       openComboBox: '打开下拉菜单',

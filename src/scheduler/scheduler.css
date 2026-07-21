@@ -686,6 +686,18 @@
   --fui-scheduler-accent: #2572c0;
 }
 
+.fui-scheduler.fg-theme-mono {
+  --fui-scheduler-border: #d2d7df;
+  --fui-scheduler-bg: #fff;
+  --fui-scheduler-text: #263244;
+  --fui-scheduler-muted: #68758a;
+  --fui-scheduler-header-bg: #fff;
+  --fui-scheduler-subtle-bg: #f5f6f8;
+  --fui-scheduler-hover: #eaf2ff;
+  --fui-scheduler-selected: #dceeff;
+  --fui-scheduler-accent: #2572c0;
+}
+
 .fui-scheduler.fg-theme-bootstrap {
   --fui-scheduler-border: #d4d4d4;
   --fui-scheduler-bg: #fff;
@@ -737,7 +749,9 @@
 .fui-scheduler.fg-theme-metro-gray,
 .fui-scheduler.fg-theme-metro-green,
 .fui-scheduler.fg-theme-metro-orange,
-.fui-scheduler.fg-theme-metro-red {
+.fui-scheduler.fg-theme-metro-red,
+.fui-scheduler.fg-theme-mono-red,
+.fui-scheduler.fg-theme-mono-green {
   --fui-scheduler-border: #ddd;
   --fui-scheduler-bg: #fff;
   --fui-scheduler-text: #333;
@@ -757,7 +771,8 @@
   --fui-scheduler-accent: #84909c;
 }
 
-.fui-scheduler.fg-theme-metro-green {
+.fui-scheduler.fg-theme-metro-green,
+.fui-scheduler.fg-theme-mono-green {
   --fui-scheduler-accent: #8aa51f;
 }
 
@@ -765,7 +780,8 @@
   --fui-scheduler-accent: #e0882e;
 }
 
-.fui-scheduler.fg-theme-metro-red {
+.fui-scheduler.fg-theme-metro-red,
+.fui-scheduler.fg-theme-mono-red {
   --fui-scheduler-accent: #d85a5a;
 }
 

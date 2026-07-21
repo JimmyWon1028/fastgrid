@@ -1,6 +1,6 @@
 # fabui.Tabs API
 
-`fabui.Tabs` 是 FabUI core 內建的 pure JavaScript 頁籤元件。API 與 Default 視覺參考 jQuery EasyUI Tabs，但不依賴 jQuery 或 EasyUI runtime。它一次只顯示一個 tab panel，支援動態新增／關閉、tab tools、header tools、頁籤拖曳排序、四方向排列、overflow scroller、遠端內容、鍵盤與 16 組 FabUI theme。
+`fabui.Tabs` 是 FabUI core 內建的 pure JavaScript 頁籤元件。API 與 Default 視覺參考 jQuery EasyUI Tabs，但不依賴 jQuery 或 EasyUI runtime。它一次只顯示一個 tab panel，支援動態新增／關閉、tab tools、header tools、頁籤拖曳排序、四方向排列、overflow scroller、遠端內容、鍵盤與 19 組 FabUI theme。
 
 ## 建立 Tabs
 

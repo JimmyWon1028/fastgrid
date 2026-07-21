@@ -1526,7 +1526,8 @@ export function installFabGridView(FabGrid, context) {
       search.style.height = this.getSearchRowHeight() + 'px';
       input.className = 'fg-header-search-input';
       input.type = 'text';
-      input.inputMode = column.dataType === 'number' ? 'decimal' : isDateLikeEditorType(searchEditorConfig.type) ? 'numeric' : 'search';
+      input.inputMode = column.dataType === 'number' ? 'decimal' :
+        (isDateLikeEditorType(searchEditorConfig.type) || searchEditorConfig.type === 'time' ? 'numeric' : 'search');
       input.value = this.getColumnSearchValue(column);
       input.style.textAlign = normalizeTextAlign(column.align);
       input.style.paddingRight = searchIcons.length ? (getIconConfigWidth(searchIcons, 22) + 8) + 'px' : '';
@@ -1928,7 +1929,9 @@ export function installFabGridView(FabGrid, context) {
       (shouldUseThousandsSeparator(column) || getNumberPrecision(column) != null)) {
       text = formatNumberDisplayText(value, column);
     }
-    if (getExplicitEditorMask(column)) {
+    if (editorConfig.type === 'time' && getEditorMask(column)) {
+      text = formatMaskText(value, getMaskOptions(column, getEditorMask(column)));
+    } else if (getExplicitEditorMask(column)) {
       text = formatMaskText(value, getMaskOptions(column, getExplicitEditorMask(column)));
     }
     if (typeof column.formatter === 'function') {

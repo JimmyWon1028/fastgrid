@@ -39,7 +39,7 @@ Browser global：
 | `queryParams` | `{}` | 每次送出時附加的參數；同名 submit options 優先。 |
 | `url` | `null` | 送出 URL；未設定時使用 form `action`。 |
 | `locale` | `'en'` | Validation tip 語系；內建 `en`、`zh-TW`、`zh-CN`。 |
-| `theme` | `'inherit'` | 從外層 `fg-theme-*` 繼承，或指定 16 組內建 theme；validation tip 會同步。 |
+| `theme` | `'inherit'` | 從外層 `fg-theme-*` 繼承，或指定 19 組內建 theme；validation tip 會同步。 |
 | `onSubmit` | `null` | 送出前 callback，簽名為 `(params)`；可修改參數，回傳 `false` 取消。 |
 | `onProgress` | `null` | `iframe: false` 時的 upload progress callback，簽名為 `(percent)`。 |
 | `success` | `null` | Ajax 成功 callback，收到未解析的 response text。 |

@@ -17,6 +17,10 @@ export function installFabGridSelection(FabGrid, context) {
   var setByBinding = context.setByBinding;
   var toNumber = context.toNumber;
 
+  function getColumnMinWidth(grid, column) {
+    return toNumber(column.minWidth, toNumber(grid.options.columnMinWidth, DEFAULT_OPTIONS.columnMinWidth));
+  }
+
   function createCellRange(anchorRow, anchorCol, activeRow, activeCol) {
     return {
       row: Math.min(anchorRow, activeRow),
@@ -1140,6 +1144,9 @@ export function installFabGridSelection(FabGrid, context) {
     }
 
     if (this.editing) {
+      if (event.target === this.editor && this.handleNumberSpinnerKeyDown(event)) {
+        return;
+      }
       if (event.target === this.editor && this.handleMaskedEditorDelete(event)) {
         return;
       }
@@ -1407,7 +1414,26 @@ export function installFabGridSelection(FabGrid, context) {
   };
 
   FabGrid.prototype.select = function(row, col) {
-    return this.applyCellSelection(row, col, row, col);
+    var selected;
+    var rowHeight;
+    var rowTop;
+    var rowBottom;
+    var currentTop;
+    var currentBottom;
+    col = col == null ? 0 : col;
+    selected = this.applyCellSelection(row, col, row, col);
+    if (selected !== true || !this.bodyScroll || typeof this.getScrollableContentHeight !== 'function') {
+      return selected;
+    }
+    rowHeight = Math.max(1, toNumber(this.options.rowHeight, DEFAULT_OPTIONS.rowHeight));
+    rowTop = this.selection.row * rowHeight;
+    rowBottom = rowTop + rowHeight;
+    currentTop = this.bodyScroll.scrollTop;
+    currentBottom = currentTop + this.getScrollableContentHeight();
+    if (rowTop < currentTop || rowBottom > currentBottom) {
+      this.scrollIntoView(this.selection.row, this.selection.col, { alignY: 'start' });
+    }
+    return selected;
   };
 
   FabGrid.prototype.selectRange = function(row, col, row2, col2) {
@@ -1508,6 +1534,33 @@ export function installFabGridSelection(FabGrid, context) {
     this.emit('selectionChanged', this.getSelectionEventArgs(row, col, row, col));
     this.emit('rowSelectionChanged', { row: row });
     this.render();
+  };
+
+  FabGrid.prototype.unselectRow = function(row) {
+    var item;
+    var groupState;
+    if (this.options.multiSelectRows !== true || !this.view.length) {
+      return false;
+    }
+    row = clamp(row, 0, this.view.length - 1);
+    item = this.view[row];
+    if (this.isRowGroup(item)) {
+      groupState = this.getRowGroupSelectionState(item);
+      if (groupState.selectedCount < 1) {
+        return false;
+      }
+      this.setItemsSelectionState(item.items || [], false);
+    } else {
+      if (this.isRowGroupFooter(item) || !this.isItemSelected(item)) {
+        return false;
+      }
+      this.setItemSelectionState(item, false);
+    }
+    this.rebuildSelectedRowMap();
+    this.emit('selectionChanged', { row: row, selected: false });
+    this.emit('rowSelectionChanged', { row: row, selected: false });
+    this.render();
+    return true;
   };
 
   FabGrid.prototype.setAllRowsSelected = function(selected) {
@@ -1826,13 +1879,17 @@ export function installFabGridSelection(FabGrid, context) {
     var currentBottom = currentTop + contentHeight;
     var lastFullRowTop = currentBottom - this.options.rowHeight;
     var partialBottomHeight;
+    var maxScrollTop;
     var scrollableViewportWidth = Math.max(0, this.bodyScroll.clientWidth - this.getFixedLeftWidth() - this.frozenWidth - this.frozenRightWidth);
     var scrollLeft;
     if (!colObj) {
       return;
     }
     options = options || {};
-    if (options.directionY > 0 && rowTop >= lastFullRowTop) {
+    if (options.alignY === 'start') {
+      maxScrollTop = Math.max(0, this.bodyScroll.scrollHeight - this.bodyScroll.clientHeight);
+      this.bodyScroll.scrollTop = Math.min(rowTop, maxScrollTop);
+    } else if (options.directionY > 0 && rowTop >= lastFullRowTop) {
       this.bodyScroll.scrollTop = Math.max(0, rowBottom - contentHeight);
     } else if (rowTop < currentTop) {
       this.bodyScroll.scrollTop = rowTop;
@@ -1921,7 +1978,7 @@ export function installFabGridSelection(FabGrid, context) {
       footerText = this.getFooterCellText(column);
       width = Math.max(width, this.measureAutoSizeText(footerText, context) + 21);
     }
-    return Math.max(toNumber(column.minWidth, 48), Math.ceil(width));
+    return Math.max(getColumnMinWidth(this, column), Math.ceil(width));
   };
 
   FabGrid.prototype.autoSizeColumn = function(column) {
@@ -1941,7 +1998,7 @@ export function installFabGridSelection(FabGrid, context) {
     if (this.emit('autoSizingColumn', args) === false) {
       return false;
     }
-    width = Math.max(toNumber(target.minWidth, 48), toNumber(args.width, previousWidth));
+    width = Math.max(getColumnMinWidth(this, target), toNumber(args.width, previousWidth));
     target._width = width;
     target.width = width;
     this.updateLayout();
@@ -1985,7 +2042,7 @@ export function installFabGridSelection(FabGrid, context) {
       return;
     }
     event.preventDefault();
-    width = Math.max(toNumber(state.column.minWidth, 48), state.startWidth + event.clientX - state.startX);
+    width = Math.max(getColumnMinWidth(this, state.column), state.startWidth + event.clientX - state.startX);
     if (this.emit('resizingColumn', { column: state.column, width: width }) === false) {
       return;
     }

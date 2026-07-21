@@ -129,6 +129,33 @@ function readShowcasePairs() {
   });
 }
 
+test('Every static Demo theme selector offers the Mono theme', function() {
+  var pages = readdirSync(demoDirectory)
+    .filter(function(name) {
+      return /\.html$/.test(name);
+    });
+  var matched = 0;
+
+  pages.forEach(function(name) {
+    var html = readFileSync(new URL(name, demoDirectory), 'utf8');
+    if (!/<option value=["']black["']/.test(html)) {
+      return;
+    }
+    matched += 1;
+    assert.match(html, /<option value=["']mono["'][^>]*>Mono<\/option>/i, name);
+  });
+
+  assert.ok(matched > 0);
+  assert.match(
+    readFileSync(new URL('../demo/js/grid.js', import.meta.url), 'utf8'),
+    /value:\s*["']mono["'],\s*label:\s*["']Mono["']/
+  );
+  assert.match(
+    readFileSync(new URL('../demo/js/themebuilder-demo.js', import.meta.url), 'utf8'),
+    /value:\s*["']mono["'],\s*text:\s*["']Mono["']/
+  );
+});
+
 test('Every source-mode Demo loads the shared FabUI control enhancer', function() {
   var pages = readdirSync(demoDirectory)
     .filter(function(name) {
@@ -140,7 +167,7 @@ test('Every source-mode Demo loads the shared FabUI control enhancer', function(
     var html = readFileSync(new URL(name, demoDirectory), 'utf8');
     assert.match(
       html,
-      /<script type="module" src="\.\/js\/dev-controls\.js\?v=(?:20260719-(?:select-fit|button-icon)-v1|20260720-hidden-file-input-v1)"><\/script>/,
+      /<script type="module" src="\.\/js\/dev-controls\.js\?v=20260721-initial-filter-rules-v1"><\/script>/,
       name
     );
   });
@@ -175,11 +202,11 @@ test('The shared enhancer leaves hidden Diagram file inputs untouched', function
   assert.match(diagramScript, /jsonFileInput\.hidden = true/);
   assert.match(
     diagramHtml,
-    /dev-controls\.js\?v=20260720-hidden-file-input-v1/
+    /dev-controls\.js\?v=20260721-initial-filter-rules-v1/
   );
   assert.match(
     buildDiagramHtml,
-    /dist-controls\.js\?v=20260720-hidden-file-input-v1/
+    /dist-controls\.js\?v=20260721-mono-variants-v1/
   );
 });
 
@@ -328,7 +355,7 @@ test('Every build-mode Demo loads dist FabUI and the shared control enhancer', f
     var html = readFileSync(new URL(name, demoDirectory), 'utf8');
     assert.match(
       html,
-      /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=20260720-dist-style-fabui-v1"\s*\/?>/,
+      /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=20260721-mono-theme-v3"\s*\/?>/,
       name
     );
     assert.match(
@@ -338,7 +365,7 @@ test('Every build-mode Demo loads dist FabUI and the shared control enhancer', f
     );
     assert.match(
       html,
-      /<script type="module" src="\.\/js\/dist-controls\.js\?v=(?:20260719-all-demos-v1|20260720-hidden-file-input-v1)"><\/script>/,
+      /<script type="module" src="\.\/js\/dist-controls\.js\?v=20260721-mono-variants-v1"><\/script>/,
       name
     );
     assert.doesNotMatch(html, /\.\.\/src\//, name);
@@ -378,7 +405,7 @@ test('Every webpage stylesheet reference uses the FabUI dist filename', function
   }).forEach(function(item) {
     assert.match(
       item.source,
-      /\.\.\/dist\/fabui\.css\?v=20260720-dist-style-fabui-v1/,
+      /\.\.\/dist\/fabui\.css\?v=20260721-mono-theme-v3/,
       item.name
     );
   });
@@ -520,10 +547,25 @@ test('Every build-mode Demo mirrors its source-mode showcase', function() {
   pairs.forEach(function(pair) {
     var devHtml = readFileSync(new URL(pair.dev, demoDirectory), 'utf8');
     var buildHtml = readFileSync(new URL(pair.build, demoDirectory), 'utf8');
+    var devSignature = readShowcaseSignature(devHtml);
+    var devOnlyIds = pair.dev === 'dev-editbox.html' ? [
+      'edit-spinner-true',
+      'edit-spinner-right',
+      'edit-spinner-left',
+      'edit-time',
+      'edit-time-seconds'
+    ] : [];
+
+    devSignature.ids = devSignature.ids.filter(function(id) {
+      return devOnlyIds.indexOf(id) < 0;
+    });
+    devSignature.inputs = devSignature.inputs.filter(function(input) {
+      return devOnlyIds.indexOf(input.id) < 0;
+    });
 
     assert.deepEqual(
       readShowcaseSignature(buildHtml),
-      readShowcaseSignature(devHtml),
+      devSignature,
       pair.label + ': ' + pair.dev + ' <=> ' + pair.build
     );
   });

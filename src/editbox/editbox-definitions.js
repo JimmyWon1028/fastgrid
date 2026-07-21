@@ -90,11 +90,197 @@ export function createEditorDefinitions() {
     return isFinite(number) ? number : null;
   }
 
+  function normalizeNumberSpinner(value) {
+    if (value === true || String(value).toLowerCase() === 'right') return 'right';
+    if (String(value).toLowerCase() === 'left') return 'left';
+    return false;
+  }
+
+  function getNumberDecimalPlaces(value) {
+    var text = String(value == null ? '' : value).toLowerCase();
+    var exponentIndex = text.indexOf('e');
+    var exponent = exponentIndex >= 0 ? Number(text.slice(exponentIndex + 1)) || 0 : 0;
+    var decimalIndex;
+    if (exponentIndex >= 0) text = text.slice(0, exponentIndex);
+    decimalIndex = text.indexOf('.');
+    return Math.max(0, (decimalIndex < 0 ? 0 : text.length - decimalIndex - 1) - exponent);
+  }
+
+  function getNumberSpinValue(value, direction, options) {
+    var current;
+    var increment;
+    var precision;
+    var min;
+    var max;
+    var nextValue;
+    options = options || {};
+    current = typeof value === 'number' && isFinite(value) ? value : parseNumber(value, options);
+    if (current == null) current = 0;
+    increment = Number(options.increment);
+    if (!isFinite(increment) || increment <= 0) increment = 1;
+    precision = normalizePrecision(options.precision);
+    if (precision == null) {
+      precision = Math.min(20, Math.max(
+        getNumberDecimalPlaces(current),
+        getNumberDecimalPlaces(increment)
+      ));
+    }
+    nextValue = current + (direction < 0 ? -1 : 1) * increment;
+    nextValue = Number(nextValue.toFixed(precision));
+    min = options.min == null || options.min === '' ? null : Number(options.min);
+    max = options.max == null || options.max === '' ? null : Number(options.max);
+    if (min != null && isFinite(min)) nextValue = Math.max(min, nextValue);
+    if (max != null && isFinite(max)) nextValue = Math.min(max, nextValue);
+    return Number(nextValue.toFixed(precision));
+  }
+
   function isNumberTextAllowed(editor, text, options) {
     var start = editor.selectionStart == null ? editor.value.length : editor.selectionStart;
     var end = editor.selectionEnd == null ? start : editor.selectionEnd;
     var next = editor.value.slice(0, start) + text + editor.value.slice(end);
     return stripNumberFormatting(next, options) === sanitizeNumber(next, options);
+  }
+
+  function normalizeTimeMask(value) {
+    return String(value || '') === '99:99:99' ? '99:99:99' : '99:99';
+  }
+
+  function getTimeDigitCount(options) {
+    return normalizeTimeMask(options && options.mask) === '99:99:99' ? 6 : 4;
+  }
+
+  function extractTimeDigits(value, options) {
+    return String(value == null ? '' : value)
+      .replace(/[^0-9]/g, '')
+      .slice(0, getTimeDigitCount(options));
+  }
+
+  function applyTimeMask(value, options) {
+    var digits = extractTimeDigits(value, options);
+    var mask = normalizeTimeMask(options && options.mask);
+    var output = '';
+    var digitIndex = 0;
+    var maskIndex;
+    for (maskIndex = 0; maskIndex < mask.length; maskIndex += 1) {
+      if (mask.charAt(maskIndex) === '9') {
+        if (digitIndex >= digits.length) break;
+        output += digits.charAt(digitIndex);
+        digitIndex += 1;
+      } else if (digitIndex > 0) {
+        output += mask.charAt(maskIndex);
+      }
+    }
+    return output;
+  }
+
+  function parseTime(value, options) {
+    var digits = extractTimeDigits(value, options);
+    var expectedLength = getTimeDigitCount(options);
+    var hour;
+    var minute;
+    var second;
+    if (digits.length !== expectedLength) return null;
+    hour = Number(digits.slice(0, 2));
+    minute = Number(digits.slice(2, 4));
+    second = expectedLength === 6 ? Number(digits.slice(4, 6)) : 0;
+    if (minute > 59 || second > 59 || hour > 24) return null;
+    if (hour === 24 && (minute !== 0 || second !== 0)) return null;
+    return {
+      hour: hour,
+      minute: minute,
+      second: second
+    };
+  }
+
+  function shouldAutoUnmaskTime(options) {
+    return !options || options.autoUnmask !== false;
+  }
+
+  function getTimeDataValue(value, options) {
+    return shouldAutoUnmaskTime(options) ? extractTimeDigits(value, options) : applyTimeMask(value, options);
+  }
+
+  function countTimeDigitsBeforeCaret(value, caret) {
+    return String(value == null ? '' : value).slice(0, caret).replace(/[^0-9]/g, '').length;
+  }
+
+  function getTimeCaretPosition(value, rawIndex) {
+    var text = String(value || '');
+    var count = 0;
+    var index;
+    if (rawIndex <= 0) return 0;
+    for (index = 0; index < text.length; index += 1) {
+      if (/[0-9]/.test(text.charAt(index))) {
+        count += 1;
+        if (count >= rawIndex) return index + 1;
+      }
+    }
+    return text.length;
+  }
+
+  function handleTimeDelete(editor, key, options) {
+    var start = editor.selectionStart == null ? editor.value.length : editor.selectionStart;
+    var end = editor.selectionEnd == null ? start : editor.selectionEnd;
+    var raw = extractTimeDigits(editor.value, options);
+    var deleteStart = countTimeDigitsBeforeCaret(editor.value, start);
+    var deleteEnd = countTimeDigitsBeforeCaret(editor.value, end);
+    var nextRaw;
+    var nextText;
+    var nextCaret;
+    if (start === end) {
+      if (key === 'Backspace') {
+        if (deleteStart <= 0) return true;
+        deleteStart -= 1;
+      } else if (deleteStart >= raw.length) {
+        return true;
+      } else {
+        deleteEnd += 1;
+      }
+    }
+    nextRaw = raw.slice(0, deleteStart) + raw.slice(deleteEnd);
+    nextText = applyTimeMask(nextRaw, options);
+    nextCaret = getTimeCaretPosition(nextText, deleteStart);
+    editor.value = nextText;
+    if (editor.setSelectionRange) editor.setSelectionRange(nextCaret, nextCaret);
+    return true;
+  }
+
+  function getTimeSegmentAtCaret(caret, options) {
+    var maxSegment = getTimeDigitCount(options) === 6 ? 2 : 1;
+    caret = Math.max(0, Number(caret) || 0);
+    if (caret <= 2) return 0;
+    if (caret <= 5 || maxSegment === 1) return 1;
+    return 2;
+  }
+
+  function getTimeSpinValue(value, segment, direction, options) {
+    var expectedLength = getTimeDigitCount(options);
+    var digits = extractTimeDigits(value, options);
+    var hour;
+    var minute;
+    var second;
+    var amount = direction < 0 ? -1 : 1;
+    while (digits.length < expectedLength) digits += '0';
+    hour = Math.min(24, Number(digits.slice(0, 2)) || 0);
+    minute = Math.min(59, Number(digits.slice(2, 4)) || 0);
+    second = expectedLength === 6 ? Math.min(59, Number(digits.slice(4, 6)) || 0) : 0;
+    if (hour === 24) {
+      minute = 0;
+      second = 0;
+    }
+    if (segment === 0) {
+      hour = Math.max(0, Math.min(24, hour + amount));
+      if (hour === 24) {
+        minute = 0;
+        second = 0;
+      }
+    } else if (segment === 1 && hour < 24) {
+      minute = Math.max(0, Math.min(59, minute + amount));
+    } else if (segment === 2 && expectedLength === 6 && hour < 24) {
+      second = Math.max(0, Math.min(59, second + amount));
+    }
+    digits = pad2(hour) + pad2(minute) + (expectedLength === 6 ? pad2(second) : '');
+    return applyTimeMask(digits, options);
   }
 
   function pad2(value) {
@@ -483,6 +669,8 @@ export function createEditorDefinitions() {
       sanitize: sanitizeNumber,
       format: formatNumber,
       parse: parseNumber,
+      normalizeSpinner: normalizeNumberSpinner,
+      getSpinValue: getNumberSpinValue,
       getCopyText: stripNumberFormatting,
       isTextAllowed: isNumberTextAllowed
     },
@@ -517,6 +705,27 @@ export function createEditorDefinitions() {
       },
       isTextAllowed: function(editor, text) { return /^[0-9]+$/.test(String(text || '')); }
     },
+    time: {
+      type: 'time',
+      className: 'textbox-f timebox-f fg-editor-timebox',
+      inputMode: 'numeric',
+      mask: '99:99',
+      normalizeMask: normalizeTimeMask,
+      sanitize: applyTimeMask,
+      format: applyTimeMask,
+      parse: parseTime,
+      isValid: function(value, options) {
+        return value == null || String(value).trim() === '' || Boolean(parseTime(value, options));
+      },
+      getDataValue: getTimeDataValue,
+      getCopyText: getTimeDataValue,
+      handleDelete: handleTimeDelete,
+      getCaretPosition: getTimeCaretPosition,
+      getSegmentAtCaret: getTimeSegmentAtCaret,
+      getSpinValue: getTimeSpinValue,
+      normalizeSpinner: normalizeNumberSpinner,
+      isTextAllowed: function(editor, text) { return /^[0-9]+$/.test(String(text || '')); }
+    },
     color: {
       type: 'color',
       className: 'textbox-f color-f fg-editor-color',
@@ -531,6 +740,7 @@ export function createEditorDefinitions() {
   definitions.textbox = definitions.text;
   definitions.numberbox = definitions.number;
   definitions.datebox = definitions.date;
+  definitions.timebox = definitions.time;
   definitions.combobox = definitions.combo;
   return definitions;
 }

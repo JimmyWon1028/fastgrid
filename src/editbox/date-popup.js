@@ -16,7 +16,8 @@ var DATE_POPUP_THEMES = [
   'sunny',
   'pepper-grinder',
   'dark-hive',
-  'black'
+  'black',
+  'mono', 'mono-red', 'mono-green'
 ];
 var DATE_POPUP_LUNAR_DAYS = [
   '',

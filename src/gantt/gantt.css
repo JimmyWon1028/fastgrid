@@ -475,7 +475,8 @@
   --fui-gantt-accent-dark: #46515f;
 }
 
-.fui-gantt.fg-theme-metro-green {
+.fui-gantt.fg-theme-metro-green,
+.fui-gantt.fg-theme-mono-green {
   --fui-gantt-accent: #7f9f35;
   --fui-gantt-accent-dark: #526a20;
 }
@@ -487,6 +488,7 @@
 }
 
 .fui-gantt.fg-theme-metro-red,
+.fui-gantt.fg-theme-mono-red,
 .fui-gantt.fg-theme-pepper-grinder {
   --fui-gantt-accent: #b83400;
   --fui-gantt-accent-dark: #7c2500;

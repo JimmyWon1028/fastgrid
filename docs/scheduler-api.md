@@ -89,7 +89,7 @@ views: [
 | `monthEventLimit` | `3` | Month 每日直接顯示的最大行程數 |
 | `eventColor` | `'#2572c0'` | 沒有 resource color 時的預設色 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN` |
-| `theme` | `'inherit'` | 繼承外層或指定 16 組 FabUI theme |
+| `theme` | `'inherit'` | 繼承外層或指定 19 組 FabUI theme |
 | `messages` | `null` | 覆寫目前 locale 訊息 |
 
 ## Event 資料
@@ -188,4 +188,4 @@ fabui.Scheduler.normalizeLocale('zh_Hant_TW'); // 'zh-TW'
 fabui.Scheduler.normalizeLocale('zh-Hans');    // 'zh-CN'
 ```
 
-Scheduler 公開與其他 FabUI 元件相同的 16 組 theme。編輯視窗與其中的 FabUI 控件會攜帶 Scheduler 目前 theme，不會因掛到 `document.body` 而退回 default。
+Scheduler 公開與其他 FabUI 元件相同的 19 組 theme。編輯視窗與其中的 FabUI 控件會攜帶 Scheduler 目前 theme，不會因掛到 `document.body` 而退回 default。

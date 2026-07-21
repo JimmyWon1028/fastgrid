@@ -52,12 +52,12 @@ data: [
 | `dir` | `h` | `h` 水平排列，`v` 垂直排列。 |
 | `itemStyle` | `{ height: 30 }` | 套用到每個項目容器的 inline style。 |
 | `labelWidth` | `auto` | 每個 CheckBox label 寬度。 |
-| `labelPosition` | `after` | `before` 或 `after`。 |
+| `labelPosition` | `after` | `before` 或 `after`；預設每個項目文字顯示在核取方塊後方。 |
 | `labelAlign` | `left` | `left` 或 `right`。 |
 | `disabled` | `false` | 停用整個群組；單項 disabled 仍會保留。 |
 | `cls` | `''` | 群組 host 的自訂 class。 |
 | `locale` | `en` | `en`、`zh-TW`、`zh-CN`。 |
-| `theme` | `inherit` | 從外層 `fg-theme-*` 繼承，或指定 16 組內建 theme。 |
+| `theme` | `inherit` | 從外層 `fg-theme-*` 繼承，或指定 19 組內建 theme。 |
 | `ariaLabel` | locale | 群組的可及性名稱。 |
 | `onChange` | `null` | 選取改變 callback，簽名為 `(values)`。 |
 

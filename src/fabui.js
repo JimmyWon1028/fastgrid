@@ -1,47 +1,47 @@
-import { createEditorDefinitions } from './editbox/editbox-definitions.js?v=20260717-editor-names-v1';
-import { createEditBoxFactory } from './editbox/editbox.js?v=20260719-combo-fit-content-v1';
-import { createButtonFactory } from './button/button.js?v=20260719-button-anchor-v1';
-import { createAccordionFactory } from './accordion/accordion.js?v=20260720-accordion-v3';
-import { createCalendarFactory } from './calendar/calendar.js?v=20260719-i18n-theme-audit-v1';
-import { createCheckBoxFactory } from './checkbox/checkbox.js?v=20260719-i18n-theme-audit-v1';
-import { createCheckGroupFactory } from './checkgroup/checkgroup.js?v=20260719-i18n-theme-audit-v1';
-import { createSwitchButtonFactory } from './switchbutton/switchbutton.js?v=20260719-switchbutton-v1';
-import { createRadioButtonFactory } from './radiobutton/radiobutton.js?v=20260719-radiobutton-v1';
-import { createRadioGroupFactory } from './radiogroup/radiogroup.js?v=20260719-radiogroup-v1';
-import { createFileBoxFactory } from './filebox/filebox.js?v=20260719-i18n-theme-audit-v1';
-import { createFormFactory } from './form/form.js?v=20260719-form-radio-v1';
-import { createChartFactory } from './chart/chart.js?v=20260719-chart-tooltip-v1';
-import { createDiagramFactory } from './diagram/diagram.js?v=20260721-diagram-overflow-pan-v1';
+import { createEditorDefinitions } from './editbox/editbox-definitions.js?v=20260721-mono-variants-v1';
+import { createEditBoxFactory } from './editbox/editbox.js?v=20260721-mono-variants-v1';
+import { createButtonFactory } from './button/button.js?v=20260721-mono-variants-v1';
+import { createAccordionFactory } from './accordion/accordion.js?v=20260721-mono-variants-v1';
+import { createCalendarFactory } from './calendar/calendar.js?v=20260721-mono-variants-v1';
+import { createCheckBoxFactory } from './checkbox/checkbox.js?v=20260721-mono-variants-v1';
+import { createCheckGroupFactory } from './checkgroup/checkgroup.js?v=20260721-mono-variants-v1';
+import { createSwitchButtonFactory } from './switchbutton/switchbutton.js?v=20260721-mono-variants-v1';
+import { createRadioButtonFactory } from './radiobutton/radiobutton.js?v=20260721-mono-variants-v1';
+import { createRadioGroupFactory } from './radiogroup/radiogroup.js?v=20260721-mono-variants-v1';
+import { createFileBoxFactory } from './filebox/filebox.js?v=20260721-mono-variants-v1';
+import { createFormFactory } from './form/form.js?v=20260721-mono-variants-v1';
+import { createChartFactory } from './chart/chart.js?v=20260721-mono-variants-v1';
+import { createDiagramFactory } from './diagram/diagram.js?v=20260721-mono-variants-v1';
 import {
   Control,
   registerControl,
   unregisterControl
-} from './core/control.js?v=20260716-control-events-v3';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260721-search-row-scroll-v1';
-import { CellType } from './grid/fabgrid-types.js?v=20260716-row-types-v1';
-import { createLayoutFactory } from './layout/layout.js?v=20260719-i18n-theme-audit-v1';
-import { createMenuFactory } from './menu/menu.js?v=20260719-i18n-theme-audit-v1';
-import { createMenuButtonFactory } from './menubutton/menubutton.js?v=20260719-button-anchor-v1';
-import { createMessagerFactory } from './messager/messager.js?v=20260719-button-anchor-v1';
-import { createPanelFactory } from './panel/panel.js?v=20260719-i18n-theme-audit-v1';
-import { createPropertyGridFactory } from './propertygrid/propertygrid.js?v=20260719-i18n-theme-audit-v1';
-import { createSplitButtonFactory } from './splitbutton/splitbutton.js?v=20260719-i18n-theme-audit-v1';
-import { createTabsFactory } from './tabs/tabs.js?v=20260719-i18n-theme-audit-v1';
-import { createTreeFactory } from './tree/tree.js?v=20260719-i18n-theme-audit-v1';
-import { createTooltipFactory } from './tooltip/tooltip.js?v=20260719-i18n-theme-audit-v1';
-import { createWindowFactory } from './window/window.js?v=20260720-window-minimize-target-v1';
+} from './core/control.js?v=20260721-mono-variants-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260721-stylesheet-default-theme-v1';
+import { CellType } from './grid/fabgrid-types.js?v=20260721-mono-variants-v1';
+import { createLayoutFactory } from './layout/layout.js?v=20260721-mono-variants-v1';
+import { createMenuFactory } from './menu/menu.js?v=20260721-mono-variants-v1';
+import { createMenuButtonFactory } from './menubutton/menubutton.js?v=20260721-mono-variants-v1';
+import { createMessagerFactory } from './messager/messager.js?v=20260721-mono-variants-v1';
+import { createPanelFactory } from './panel/panel.js?v=20260721-mono-variants-v1';
+import { createPropertyGridFactory } from './propertygrid/propertygrid.js?v=20260721-mono-variants-v1';
+import { createSplitButtonFactory } from './splitbutton/splitbutton.js?v=20260721-mono-variants-v1';
+import { createTabsFactory } from './tabs/tabs.js?v=20260721-mono-variants-v1';
+import { createTreeFactory } from './tree/tree.js?v=20260721-mono-variants-v1';
+import { createTooltipFactory } from './tooltip/tooltip.js?v=20260721-mono-variants-v1';
+import { createWindowFactory } from './window/window.js?v=20260721-mono-variants-v1';
 import {
   PivotAggregate,
   PivotEngine,
   PivotField,
   PivotShowAs,
   PivotShowTotals
-} from './pivot/pivot-engine.js?v=20260717-pivot-advanced-v1';
-import { createPivotChartFactory } from './pivot/pivot-chart.js?v=20260719-i18n-theme-audit-v1';
-import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260719-i18n-theme-audit-v1';
-import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260719-i18n-theme-audit-v1';
-import { createPivotSlicerFactory } from './pivot/pivot-slicer.js?v=20260719-i18n-theme-audit-v1';
-import { createPivotWorkspaceFactory } from './pivot/pivot-workspace.js?v=20260719-i18n-theme-audit-v1';
+} from './pivot/pivot-engine.js?v=20260721-mono-variants-v1';
+import { createPivotChartFactory } from './pivot/pivot-chart.js?v=20260721-mono-variants-v1';
+import { createPivotGridFactory } from './pivot/pivot-grid.js?v=20260721-mono-variants-v1';
+import { createPivotPanelFactory } from './pivot/pivot-panel.js?v=20260721-mono-variants-v1';
+import { createPivotSlicerFactory } from './pivot/pivot-slicer.js?v=20260721-mono-variants-v1';
+import { createPivotWorkspaceFactory } from './pivot/pivot-workspace.js?v=20260721-mono-variants-v1';
 
 var editorDefinitions = createEditorDefinitions();
 var EditBox = createEditBoxFactory(editorDefinitions);
@@ -89,7 +89,6 @@ var Diagram = createDiagramFactory(
   unregisterControl,
   Button,
   EditBox,
-  Window,
   Menu,
   Tabs
 );

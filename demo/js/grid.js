@@ -57,6 +57,9 @@
     { value: "pepper-grinder", label: "Pepper Grinder" },
     { value: "dark-hive", label: "Dark Hive" },
     { value: "black", label: "Black" },
+    { value: "mono", label: "Mono" },
+    { value: "mono-red", label: "Mono Red" },
+    { value: "mono-green", label: "Mono Green" },
   ];
   var DEMO_WORKFLOW_VALUES = window.FabGridDemoData.workflowValues;
   var DEMO_STATUS_STYLES = {
@@ -631,6 +634,10 @@
         precision: 2,
         editor: {
           type: "number",
+          spinner: true,
+          increment: 1,
+          min: 0,
+          max: 1000000,
         },
         validate: function (args) {
           var value = args.value;
@@ -655,7 +662,13 @@
         align: "right",
         dataType: "number",
         aggregate: "avg",
-        editor: "number",
+        editor: {
+          type: "number",
+          spinner: "left",
+          increment: 1,
+          min: 0,
+          max: 100,
+        },
         validate: function (args) {
           return new Promise(function (resolve) {
             var value = args.value;

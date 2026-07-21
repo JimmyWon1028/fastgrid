@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>FabGrid Initial Filter Rules Test</title>
+  <link rel="stylesheet" href="../src/fabui.css?v=20260721-initial-filter-rules-v1">
+  <style>
+    #grid {
+      width: 720px;
+      height: 320px;
+    }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <div id="grid"></div>
+  <script type="module">
+    import fabui from '../src/fabui.js?v=20260721-stylesheet-default-theme-v1';
+
+    window.filterRulesGrid = new fabui.FabGrid('#grid', {
+      itemsSource: [
+        { status: '草稿', amount: 1200 },
+        { status: '草稿', amount: 800 },
+        { status: '完成', amount: 1500 }
+      ],
+      columns: [
+        { binding: 'status', header: '狀態' },
+        { binding: 'amount', header: '金額', dataType: 'number' }
+      ],
+      filterRules: [
+        { field: 'status', op: 'eq', value: '草稿' },
+        { field: 'amount', op: 'gte', value: 1000 }
+      ]
+    });
+  </script>
+</body>
+</html>

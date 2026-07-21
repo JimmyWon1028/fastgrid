@@ -26,10 +26,10 @@ var radio = new fabui.RadioButton('#fruit-apple', {
 | `disabled` | boolean | `false` | 是否停用。 |
 | `label` | string/null | `null` | 顯示文字。 |
 | `labelWidth` | number/string | `'auto'` | label 寬度。 |
-| `labelPosition` | string | `'before'` | `before`、`after` 或 `top`。 |
+| `labelPosition` | string | `'after'` | `before`、`after` 或 `top`；預設文字顯示在選項按鈕後方。 |
 | `labelAlign` | string | `'left'` | `left` 或 `right`。 |
 | `locale` | string | `'en'` | `en`、`zh-TW` 或 `zh-CN`。 |
-| `theme` | string | `'inherit'` | 繼承外層或指定 16 組 FabUI theme。 |
+| `theme` | string | `'inherit'` | 繼承外層或指定 19 組 FabUI theme。 |
 | `ariaLabel` | string | `''` | 覆寫 radio 的 accessible name。 |
 | `onChange` | function | `null` | checked 改變時接收 `(checked)`。 |
 

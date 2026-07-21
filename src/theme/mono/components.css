@@ -1,0 +1,28 @@
+/* Mono reuses Metro Gray control colors and applies the SVG icon layer separately. */
+.fg-theme-mono {
+  --fui-control-border: #abafb8;
+  --fui-control-focus: #8f95a1;
+  --fui-control-radius: 0;
+  --fui-control-bg: #ffffff;
+  --fui-control-text: #000000;
+  --fui-control-placeholder: #aaaaaa;
+  --fui-control-icon: #404040;
+  --fui-control-label-text: #000000;
+  --fui-control-disabled-bg: #f5f5f5;
+  --fui-control-trigger-bg: #c7ccd1;
+  --fui-control-button-bg: #f5f5f5;
+  --fui-control-button-text: #404040;
+  --fui-control-hover: #E6E6E6;
+  --fui-control-hover-text: #404040;
+  --fui-control-selected: #84909c;
+  --fui-control-selected-text: #ffffff;
+  --fui-checkbox-accent: #84909c;
+  --fui-propertygrid-border: #dedede;
+  --fui-propertygrid-group-bg: #c7ccd1;
+  --fui-propertygrid-header-text: #404040;
+  --fui-propertygrid-group-text: #404040;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #404040;
+}

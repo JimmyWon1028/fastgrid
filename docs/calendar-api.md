@@ -1,6 +1,6 @@
 # fabui.Calendar API
 
-`fabui.Calendar` 是 FabUI core 內建的 pure JavaScript 月曆元件。API 與 Default 視覺參考 jQuery EasyUI Calendar，但不依賴 jQuery 或 EasyUI runtime。它和 Date EditBox、FabGrid 日期 editor 共用同一個 `DatePopup` 日曆 renderer、月份選單、日期驗證、農民曆與 16 組 theme 樣式。
+`fabui.Calendar` 是 FabUI core 內建的 pure JavaScript 月曆元件。API 與 Default 視覺參考 jQuery EasyUI Calendar，但不依賴 jQuery 或 EasyUI runtime。它和 Date EditBox、FabGrid 日期 editor 共用同一個 `DatePopup` 日曆 renderer、月份選單、日期驗證、農民曆與 19 組 theme 樣式。
 
 ## 建立 Calendar
 

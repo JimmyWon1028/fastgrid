@@ -2,7 +2,7 @@ var RADIOBUTTON_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black'
+  'black', 'mono', 'mono-red', 'mono-green'
 ];
 var radioButtonSequence = 0;
 
@@ -60,8 +60,8 @@ export function normalizeRadioButtonTheme(value) {
 }
 
 export function normalizeRadioButtonLabelPosition(value) {
-  value = String(value || 'before').toLowerCase();
-  return value === 'after' || value === 'top' ? value : 'before';
+  value = String(value || 'after').toLowerCase();
+  return value === 'before' || value === 'top' ? value : 'after';
 }
 
 export function normalizeRadioButtonLabelAlign(value) {
@@ -98,7 +98,7 @@ export function createRadioButtonFactory(Control, registerControl, unregisterCon
     disabled: false,
     label: null,
     labelWidth: 'auto',
-    labelPosition: 'before',
+    labelPosition: 'after',
     labelAlign: 'left',
     locale: 'en',
     theme: 'inherit',

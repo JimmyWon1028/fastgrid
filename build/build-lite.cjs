@@ -122,12 +122,15 @@ function rewriteCssUrls(source, sourceFile) {
   const sourceDir = path.dirname(sourceFile);
   return source.replace(/url\((['"]?)([^)'"\s]+)\1\)/g, function(match, quote, url) {
     const asset = path.resolve(sourceDir, url);
-    const relative = path.relative(srcDir, asset).split(path.sep).join('/');
+    let relative = path.relative(srcDir, asset).split(path.sep).join('/');
     if (/^(?:data:|https?:|#)/i.test(url) || !fs.existsSync(asset) || !fs.statSync(asset).isFile()) {
       return match;
     }
     if (relative.indexOf('../') === 0) {
       throw new Error('CSS asset must be located inside src: ' + asset);
+    }
+    if (relative.indexOf('theme/mono/images/') === 0) {
+      relative = relative.replace('theme/mono/images/', 'theme/mono/');
     }
     return 'url("' + relative + '")';
   });
@@ -166,9 +169,12 @@ function createCssBundle() {
 function copyCssAssets(css) {
   const copied = {};
   css.replace(/url\((['"]?)([^)'"\s]+)\1\)/g, function(match, quote, url) {
-    const source = path.join(srcDir, url);
+    let source = path.join(srcDir, url);
     const output = path.join(distDir, url);
     if (/^(?:data:|https?:|#)/i.test(url) || copied[url]) return match;
+    if (url.indexOf('theme/mono/') === 0 && !fs.existsSync(source)) {
+      source = path.join(srcDir, 'theme', 'mono', 'images', url.slice('theme/mono/'.length));
+    }
     if (!fs.existsSync(source) || !fs.statSync(source).isFile()) {
       throw new Error('Missing Lite CSS asset: ' + url);
     }
@@ -262,6 +268,7 @@ function verifyBuildOutput() {
 }
 
 fs.mkdirSync(distDir, { recursive: true });
+fs.rmSync(path.join(distDir, 'theme', 'mono', 'images'), { recursive: true, force: true });
 [
   'fabui.lite.js',
   'fabui.lite.min.js',

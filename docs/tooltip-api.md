@@ -38,7 +38,7 @@ var tooltip = new fabui.Tooltip('#help', {
 | `showDelay` | `200` | 顯示延遲毫秒。 |
 | `hideDelay` | `100` | 隱藏延遲毫秒。 |
 | `zIndex` | `9900000` | Tooltip 層級。 |
-| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定 16 組內建 theme。 |
+| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定 19 組內建 theme。 |
 
 Markup 可使用 `position`、`valign`、`content`、`trackMouse`、`deltaX`、`deltaY`、`showEvent`、`hideEvent`、`showDelay`、`hideDelay`，也可使用對應的 `data-*` 屬性。
 
@@ -75,6 +75,6 @@ Options callbacks 沿用 EasyUI 的參數順序：
 
 ## Theme
 
-支援 `default`、`bootstrap`、`cupertino`、`material`、`material-blue`、`material-teal`、`metro`、`metro-blue`、`metro-gray`、`metro-green`、`metro-orange`、`metro-red`、`sunny`、`pepper-grinder`、`dark-hive`、`black`。
+支援 `default`、`bootstrap`、`cupertino`、`material`、`material-blue`、`material-teal`、`metro`、`metro-blue`、`metro-gray`、`metro-green`、`metro-orange`、`metro-red`、`sunny`、`pepper-grinder`、`dark-hive`、`black`、`mono`。
 
 色彩與圓角映射整理自本機 `res/themes/*/tooltip.css`；正式 source、Demo 與 build 不依賴 `res/`。

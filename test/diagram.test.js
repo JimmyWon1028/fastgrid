@@ -6,6 +6,8 @@ import fabui from '../src/fabui.js';
 import {
   calculateDiagramAnchoredScroll,
   calculateDiagramConnectorPath,
+  calculateDiagramGroupBounds,
+  calculateDiagramGroupResize,
   calculateDiagramMoveAlignment,
   calculateDiagramNodeResize,
   calculateDiagramPageZoom,
@@ -200,8 +202,9 @@ test('Diagram exposes the documented overview defaults', function() {
     height: 1123
   });
   assert.equal(fabui.Diagram.shapes.length, 47);
-  assert.equal(fabui.Diagram.connectorTools.length, 1);
+  assert.equal(fabui.Diagram.connectorTools.length, 2);
   assert.equal(fabui.Diagram.connectorTools[0].connectorType, 'curved');
+  assert.equal(fabui.Diagram.connectorTools[1].connectorType, 'sCurve');
   assert.ok(fabui.Diagram.shapes.some(function(shape) {
     return shape.type === 'database';
   }));
@@ -261,12 +264,26 @@ test('Diagram publishes complete locales and all themes', function() {
   assert.equal(fabui.Diagram.locales['zh-TW'].hyperlinkTrigger, '觸發方式');
   assert.equal(fabui.Diagram.locales['zh-TW'].hyperlinkSingleClick, '單擊觸發');
   assert.equal(fabui.Diagram.locales['zh-TW'].hyperlinkDoubleClick, '雙擊觸發');
+  assert.equal(fabui.Diagram.locales.en.fontSize, 'Font size');
+  assert.equal(fabui.Diagram.locales['zh-TW'].textStyle, '文字樣式');
+  assert.equal(fabui.Diagram.locales['zh-TW'].strikethrough, '刪除線');
+  assert.equal(fabui.Diagram.locales['zh-CN'].underline, '下划线');
+  assert.equal(fabui.Diagram.locales.en.fit, 'Fit');
+  assert.equal(fabui.Diagram.locales['zh-TW'].fit, '符合');
+  assert.equal(fabui.Diagram.locales['zh-CN'].fit, '适合');
   assert.equal(fabui.Diagram.locales['zh-TW'].presentation, '投影片展示');
   assert.equal(
     fabui.Diagram.locales['zh-TW'].exitPresentation,
     '離開投影片展示'
   );
   assert.equal(fabui.Diagram.locales['zh-TW'].dfdDataFlow, '資料流');
+  assert.equal(fabui.Diagram.locales.en.dfdSCurve, 'S Curve');
+  assert.equal(fabui.Diagram.locales['zh-TW'].dfdSCurve, 'S 弧線');
+  assert.equal(fabui.Diagram.locales['zh-CN'].dfdSCurve, 'S 弧线');
+  assert.equal(fabui.Diagram.locales.en.connectStraight, 'Straight connector');
+  assert.equal(fabui.Diagram.locales['zh-TW'].connectOrthogonal, '直角線');
+  assert.equal(fabui.Diagram.locales['zh-CN'].connectCurved, '弧线');
+  assert.equal(fabui.Diagram.locales['zh-TW'].connectSCurve, 'S 線');
   assert.equal(fabui.Diagram.locales['zh-TW'].orgChart, '組織圖');
   assert.equal(fabui.Diagram.locales['zh-TW'].arrowDirection, '箭頭');
   assert.equal(fabui.Diagram.locales['zh-TW'].arrowBoth, '雙向箭頭');
@@ -274,7 +291,7 @@ test('Diagram publishes complete locales and all themes', function() {
   assert.equal(fabui.Diagram.locales['zh-TW'].snapSize, '吸附間距');
   assert.equal(fabui.Diagram.locales['zh-CN'].snapSize, '吸附间距');
   assert.equal(fabui.Diagram.locales['zh-CN'].properties, '属性');
-  assert.equal(fabui.Diagram.themes.length, 16);
+  assert.equal(fabui.Diagram.themes.length, 19);
   assert.equal(normalizeDiagramTheme('pepper'), 'pepper-grinder');
   assert.equal(normalizeDiagramTheme(' BLACK '), 'black');
   assert.equal(normalizeDiagramLocale('zh_Hant_TW'), 'zh-TW');
@@ -661,13 +678,29 @@ test('Diagram normalizes nodes and only keeps valid connectors', function() {
         id: 'a',
         text: 'A',
         width: 10,
+        fontSize: 120,
+        fontBold: true,
+        fontItalic: true,
+        fontUnderline: true,
+        fontStrikethrough: true,
         hyperlink: ' https://example.com ',
         hyperlinkTrigger: 'dblclick'
       },
       { id: 'b', text: 'B', type: 'decision' }
     ],
     edges: [
-      { id: 'ab', from: 'a', to: 'b', controlX: 180, controlY: 90 },
+      {
+        id: 'ab',
+        from: 'a',
+        to: 'b',
+        controlX: 180,
+        controlY: 90,
+        fontSize: 6,
+        fontBold: true,
+        fontItalic: true,
+        fontUnderline: true,
+        fontStrikethrough: true
+      },
       { id: 'missing', from: 'a', to: 'c' },
       { id: 'self', from: 'a', to: 'a' }
     ]
@@ -677,12 +710,22 @@ test('Diagram normalizes nodes and only keeps valid connectors', function() {
   assert.equal(result.nodes[0].width, 40);
   assert.equal(result.nodes[0].hyperlink, 'https://example.com');
   assert.equal(result.nodes[0].hyperlinkTrigger, 'dblclick');
+  assert.equal(result.nodes[0].fontSize, 96);
+  assert.equal(result.nodes[0].fontBold, true);
+  assert.equal(result.nodes[0].fontItalic, true);
+  assert.equal(result.nodes[0].fontUnderline, true);
+  assert.equal(result.nodes[0].fontStrikethrough, true);
   assert.equal(result.nodes[1].hyperlinkTrigger, 'click');
   assert.equal(result.nodes[1].type, 'decision');
   assert.deepEqual(result.connectors.map(function(item) { return item.id; }), ['ab']);
   assert.equal(result.connectors[0].controlX, 180);
   assert.equal(result.connectors[0].controlY, 90);
   assert.equal(result.connectors[0].arrowDirection, 'end');
+  assert.equal(result.connectors[0].fontSize, 8);
+  assert.equal(result.connectors[0].fontBold, true);
+  assert.equal(result.connectors[0].fontItalic, true);
+  assert.equal(result.connectors[0].fontUnderline, true);
+  assert.equal(result.connectors[0].fontStrikethrough, true);
   assert.equal(source.nodes[0].width, 10);
 });
 
@@ -708,8 +751,19 @@ test('Diagram normalizes all connector arrow directions', function() {
 test('Diagram connector paths and resize geometry are deterministic', function() {
   var from = { x: 0, y: 20, width: 100, height: 60 };
   var to = { x: 300, y: 20, width: 100, height: 60 };
+  var sCurveTo = { x: 300, y: 180, width: 100, height: 60 };
   var geometry = calculateDiagramConnectorPath(from, to, 'orthogonal');
   var curved = calculateDiagramConnectorPath(from, to, 'curved');
+  var sCurve = calculateDiagramConnectorPath(from, sCurveTo, 'sCurve');
+  var adjustedSCurve = calculateDiagramConnectorPath(
+    from,
+    sCurveTo,
+    'sCurve',
+    '',
+    '',
+    220,
+    150
+  );
   var adjustedCurve = calculateDiagramConnectorPath(
     from,
     to,
@@ -736,11 +790,74 @@ test('Diagram connector paths and resize geometry are deterministic', function()
   assert.deepEqual(adjustedCurve.control, { x: 200, y: 160 });
   assert.deepEqual(adjustedCurve.label, { x: 200, y: 105 });
   assert.equal(adjustedStraight.path, 'M 100 50 L 200 160 L 300 50');
+  assert.match(sCurve.path, /^M 100 50 C /);
+  assert.deepEqual(sCurve.label, { x: 200, y: 130 });
+  assert.match(adjustedSCurve.path, /^M 100 50 C /);
+  assert.deepEqual(adjustedSCurve.control, { x: 220, y: 150 });
+  assert.deepEqual(adjustedSCurve.label, { x: 220, y: 150 });
   assert.deepEqual(geometry.start, { x: 100, y: 50 });
   assert.equal(resized.x, 30);
   assert.equal(resized.y, 40);
   assert.equal(resized.width, 70);
   assert.equal(resized.height, 40);
+});
+
+test('Diagram group resize scales node sizes and spacing around the center', function() {
+  var nodes = [{
+    id: 'a',
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100
+  }, {
+    id: 'b',
+    x: 200,
+    y: 0,
+    width: 100,
+    height: 100
+  }];
+  var bounds = calculateDiagramGroupBounds(nodes);
+  var resized = calculateDiagramGroupResize(
+    nodes,
+    bounds,
+    'se',
+    { x: 225, y: 75 },
+    40,
+    30
+  );
+  assert.deepEqual(bounds, {
+    x: 0,
+    y: 0,
+    width: 300,
+    height: 100,
+    centerX: 150,
+    centerY: 50
+  });
+  assert.equal(resized.scale, 0.5);
+  assert.deepEqual(resized.nodes.map(function(node) {
+    return {
+      id: node.id,
+      x: node.x,
+      y: node.y,
+      width: node.width,
+      height: node.height
+    };
+  }), [{
+    id: 'a',
+    x: 75,
+    y: 25,
+    width: 50,
+    height: 50
+  }, {
+    id: 'b',
+    x: 175,
+    y: 25,
+    width: 50,
+    height: 50
+  }]);
+  assert.equal(resized.nodes[1].x - (
+    resized.nodes[0].x + resized.nodes[0].width
+  ), 50);
 });
 
 test('Diagram aligns nearly straight connectors while moving nodes', function() {
@@ -1088,7 +1205,6 @@ test('Diagram factory exposes data, history, editing and export APIs', function(
   Control.prototype.removeEventListener = function() {};
   function Button() {}
   function EditBox() {}
-  function Window() {}
   function Menu() {}
   var Diagram = createDiagramFactory(
     Control,
@@ -1096,7 +1212,6 @@ test('Diagram factory exposes data, history, editing and export APIs', function(
     function() {},
     Button,
     EditBox,
-    Window,
     Menu
   );
   assert.equal(Diagram.prototype.dispose, Diagram.prototype.destroy);
@@ -1159,7 +1274,18 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(source, /'aria-label',\s*this\.messages\.redo/);
   assert.match(source, /new EditBox\(this\.toolboxSearchElement/);
   assert.match(source, /control = new EditBox\(input/);
-  assert.match(source, /state\.window = new Window\(host/);
+  assert.equal(
+    (source.match(/spinner: editor === 'number'/g) || []).length,
+    3
+  );
+  assert.match(source, /Diagram\.prototype\._renderPaperProperties/);
+  assert.match(source, /'data-diagram-paper-property', key/);
+  assert.match(source, /self\.setPaper\(size, orientation, gridSize\)/);
+  assert.match(
+    source,
+    /if \(!this\._selected\) \{\s*this\._renderPaperProperties\(\);/
+  );
+  assert.doesNotMatch(source, /_openPaperSettings|new Window\(host/);
   assert.match(source, /this\._contextMenu = new Menu\(host/);
   assert.match(source, /this\.viewportElement,\s*'contextmenu'/);
   assert.match(source, /name: 'exportPng'/);
@@ -1178,14 +1304,18 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(source, /'print',\s*'Print',\s*this\.print/);
   assert.match(
     source,
-    /'presentation',\s*'Slide show',\s*this\.togglePresentationFullscreen/
+    /this\.viewToolbarElement,\s*'presentation',\s*'',\s*this\.togglePresentationFullscreen,\s*false,\s*'icon-projector-screen'/
+  );
+  assert.match(
+    source,
+    /this\.viewToolbarElement,\s*'fullscreen',\s*'',\s*this\.toggleFullscreen,\s*false,\s*'icon-fullscreen'/
   );
   assert.match(source, /this\._toolbarButtons\.exportPng\.setText\(this\.messages\.exportPng\)/);
   assert.match(source, /this\._toolbarButtons\.exportSvg\.setText\(this\.messages\.exportSvg\)/);
   assert.match(source, /this\._toolbarButtons\.print\.setText\(this\.messages\.print\)/);
   assert.match(
     source,
-    /var presentation = this\._toolbarButtons\.presentation;[\s\S]*this\.messages\.exitPresentation[\s\S]*this\.messages\.presentation/
+    /var presentation = this\._toolbarButtons\.presentation;[\s\S]*presentation\.setText\(''\);[\s\S]*presentation\.hostElement\.setAttribute\('aria-label', presentationText\)/
   );
   assert.match(source, /this\.messages\.exitPresentation/);
   assert.doesNotMatch(source, /oppositeDiagramDockSide/);
@@ -1197,23 +1327,70 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   );
   assert.equal((
     source.match(/this\._createToolbarSeparator\(this\.toolbarElement\);/g) || []
-  ).length, 3);
+  ).length, 4);
   assert.match(
     source,
-    /'download',\s*'Download',[\s\S]*?'load',\s*'Load',[\s\S]*?_createToolbarSeparator\(this\.toolbarElement\);[\s\S]*?'exportPng',[\s\S]*?'print',[\s\S]*?_createToolbarSeparator\(this\.toolbarElement\);[\s\S]*?'undo',[\s\S]*?'clear',[\s\S]*?_createToolbarSeparator\(this\.toolbarElement\);[\s\S]*?'connect',[\s\S]*?'readOnly'/
+    /'download',\s*'Download',[\s\S]*?'load',\s*'Load',[\s\S]*?_createToolbarSeparator\(this\.toolbarElement\);[\s\S]*?'exportPng',[\s\S]*?'print',[\s\S]*?_createToolbarSeparator\(this\.toolbarElement\);[\s\S]*?'undo',[\s\S]*?'clear',[\s\S]*?_createToolbarSeparator\(this\.toolbarElement\);[\s\S]*?'connectStraight',[\s\S]*?'connectOrthogonal',[\s\S]*?'connectCurved',[\s\S]*?'connectSCurve',[\s\S]*?'connect',[\s\S]*?_createToolbarSeparator\(this\.toolbarElement\);[\s\S]*?'toolbox',[\s\S]*?'readOnly'/
   );
+  assert.match(source, /self\.setConnectMode\(self\._connectMode, 'straight'\)/);
+  assert.match(source, /self\.setConnectMode\(self\._connectMode, 'orthogonal'\)/);
+  assert.match(source, /self\.setConnectMode\(self\._connectMode, 'curved'\)/);
+  assert.match(source, /self\.setConnectMode\(self\._connectMode, 'sCurve'\)/);
+  assert.match(source, /self\.setConnectMode\(!self\._connectMode\);/);
+  assert.match(
+    source,
+    /if \(item\.type === this\._connectType\) item\.button\.select\(true\)/
+  );
+  assert.match(
+    source,
+    /labelY = geometry\.label\.y - Math\.max\(12, connector\.fontSize \* 0\.85\)/
+  );
+  assert.match(source, /'font-size': connector\.fontSize/);
+  assert.match(source, /'font-weight': connector\.fontBold \? 700 : 400/);
+  assert.match(source, /'font-style': connector\.fontItalic \? 'italic' : 'normal'/);
+  assert.match(source, /'text-decoration': diagramTextDecoration\(connector, false\)/);
+  assert.match(
+    source,
+    /geometry\.label\.y - Math\.max\(12, connector\.fontSize \* 0\.85\)[\s\S]*this\.options\.zoomLevel/
+  );
+  assert.match(source, /labelBounds = label\.getBBox\(\)/);
+  assert.match(
+    source,
+    /fill: self\.options\.pageColor,[\s\S]*class: 'fui-diagram-connector-label-background'/
+  );
+  assert.match(source, /group\.insertBefore\(labelBackground, label\)/);
   assert.match(
     source,
     /this\.viewToolbarElement,\s*'grid',[\s\S]*?this\.viewToolbarElement,\s*'presentation',[\s\S]*?this\.viewToolbarElement,\s*'fullscreen'/
   );
-  assert.match(
-    source,
-    /this\.viewToolbarElement,\s*'presentation',\s*'Slide show',\s*this\.togglePresentationFullscreen,\s*false\s*\)/
-  );
+  assert.match(source, /fullscreen\.setText\(''\)/);
   assert.match(
     css,
     /\.fui-diagram-toolbar-separator\s*\{[^}]*width: 1px;[^}]*height: 22px;[^}]*background: var\(--fui-diagram-border\);/s
   );
+  assert.match(
+    css,
+    /\.fui-diagram-connector-label-background\s*\{[^}]*pointer-events: none;/s
+  );
+  assert.match(iconCss, /\.icon-diagram-connect-straight/);
+  assert.match(iconCss, /\.icon-diagram-connect-orthogonal/);
+  assert.match(iconCss, /\.icon-diagram-connect-curved/);
+  assert.match(iconCss, /\.icon-diagram-connect-s-curve/);
+  assert.match(
+    iconCss,
+    /\.icon-projector-screen\s*\{[^}]*projector-screen\.png/s
+  );
+  assert.deepEqual(
+    readFileSync(new URL('../src/theme/images/projector-screen.png', import.meta.url)),
+    readFileSync(new URL('../res/projector-screen.png', import.meta.url))
+  );
+  assert.match(iconCss, /mask-image: url\("data:image\/svg\+xml/);
+  assert.match(iconCss, /d='M2 9h16'/);
+  assert.match(iconCss, /d='M3 15V9h12V3'/);
+  assert.match(iconCss, /d='M2 14Q8 3 18 9'/);
+  assert.match(iconCss, /d='M2 5c5 0 5 8 10 8 3 0 4-2 6-5'/);
+  assert.doesNotMatch(iconCss, /M13 5l4 4-4 4/);
+  assert.doesNotMatch(iconCss, /M11 7l4-4 4 4/);
   assert.match(source, /Diagram\.prototype\.exportPng = function\(/);
   assert.match(source, /Diagram\.prototype\.print = function\(\)/);
   assert.match(source, /accept = 'application\/json,\.json'/);
@@ -1241,6 +1418,33 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(
     source,
     /this\._propertyField\(\s*this\.messages\.hyperlinkTrigger,\s*item,\s*'hyperlinkTrigger',\s*'combo'/
+  );
+  assert.match(
+    source,
+    /this\._propertyField\(\s*this\.messages\.fontSize,\s*item,\s*'fontSize',\s*'number'/
+  );
+  assert.match(source, /Diagram\.prototype\._propertyTextStyle = function\(item\)/);
+  assert.match(source, /key: 'fontBold', text: 'B'/);
+  assert.match(source, /key: 'fontItalic', text: 'I'/);
+  assert.match(source, /key: 'fontUnderline', text: 'U'/);
+  assert.match(source, /key: 'fontStrikethrough', text: 'S'/);
+  assert.match(
+    source,
+    /toggle: true,[\s\S]*selected: items\.every\(function\(target\)/
+  );
+  assert.match(
+    source,
+    /items\.forEach\(function\(target\)[\s\S]*target\[style\.key\] = event\.selected === true/
+  );
+  assert.match(source, /Diagram\.prototype\._multiPropertyField/);
+  assert.match(source, /Diagram\.prototype\._renderMultiProperties/);
+  assert.match(
+    source,
+    /this\._renderMultiProperties\(selectedNodes\)/
+  );
+  assert.match(
+    source,
+    /this\._multiPropertyField\([\s\S]*this\.messages\.fontSize[\s\S]*'fontSize'[\s\S]*this\.messages\.width[\s\S]*'width'[\s\S]*this\.messages\.height[\s\S]*'height'[\s\S]*this\.messages\.fill[\s\S]*'fill'[\s\S]*this\.messages\.stroke[\s\S]*'stroke'/
   );
   assert.match(source, /'data-diagram-node-text': ''/);
   assert.match(source, /normalizeDiagramHyperlink\(node\.hyperlink\)/);
@@ -1305,8 +1509,7 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(source, /_fullscreenResizeObserver\.disconnect\(\)/);
   assert.match(source, /'webkitfullscreenchange'/);
   assert.match(source, /this\._contextMenu\.dispose\(\)/);
-  assert.match(source, /state\.applyButton = new Button\(applyHost/);
-  assert.match(source, /this\._lastItemClick\.type === 'canvas'/);
+  assert.doesNotMatch(source, /state\.applyButton|_lastItemClick\.type === 'canvas'/);
   assert.match(source, /new Button\(toggle/);
   assert.match(source, /data-diagram-toolbox-toggle/);
   assert.match(source, /this\.toolboxResizerLeftElement/);
@@ -1406,6 +1609,21 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(source, /data-diagram-connection-point/);
   assert.match(source, /type: 'marquee'/);
   assert.match(source, /type: 'pan'/);
+  assert.match(source, /Diagram\.prototype\._renderGroupSelection/);
+  assert.match(source, /'data-diagram-group-resize': ''/);
+  assert.match(source, /type: groupResizeHandle \?[\s\S]*'group-resize'/);
+  assert.match(
+    source,
+    /groupResize = calculateDiagramGroupResize\([\s\S]*state\.startNodes[\s\S]*state\.startBounds/
+  );
+  assert.match(
+    source,
+    /current\.x = resizedNode\.x;[\s\S]*current\.y = resizedNode\.y;[\s\S]*current\.width = resizedNode\.width;[\s\S]*current\.height = resizedNode\.height/
+  );
+  assert.match(
+    source,
+    /startConnector\.controlX - state\.startBounds\.centerX[\s\S]*groupResize\.scale/
+  );
   assert.match(source, /startScrollLeft: this\.viewportElement\.scrollLeft/);
   assert.match(
     source,
@@ -1467,6 +1685,14 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   );
   assert.match(
     css,
+    /\.fui-diagram\s*\{[^}]*outline: 0;/s
+  );
+  assert.doesNotMatch(
+    css,
+    /\.fui-diagram:fullscreen > \.fui-diagram-view-toolbar/
+  );
+  assert.match(
+    css,
     /\.fui-diagram-viewport:fullscreen,[\s\S]*\.fui-diagram-viewport\.fui-diagram-fullscreen-presentation[\s\S]*padding: 24px;/
   );
   assert.match(
@@ -1481,8 +1707,25 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(css, /\.fui-diagram-node-editing \.fui-diagram-node-text/);
   assert.match(
     css,
-    /\.fui-diagram-node-text-linked\s*\{[^}]*text-decoration: underline;[^}]*pointer-events: auto;[^}]*cursor: pointer;/s
+    /\.fui-diagram-node-text-linked\s*\{[^}]*pointer-events: auto;[^}]*cursor: pointer;/s
   );
+  assert.doesNotMatch(
+    css,
+    /\.fui-diagram-node-text,\s*\.fui-diagram-connector-label\s*\{[^}]*font-size:/s
+  );
+  assert.match(
+    css,
+    /\.fui-diagram-property-text-style-buttons\s*\{[^}]*display: grid;[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/s
+  );
+  assert.match(css, /data-diagram-text-style="fontBold"/);
+  assert.match(css, /data-diagram-text-style="fontItalic"/);
+  assert.match(css, /data-diagram-text-style="fontUnderline"/);
+  assert.match(css, /data-diagram-text-style="fontStrikethrough"/);
+  assert.match(
+    css,
+    /\.fui-diagram-group-selection-outline\s*\{[^}]*stroke-dasharray: 7 4;[^}]*pointer-events: none;/s
+  );
+  assert.match(css, /\.fui-diagram-group-resize-handle/);
   assert.match(css, /\.fui-diagram-toolbox-toggle\.fui-button/);
   assert.match(css, /\.fui-diagram-toolbox-resizer/);
   assert.match(
@@ -1545,8 +1788,11 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(source, /snapSize: 'Snap Size'/);
   assert.match(source, /snapSize: '吸附間距'/);
   assert.match(source, /snapSize: '吸附间距'/);
-  assert.match(source, /snapSizeControl: new EditBox\(snapSizeInput/);
-  assert.match(source, /state\.snapSizeControl\.setValue\(this\.options\.gridSize\)/);
+  assert.match(
+    source,
+    /this\._paperPropertyField\([\s\S]*this\.messages\.snapSize,[\s\S]*'gridSize',[\s\S]*'number'/
+  );
+  assert.doesNotMatch(source, /snapSizeControl|snapSizeInput/);
   assert.match(source, /gridSize: this\.options\.gridSize/);
   assert.match(source, /page\.gridSize != null/);
   assert.match(
@@ -1612,7 +1858,26 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   );
   assert.match(source, /savedToolboxState\.viewToolbar/);
   assert.match(source, /savedToolboxState\.paper/);
+  assert.match(source, /savedToolboxState\.diagram/);
+  assert.match(source, /savedDiagramData = savedToolboxState/);
+  assert.match(
+    source,
+    /this\._data = normalizeDiagramData\(savedDiagramData \|\| \{/
+  );
   assert.match(source, /state\.paper = this\.getPaper\(\)/);
+  assert.match(source, /state\.diagram = this\.getData\(\)/);
+  assert.match(
+    source,
+    /Diagram\.prototype\._commit = function\(action, detail\)[\s\S]*this\._saveToolboxState\(\)/
+  );
+  assert.match(
+    source,
+    /Diagram\.prototype\.undo = function\(\)[\s\S]*this\._saveToolboxState\(\)/
+  );
+  assert.match(
+    source,
+    /Diagram\.prototype\.redo = function\(\)[\s\S]*this\._saveToolboxState\(\)/
+  );
   assert.match(source, /Diagram\.prototype\._bindViewToolbarInteraction/);
   assert.match(
     source,
@@ -1674,11 +1939,12 @@ test('Diagram source composes FabUI controls and manages pointer listeners by in
   assert.match(css, /fill: none/);
   assert.doesNotMatch(css, /\.fui-diagram-toolbox-preview-shape \* \{[^}]*stroke:/);
   assert.match(css, /\.fui-diagram-shape-item-selected/);
-  assert.match(css, /\.fui-diagram-paper-form/);
-  assert.match(css, /\.fui-diagram-paper-actions/);
+  assert.match(css, /\.fui-diagram-property-section-title/);
+  assert.doesNotMatch(css, /\.fui-diagram-paper-form/);
+  assert.doesNotMatch(css, /\.fui-diagram-paper-actions/);
 });
 
-test('Diagram development Demo centers only its initial flowchart', function() {
+test('Diagram demos reproduce the manufacturing process reference layout', function() {
   var devHtml = readFileSync(
     new URL('../demo/dev-diagram.html', import.meta.url),
     'utf8'
@@ -1692,26 +1958,38 @@ test('Diagram development Demo centers only its initial flowchart', function() {
     'utf8'
   );
 
-  assert.match(devHtml, /centerInitialData:\s*true/);
-  assert.doesNotMatch(buildHtml, /centerInitialData:\s*true/);
+  assert.doesNotMatch(devHtml, /centerInitialData/);
+  assert.doesNotMatch(buildHtml, /centerInitialData/);
   assert.match(devHtml, /id="diagram-dock-mode"/);
   assert.match(buildHtml, /id="diagram-dock-mode"/);
-  assert.match(demoScript, /function centerDiagramDataOnPaper\(data, paper\)/);
-  assert.match(demoScript, /text: '生產製造流程'/);
-  assert.match(demoScript, /text: '客戶訂單'/);
-  assert.match(demoScript, /text: '開立製令'/);
-  assert.match(demoScript, /text: '制令結案:/);
+  assert.doesNotMatch(demoScript, /function centerDiagramDataOnPaper/);
+  assert.match(
+    demoScript,
+    /id: 'title',[\s\S]*?text: '生產製造流程',[\s\S]*?fontSize: 28,[\s\S]*?fontUnderline: true/
+  );
+  assert.match(demoScript, /id: 'customer-order',[\s\S]*?type: 'dfdDataStore'/);
+  assert.match(demoScript, /id: 'manufacturing-order',[\s\S]*?type: 'dfdProcess'/);
+  assert.match(demoScript, /id: 'warehouse-issue',[\s\S]*?type: 'dfdProcess'/);
+  assert.match(demoScript, /id: 'production-operation',[\s\S]*?type: 'dfdProcess'/);
+  assert.match(demoScript, /id: 'finished-stock',[\s\S]*?type: 'dfdProcess'/);
+  assert.equal((demoScript.match(/type: 'dfdProcess'/g) || []).length, 4);
+  assert.equal((demoScript.match(/width: 106,\n\s+height: 106/g) || []).length, 4);
+  assert.match(demoScript, /id: 'manufacturing-details',[\s\S]*?type: 'dfdDataStore'/);
+  assert.match(demoScript, /id: 'close-order',[\s\S]*?type: 'text'/);
+  assert.match(
+    demoScript,
+    /id: 'c1',[\s\S]*?from: 'customer-order',[\s\S]*?to: 'manufacturing-order',[\s\S]*?text: 'Email或傳真'/
+  );
   assert.match(demoScript, /from: 'production-progress',[\s\S]*?to: 'production-operation'/);
+  assert.equal((demoScript.match(/type: 'sCurve'/g) || []).length, 9);
+  assert.doesNotMatch(demoScript, /type: 'curved'/);
+  assert.match(demoScript, /showGrid:\s*false/);
   assert.doesNotMatch(demoScript, /text: '收到訂單'/);
   assert.match(demoScript, /onReadOnlyChanged: function\(instance, event\)/);
   assert.match(demoScript, /syncReadOnlyControl\(event\.readOnly\)/);
   assert.match(
     demoScript,
     /diagram\.setSameSideDockMode\(dockModeSelect\.value\)/
-  );
-  assert.match(
-    demoScript,
-    /demoData = centerDiagramDataOnPaper\(initialData, diagram\.getPaper\(\)\)/
   );
   assert.match(demoScript, /diagram\.setData\(demoData\)/);
   assert.match(
@@ -1744,6 +2022,7 @@ test('Diagram is wired into future browser and CSS builds', function() {
     /global\.fabui\.Diagram = createDiagramFactory/
   );
   assert.match(diagramBuild, /Load fabui\.js before diagram\.js\./);
+  assert.doesNotMatch(diagramBuild, /global\.fabui\.Window/);
   assert.match(diagramBuild, /'diagram\.min\.css'/);
   assert.match(javascriptEntry, /Diagram: Diagram/);
   assert.match(cssEntry, /diagram\/diagram\.css/);

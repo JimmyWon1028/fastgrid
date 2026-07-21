@@ -430,7 +430,7 @@ server.listen(port, '127.0.0.1', async function() {
       'fabui.min.js',
       'theme'
     ];
-    const standaloneBundlePattern = /^fabui\.(?:lite|gantt|scheduler)(?:\..+)?$/;
+    const standaloneBundlePattern = /^(?:diagram|fabui\.(?:lite|gantt|scheduler))(?:\..+)?$/;
     const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).filter(function(file) {
       return file !== '.DS_Store';
     }).sort();
@@ -456,8 +456,23 @@ server.listen(port, '127.0.0.1', async function() {
     if (!fs.existsSync(path.join(root, 'dist', 'theme', 'images', 'datebox_arrow.png')) ||
       !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.black.css')) ||
       !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.black.min.css')) ||
-      !fs.existsSync(path.join(root, 'dist', 'theme', 'black', 'images', 'pagination_icons.png'))) {
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'black', 'images', 'pagination_icons.png')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.mono.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.mono.min.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.mono-red.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.mono-red.min.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.mono-green.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'fabui.mono-green.min.css')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'mono', 'pagination-first.svg')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'mono', 'panel-close.svg')) ||
+      !fs.existsSync(path.join(root, 'dist', 'theme', 'mono', 'tree-folder.svg'))) {
       throw new Error('Smoke assertions failed: theme dependencies are incomplete.');
+    }
+    if (fs.existsSync(path.join(root, 'dist', 'theme', 'images-mono')) ||
+      fs.existsSync(path.join(root, 'dist', 'theme', 'mono', 'images')) ||
+      fs.existsSync(path.join(root, 'dist', 'theme', 'mono-red', 'images')) ||
+      fs.existsSync(path.join(root, 'dist', 'theme', 'mono-green', 'images'))) {
+      throw new Error('Smoke assertions failed: Mono family icons must only use dist/theme/mono.');
     }
     if (fs.readdirSync(path.join(root, 'dist', 'theme')).some(function(file) {
       return /^fabgrid\..+\.css$/i.test(file);

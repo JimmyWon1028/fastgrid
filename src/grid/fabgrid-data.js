@@ -281,6 +281,37 @@ export function installFabGridData(FabGrid, context) {
   var rowMatchesColumnSearch = context.rowMatchesColumnSearch;
   var rowMatchesSearch = context.rowMatchesSearch;
 
+  function normalizeRemotePatternOperator(operator) {
+    operator = String(operator || '').trim();
+    if (operator === '%..%') {
+      return 'contains';
+    }
+    if (operator === '..%') {
+      return 'starts';
+    }
+    if (operator === '%..') {
+      return 'ends';
+    }
+    if (operator === '!%..%') {
+      return 'not-contains';
+    }
+    if (operator === '!..%') {
+      return 'not-starts';
+    }
+    if (operator === '!%..') {
+      return 'not-ends';
+    }
+    return normalizeColumnSearchOperator(operator);
+  }
+
+  function serializeRemoteInValue(value) {
+    return (Array.isArray(value) ? value : [value]).map(function(item) {
+      return String(item == null ? '' : item).trim();
+    }).filter(function(item) {
+      return item !== '';
+    }).join(',');
+  }
+
   FabGrid.prototype.setRowGroups = function(groups, silent) {
     this.options.rowGroups = Array.isArray(groups) ? groups.slice() : [];
     this.applyView();
@@ -595,12 +626,72 @@ export function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.getRemoteFilterParams = function() {
     var rules = [];
+    var configuredRules = Array.isArray(this.options.filterRules) ? this.options.filterRules : [];
+    var columnBindings = createDictionary();
+    var configuredFields = createDictionary();
     var self = this;
+    this.columns.forEach(function(column) {
+      if (column && typeof column.binding === 'string' && column.binding) {
+        columnBindings[column.binding] = column;
+      }
+    });
+    configuredRules.forEach(function(rule) {
+      var field;
+      var column;
+      var key;
+      var value;
+      var operator;
+      var currentOperator;
+      var configuredUiOperator;
+      if (!rule || rule.field == null || rule.value == null) {
+        return;
+      }
+      field = String(rule.field).trim();
+      operator = rule.op == null ? '' : String(rule.op).trim();
+      if (Array.isArray(rule.value)) {
+        if (operator.toLowerCase() !== 'in') {
+          return;
+        }
+        value = serializeRemoteInValue(rule.value);
+      } else {
+        value = String(rule.value).trim();
+      }
+      if (!field || !value) {
+        return;
+      }
+      column = columnBindings[field];
+      if (column && self.options.allowFiltering !== false && self.options.showSearchRow === true) {
+        key = getColumnSearchKey(column);
+        value = String(self.columnSearchValues[key] == null ? '' : self.columnSearchValues[key]).trim();
+        if (!value) {
+          configuredFields[field] = true;
+          return;
+        }
+        currentOperator = normalizeColumnSearchOperator(self.columnSearchOperators[key]);
+        configuredUiOperator = self.options.remote === true ?
+          normalizeRemotePatternOperator(operator) : normalizeColumnSearchOperator(operator);
+        if (currentOperator && currentOperator !== configuredUiOperator) {
+          operator = currentOperator;
+        }
+      }
+      rules.push({
+        field: field,
+        op: operator || 'starts',
+        value: value
+      });
+      configuredFields[field] = true;
+    });
     if (this.options.allowFiltering !== false && this.options.showSearchRow === true) {
       this.columns.forEach(function(column) {
         var key = getColumnSearchKey(column);
         var value = self.columnSearchValues[key];
-        if (typeof column.binding === 'string' && column.binding && value != null && String(value).trim()) {
+        if (
+          typeof column.binding === 'string' &&
+          column.binding &&
+          !configuredFields[column.binding] &&
+          value != null &&
+          String(value).trim()
+        ) {
           rules.push({
             field: column.binding,
             op: normalizeColumnSearchOperator(self.columnSearchOperators[key]) || 'starts',
@@ -619,7 +710,7 @@ export function installFabGridData(FabGrid, context) {
           rules.push({
             field: column.binding,
             op: 'in',
-            value: filter.values.slice()
+            value: serializeRemoteInValue(filter.values)
           });
         }
       });
@@ -628,6 +719,11 @@ export function installFabGridData(FabGrid, context) {
       q: this.searchText || undefined,
       filterRules: rules.length ? JSON.stringify(rules) : undefined
     };
+  };
+
+  FabGrid.prototype.getFilterRules = function() {
+    var serialized = this.getRemoteFilterParams().filterRules;
+    return serialized ? JSON.parse(serialized) : [];
   };
 
   FabGrid.prototype.reload = function() {
@@ -782,9 +878,104 @@ export function installFabGridData(FabGrid, context) {
     this.applyFilterChange(true, 'setFilter');
   };
 
+  FabGrid.prototype.applyInitialFilterRules = function(rules) {
+    var parsedRules = rules;
+    var appliedRules = [];
+    var normalizedRules = [];
+    var rule;
+    var column;
+    var field;
+    var value;
+    var rawOperator;
+    var operator;
+    var uiOperator;
+    var storedOperator;
+    var key;
+    var i;
+    if (typeof parsedRules === 'string') {
+      try {
+        parsedRules = JSON.parse(parsedRules);
+      } catch (error) {
+        parsedRules = [];
+      }
+    }
+    if (!Array.isArray(parsedRules)) {
+      this.options.filterRules = [];
+      return appliedRules;
+    }
+    for (i = 0; i < parsedRules.length; i += 1) {
+      rule = parsedRules[i];
+      if (!rule || rule.field == null || rule.value == null) {
+        continue;
+      }
+      field = String(rule.field).trim();
+      rawOperator = rule.op == null ? '' : String(rule.op).trim();
+      if (Array.isArray(rule.value)) {
+        if (this.options.remote !== true || rawOperator.toLowerCase() !== 'in') {
+          continue;
+        }
+        value = serializeRemoteInValue(rule.value);
+      } else {
+        value = String(rule.value).trim();
+      }
+      operator = normalizeColumnSearchOperator(rawOperator);
+      uiOperator = this.options.remote === true ? normalizeRemotePatternOperator(rawOperator) : operator;
+      column = field ? this.getColumn(field) : null;
+      if (!field || !value || (this.options.remote !== true && rawOperator && !operator)) {
+        continue;
+      }
+      storedOperator = this.options.remote === true ? rawOperator || 'starts' : operator || 'starts';
+      normalizedRules.push({
+        field: field,
+        op: storedOperator,
+        value: value
+      });
+      if (!column || typeof column.binding !== 'string' || !column.binding) {
+        continue;
+      }
+      key = getColumnSearchKey(column);
+      this.columnSearchValues[key] = value;
+      if (uiOperator) {
+        this.columnSearchOperators[key] = uiOperator;
+      }
+      appliedRules.push({
+        field: column.binding,
+        op: storedOperator,
+        value: value
+      });
+    }
+    if (normalizedRules.length) {
+      this.options.allowFiltering = true;
+    }
+    if (appliedRules.length) {
+      this.options.showSearchRow = true;
+      this.hasColumnSearch = true;
+    }
+    this.options.filterRules = normalizedRules.map(function(ruleItem) {
+      return {
+        field: ruleItem.field,
+        op: ruleItem.op,
+        value: ruleItem.value
+      };
+    });
+    return appliedRules;
+  };
+
+  FabGrid.prototype.setFilterRules = function(rules) {
+    this.options.filterRules = [];
+    this.columnSearchValues = {};
+    this.columnSearchOperators = {};
+    this.cancelHeaderSearchTimer();
+    this.hideFilterMenu();
+    this.applyInitialFilterRules(rules);
+    this.updateColumnSearchState();
+    this.applyFilterChange(true, 'setFilterRules');
+  };
+
   FabGrid.prototype.clearFilter = function() {
     this.filterPredicate = null;
     this.searchText = '';
+    this.options.filterRules = [];
     this.columnSearchValues = {};
     this.columnSearchOperators = {};
     this.excelFilters = {};
@@ -842,6 +1033,7 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.clearColumnSearch = function() {
+    this.options.filterRules = [];
     this.columnSearchValues = {};
     this.columnSearchOperators = {};
     this.cancelHeaderSearchTimer();
@@ -905,6 +1097,7 @@ export function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.clearSearchConditions = function(source) {
     this.searchText = '';
+    this.options.filterRules = [];
     this.columnSearchValues = {};
     this.columnSearchOperators = {};
     this.cancelHeaderSearchTimer();

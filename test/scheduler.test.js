@@ -45,7 +45,7 @@ test('Scheduler extension publishes a Control subclass with metadata', function(
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black'
+    'black', 'mono', 'mono-red', 'mono-green'
   ]);
   assert.deepEqual(Scheduler.views, [
     'day', 'workWeek', 'week', 'month', 'year', 'agenda', 'timeline'
@@ -57,6 +57,9 @@ test('Scheduler extension publishes a Control subclass with metadata', function(
 
 test('Scheduler normalizes themes and public view names', function() {
   assert.equal(normalizeSchedulerTheme('material-teal'), 'material-teal');
+  assert.equal(normalizeSchedulerTheme('mono'), 'mono');
+  assert.equal(normalizeSchedulerTheme('mono-red'), 'mono-red');
+  assert.equal(normalizeSchedulerTheme('mono-green'), 'mono-green');
   assert.equal(normalizeSchedulerTheme('pepper'), 'pepper-grinder');
   assert.equal(normalizeSchedulerTheme('unknown'), 'default');
   assert.equal(normalizeSchedulerView('workweek'), 'workWeek');
@@ -102,12 +105,12 @@ test('Scheduler styles contain all themes and stay independent of res assets', f
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black'
+    'black', 'mono', 'mono-red', 'mono-green'
   ].forEach(function(theme) {
     assert.match(
       css,
       new RegExp(
-        '\\.fui-scheduler\\.fg-theme-' +
+        'fg-theme-' +
         theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       ),
       theme

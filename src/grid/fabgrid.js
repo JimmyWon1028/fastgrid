@@ -8,7 +8,7 @@ import {
   normalizePagination,
   normalizeRemoteData,
   setByBinding
-} from './fabgrid-data.js';
+} from './fabgrid-data.js?v=20260721-remote-in-string-v1';
 import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260718-row-drop-width-v1';
 import { installFabGridTree } from './fabgrid-tree.js?v=20260717-tree-context-menu-v1';
@@ -25,10 +25,10 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260720-initial-search-focus-v1';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260721-search-row-scroll-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260720-search-row-focus-cycle-v1';
-import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260719-current-month-text-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260721-grid-time-editor-v1';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260721-grid-time-editor-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260721-column-min-width-option-v1';
+import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260721-grid-time-editor-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
 import { DatePopup } from '../editbox/date-popup.js?v=20260719-current-month-text-v1';
@@ -49,11 +49,12 @@ export function createFabGridFactory(editorDefinitions) {
     'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-    'black'
+    'black', 'mono', 'mono-red', 'mono-green'
   ];
 
   var DEFAULT_OPTIONS = {
     rowHeight: 32,
+    columnMinWidth: 20,
     headerHeight: 32,
     overscanRows: 8,
     fastScrollOverscanRows: 64,
@@ -80,6 +81,7 @@ export function createFabGridFactory(editorDefinitions) {
     headerDisplayMode: 'header',
     headerToggleKey: false,
     showSearchRow: false,
+    filterRules: [],
     searchRowHeight: null,
     searchDelay: 200,
     excelFilterMaxValues: 1000,
@@ -126,6 +128,29 @@ export function createFabGridFactory(editorDefinitions) {
     '#a6a6a6', '#262626', '#b23636', '#b29436', '#b2b236', '#76b236', '#36b26e', '#3691b2', '#367eb2', '#7d36b2',
     '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
   ];
+
+  function resolveStylesheetTheme(documentRef) {
+    var links;
+    var href;
+    var file;
+    var match;
+    var theme;
+    var i;
+    if (!documentRef || typeof documentRef.querySelectorAll !== 'function') {
+      return '';
+    }
+    links = documentRef.querySelectorAll('link[rel~="stylesheet"][href]');
+    for (i = 0; i < links.length; i += 1) {
+      href = String(links[i].getAttribute('href') || '').split(/[?#]/)[0].replace(/\\/g, '/');
+      file = href.slice(href.lastIndexOf('/') + 1);
+      match = /^fabui\.([a-z0-9-]+)(?:\.min)?\.css$/i.exec(file);
+      theme = match ? match[1].toLowerCase() : '';
+      if (FABGRID_THEMES.indexOf(theme) >= 0) {
+        return theme;
+      }
+    }
+    return '';
+  }
 
   function FabGrid(element, options) {
     var self = this;
@@ -206,6 +231,11 @@ export function createFabGridFactory(editorDefinitions) {
     this.editing = null;
     this.editorConfig = null;
     this.editorIconConfigs = [];
+    this.editorSpinner = null;
+    this.editorSpinnerIncrease = null;
+    this.editorSpinnerDecrease = null;
+    this.editorSpinnerPosition = false;
+    this.editorIconHostWidth = 0;
     this.dateboxTarget = null;
     this.comboboxTarget = null;
     this.colorTarget = null;
@@ -300,6 +330,7 @@ export function createFabGridFactory(editorDefinitions) {
     this._boundResize = bind(this, this.invalidate);
 
     this.setColumns(this.options.columns || [], true);
+    this.applyInitialFilterRules(this.options.filterRules);
     this.setItemsSource(this.options.remote === true ? [] : (this.options.itemsSource || []), true);
     this.createWijmoEvents();
     this.bindOptionEvent('updatedView');
@@ -664,7 +695,10 @@ export function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.createDom = function() {
     var root = document.createElement('div');
-    root.className = 'fg-root' + (this.useScrollLinkedHorizontal ? ' fg-scroll-linked-horizontal' : '');
+    var stylesheetTheme = resolveStylesheetTheme(document);
+    root.className = 'fg-root' +
+      (this.useScrollLinkedHorizontal ? ' fg-scroll-linked-horizontal' : '') +
+      (stylesheetTheme ? ' fg-theme-' + stylesheetTheme : '');
     root.tabIndex = 0;
     root.setAttribute('role', 'grid');
 
@@ -769,6 +803,13 @@ export function createFabGridFactory(editorDefinitions) {
     }
     if (this.editorTrigger) {
       this.editorTrigger.setAttribute('aria-label', this.getEditorTriggerLabel());
+    }
+    if (this.editorSpinnerIncrease && this.editorConfig) {
+      var spinnerOptions = this.editorConfig.options || {};
+      this.editorSpinnerIncrease.title = spinnerOptions.increaseValueText || this.getText('aria.increaseValue');
+      this.editorSpinnerIncrease.setAttribute('aria-label', this.editorSpinnerIncrease.title);
+      this.editorSpinnerDecrease.title = spinnerOptions.decreaseValueText || this.getText('aria.decreaseValue');
+      this.editorSpinnerDecrease.setAttribute('aria-label', this.editorSpinnerDecrease.title);
     }
     if (this.dateboxPanel) {
       this.dateboxPanel.setAttribute('aria-label', this.getText('aria.datePicker'));
@@ -924,7 +965,7 @@ export function createFabGridFactory(editorDefinitions) {
         binding: '',
         header: '',
         width: 120,
-        minWidth: 48,
+        minWidth: this.options.columnMinWidth,
         align: '',
         dataType: 'string',
         visible: true,
@@ -943,7 +984,7 @@ export function createFabGridFactory(editorDefinitions) {
       defineColumnCellTemplate(this, col, col.cellTemplate);
       col.editor = normalizeEditorConfig(col.editor, col);
       col._index = i;
-      col._width = Math.max(1, toNumber(col.width, 120), toNumber(col.minWidth, 48));
+      col._width = Math.max(1, toNumber(col.width, 120), toNumber(col.minWidth, this.options.columnMinWidth));
       this.columns.push(col);
     }
     this.updateLayout();
@@ -1056,6 +1097,7 @@ export function createFabGridFactory(editorDefinitions) {
     }
     this.options.allowFiltering = enabled;
     if (!enabled) {
+      this.options.filterRules = [];
       this.columnSearchValues = {};
       this.columnSearchOperators = {};
       this.hasColumnSearch = false;
@@ -1077,6 +1119,7 @@ export function createFabGridFactory(editorDefinitions) {
     if (visible) {
       this.excelFilters = {};
     } else {
+      this.options.filterRules = [];
       this.columnSearchValues = {};
       this.columnSearchOperators = {};
       this.hasColumnSearch = false;
@@ -2007,13 +2050,22 @@ export function createFabGridFactory(editorDefinitions) {
   function getEditorMask(column) {
     var mask = getExplicitEditorMask(column);
     var config;
+    var definition;
     if (!column) {
       return '';
     }
+    config = getColumnEditorConfig(column);
     if (mask) {
+      if (config.type === 'time') {
+        definition = editorDefinitions.time || null;
+        return definition && typeof definition.normalizeMask === 'function' ? definition.normalizeMask(mask) : mask;
+      }
       return mask;
     }
-    config = getColumnEditorConfig(column);
+    if (config.type === 'time') {
+      definition = editorDefinitions.time || null;
+      return definition && definition.mask ? definition.mask : '99:99';
+    }
     if (config.type === 'date') {
       return '9999/99/99';
     }
@@ -2038,7 +2090,7 @@ export function createFabGridFactory(editorDefinitions) {
     var config = getColumnEditorConfig(column);
     var options = config && config.options ? config.options : {};
     var autoUnmask = column && column.autoUnmask != null ? column.autoUnmask : options.autoUnmask;
-    if (autoUnmask == null && config.type === 'date') {
+    if (autoUnmask == null && (config.type === 'date' || config.type === 'time')) {
       autoUnmask = true;
     }
     return {
@@ -2062,6 +2114,9 @@ export function createFabGridFactory(editorDefinitions) {
     }
     if (column && column.dataType === 'date') {
       return 'date';
+    }
+    if (column && column.dataType === 'time') {
+      return 'time';
     }
     return 'text';
   }
@@ -2131,6 +2186,9 @@ export function createFabGridFactory(editorDefinitions) {
     if (type === 'number' || type === 'numberbox' || type === 'numeric') {
       return 'number';
     }
+    if (type === 'time' || type === 'timebox') {
+      return 'time';
+    }
     if (type === 'date' || type === 'datebox' || type === 'calendar') {
       return 'date';
     }
@@ -2140,7 +2198,7 @@ export function createFabGridFactory(editorDefinitions) {
     if (type === 'colour' || type === 'colorbox' || type === 'colourbox') {
       return 'color';
     }
-    if (type === 'text' || type === 'number' || type === 'date' || type === 'combo' || type === 'color') {
+    if (type === 'text' || type === 'number' || type === 'time' || type === 'date' || type === 'combo' || type === 'color') {
       return type;
     }
     return 'text';
@@ -2882,6 +2940,7 @@ export function createFabGridFactory(editorDefinitions) {
 
   function normalizeGridOptions(options) {
     options.rowHeight = normalizePositiveNumber(options.rowHeight, DEFAULT_OPTIONS.rowHeight);
+    options.columnMinWidth = normalizePositiveNumber(options.columnMinWidth, DEFAULT_OPTIONS.columnMinWidth);
     options.overscanRows = normalizeNonNegativeInteger(options.overscanRows, DEFAULT_OPTIONS.overscanRows);
     options.fastScrollOverscanRows = normalizeNonNegativeInteger(options.fastScrollOverscanRows, DEFAULT_OPTIONS.fastScrollOverscanRows);
     options.overscanColumns = normalizeNonNegativeInteger(options.overscanColumns, DEFAULT_OPTIONS.overscanColumns);
@@ -3136,6 +3195,11 @@ export function createFabGridFactory(editorDefinitions) {
           String(value).toLowerCase();
         targetText = String(searchText).toLowerCase();
       }
+    } else if (dateConfig && dateConfig.type === 'time') {
+      sourceText = formatMaskText(value, { mask: getEditorMask(column) }).toLowerCase();
+      alternateSourceText = String(value).toLowerCase();
+      targetText = String(searchText).toLowerCase();
+      operator = operator || 'starts';
     } else if (dateConfig && dateConfig.type === 'combo') {
       sourceText = getComboboxTextByValue(value, dateConfig).toLowerCase();
       alternateSourceText = String(value).toLowerCase();
@@ -3236,7 +3300,7 @@ export function createFabGridFactory(editorDefinitions) {
       return true;
     }
     config = getColumnEditorConfig(column);
-    return config && isDateLikeEditorType(config.type);
+    return config && (isDateLikeEditorType(config.type) || config.type === 'time');
   }
 
   function normalizeColumnSearchOperator(operator) {
@@ -3693,6 +3757,7 @@ export function createFabGridFactory(editorDefinitions) {
 
   FabGrid.locales = getLocaleMap();
   FabGrid.themes = FABGRID_THEMES.slice();
+  FabGrid.resolveStylesheetTheme = resolveStylesheetTheme;
   FabGrid.normalizeLocale = normalizeLocaleName;
   FabGrid.editorDefinitions = editorDefinitions;
   FabGrid.defaultLocale = getDefaultLocaleName();

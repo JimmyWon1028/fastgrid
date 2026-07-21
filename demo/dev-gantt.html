@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>fabui.Gantt Source Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260720-gantt-core-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260721-initial-filter-rules-v1">
   <link rel="stylesheet" href="../src/gantt/gantt.css?v=20260720-gantt-v2">
   <link rel="stylesheet" href="./css/gantt-demo.css?v=20260720-gantt-v2">
 </head>
@@ -29,7 +29,7 @@
         <option value="sunny">sunny</option>
         <option value="pepper-grinder">pepper-grinder</option>
         <option value="dark-hive">dark-hive</option>
-        <option value="black">black</option>
+        <option value="black">black</option><option value="mono">mono</option><option value="mono-red">mono red</option><option value="mono-green">mono green</option>
       </select>
       <select id="gantt-locale">
         <option value="zh-TW" selected>繁體中文</option>
@@ -44,13 +44,13 @@
     <div id="gantt"></div>
     <p id="gantt-status" aria-live="polite"></p>
   </main>
-  <script src="./js/gantt-demo.js?v=20260720-gantt-v2"></script>
+  <script src="./js/gantt-demo.js?v=20260721-initial-filter-rules-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260720-gantt-core-v1';
+    import fabui from '../src/fabui.js?v=20260721-initial-filter-rules-v1';
     globalThis.fabui = fabui;
-    await import('../src/fabui.gantt.js?v=20260720-gantt-v4');
+    await import('../src/fabui.gantt.js?v=20260721-initial-filter-rules-v1');
     globalThis.mountFabUIGanttDemo(fabui);
   </script>
-  <script type="module" src="./js/dev-controls.js?v=20260720-hidden-file-input-v1"></script>
+  <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>
 </body>
 </html>

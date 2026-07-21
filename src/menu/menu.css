@@ -215,7 +215,9 @@
 .fui-menu.fg-theme-metro-gray,
 .fui-menu.fg-theme-metro-green,
 .fui-menu.fg-theme-metro-orange,
-.fui-menu.fg-theme-metro-red {
+.fui-menu.fg-theme-metro-red,
+.fui-menu.fg-theme-mono-red,
+.fui-menu.fg-theme-mono-green {
   --fui-menu-bg: #fafafa;
   --fui-menu-border: #dddddd;
   --fui-menu-divider: #e5e5e5;
@@ -235,7 +237,8 @@
   --fui-menu-hover-border: #8b909b;
 }
 
-.fui-menu.fg-theme-metro-green {
+.fui-menu.fg-theme-metro-green,
+.fui-menu.fg-theme-mono-green {
   --fui-menu-hover-bg: #eaf2c7;
   --fui-menu-hover-border: #7e8f24;
 }
@@ -245,7 +248,8 @@
   --fui-menu-hover-border: #ca7d33;
 }
 
-.fui-menu.fg-theme-metro-red {
+.fui-menu.fg-theme-metro-red,
+.fui-menu.fg-theme-mono-red {
   --fui-menu-hover-bg: #fde4e1;
   --fui-menu-hover-border: #e45447;
 }

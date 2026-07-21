@@ -136,6 +136,7 @@
     validation: {
       invalidValue: 'Invalid value',
       invalidDate: 'Invalid date',
+      invalidTime: 'Invalid time',
       invalidYearMonth: 'Invalid year and month',
       invalidColor: 'Invalid color',
       comboboxLimitToList: 'Please select a valid item'
@@ -156,6 +157,8 @@
     },
     aria: {
       cellEditor: 'Cell editor',
+      increaseValue: 'Increase value',
+      decreaseValue: 'Decrease value',
       openDatePicker: 'Open date picker',
       datePicker: 'Date picker',
       openComboBox: 'Open combo box',

@@ -28,10 +28,13 @@ test('remote response normalizes rows and numeric total', function() {
 
 test('remote request creates GET and POST descriptors', function() {
   var getRequest = createRemoteRequest('/api/items?active=1', 'get', { page: 2, q: 'grid' });
-  var postRequest = createRemoteRequest('/api/items', 'post', { page: 2 });
+  var filterRules = JSON.stringify([{ field: 'status', op: 'eq', value: '草稿' }]);
+  var postRequest = createRemoteRequest('/api/items', 'post', { page: 2, filterRules: filterRules });
+  var formData = new URLSearchParams(postRequest.options.body);
   assert.equal(getRequest.url, '/api/items?active=1&page=2&q=grid');
   assert.equal(getRequest.options.body, undefined);
-  assert.equal(postRequest.options.body, 'page=2');
+  assert.equal(formData.get('page'), '2');
+  assert.equal(formData.get('filterRules'), filterRules);
   assert.equal(postRequest.options.headers['Content-Type'], 'application/x-www-form-urlencoded;charset=UTF-8');
   assert.throws(function() { createRemoteRequest('/api/items', 'delete', {}); }, /GET or POST/);
 });

@@ -45,7 +45,6 @@ function createBrowserBundle(source) {
     '    typeof global.fabui.Control._registerControl !== "function" ||\n' +
     '    typeof global.fabui.Button !== "function" ||\n' +
     '    typeof global.fabui.EditBox !== "function" ||\n' +
-    '    typeof global.fabui.Window !== "function" ||\n' +
     '    typeof global.fabui.Menu !== "function" ||\n' +
     '    typeof global.fabui.Tabs !== "function") {\n' +
     '  throw new Error("Load fabui.js before diagram.js.");\n' +
@@ -57,7 +56,6 @@ function createBrowserBundle(source) {
     '  global.fabui.Control._unregisterControl,\n' +
     '  global.fabui.Button,\n' +
     '  global.fabui.EditBox,\n' +
-    '  global.fabui.Window,\n' +
     '  global.fabui.Menu,\n' +
     '  global.fabui.Tabs\n' +
     ');\n' +

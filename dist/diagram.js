@@ -5,7 +5,6 @@ if (!global.fabui || typeof global.fabui.Control !== "function" ||
     typeof global.fabui.Control._registerControl !== "function" ||
     typeof global.fabui.Button !== "function" ||
     typeof global.fabui.EditBox !== "function" ||
-    typeof global.fabui.Window !== "function" ||
     typeof global.fabui.Menu !== "function" ||
     typeof global.fabui.Tabs !== "function") {
   throw new Error("Load fabui.js before diagram.js.");
@@ -14,7 +13,7 @@ var DIAGRAM_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
   'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
   'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
-  'black'
+  'black', 'mono', 'mono-red', 'mono-green'
 ];
 var DIAGRAM_SVG_NS = 'http://www.w3.org/2000/svg';
 var nextDiagramItemId = 1;
@@ -117,6 +116,12 @@ var DIAGRAM_CONNECTOR_TOOLS = [
     category: 'dfd',
     label: 'dfdDataFlow',
     connectorType: 'curved'
+  },
+  {
+    type: 'dfdSCurve',
+    category: 'dfd',
+    label: 'dfdSCurve',
+    connectorType: 'sCurve'
   }
 ];
 var DIAGRAM_TOOLBOX_ITEMS = DIAGRAM_SHAPES.concat(DIAGRAM_CONNECTOR_TOOLS);
@@ -152,6 +157,17 @@ function diagramAssign(target) {
 function diagramNumber(value, fallback) {
   value = Number(value);
   return isFinite(value) ? value : fallback;
+}
+
+function diagramCommonProperty(items, key) {
+  var value = items.length ? items[0][key] : '';
+  var index;
+  for (index = 1; index < items.length; index += 1) {
+    if (items[index][key] !== value) {
+      return { mixed: true, value: '' };
+    }
+  }
+  return { mixed: false, value: value };
 }
 
 function diagramBoolean(value, fallback) {
@@ -498,6 +514,17 @@ function normalizeDiagramShapeType(value) {
   }) ? value : 'rectangle';
 }
 
+function normalizeDiagramFontSize(value) {
+  return Math.min(96, Math.max(8, diagramNumber(value, 14)));
+}
+
+function diagramTextDecoration(item, hyperlink) {
+  var decorations = [];
+  if (item.fontUnderline || hyperlink) decorations.push('underline');
+  if (item.fontStrikethrough) decorations.push('line-through');
+  return decorations.join(' ');
+}
+
 function normalizeDiagramNode(node, index) {
   var result = diagramAssign({}, node || {});
   result.id = String(result.id == null || result.id === '' ?
@@ -513,6 +540,11 @@ function normalizeDiagramNode(node, index) {
   result.stroke = String(result.stroke || '#5b6b7c');
   result.strokeWidth = Math.max(1, diagramNumber(result.strokeWidth, 1.5));
   result.textColor = String(result.textColor || '#1f2937');
+  result.fontSize = normalizeDiagramFontSize(result.fontSize);
+  result.fontBold = result.fontBold === true;
+  result.fontItalic = result.fontItalic === true;
+  result.fontUnderline = result.fontUnderline === true;
+  result.fontStrikethrough = result.fontStrikethrough === true;
   result.hyperlink = String(result.hyperlink || '').trim();
   result.hyperlinkTrigger = normalizeDiagramHyperlinkTrigger(
     result.hyperlinkTrigger
@@ -531,12 +563,17 @@ function normalizeDiagramConnector(connector, index) {
   result.to = String(result.to == null ? '' : result.to);
   result.fromPoint = normalizeDiagramConnectionPoint(result.fromPoint);
   result.toPoint = normalizeDiagramConnectionPoint(result.toPoint);
-  result.type = ['straight', 'curved'].indexOf(result.type) >= 0 ?
+  result.type = ['straight', 'curved', 'sCurve'].indexOf(result.type) >= 0 ?
     result.type :
     'orthogonal';
   result.text = String(result.text == null ? '' : result.text);
   result.stroke = String(result.stroke || '#4b5563');
   result.strokeWidth = Math.max(1, diagramNumber(result.strokeWidth, 1.5));
+  result.fontSize = normalizeDiagramFontSize(result.fontSize);
+  result.fontBold = result.fontBold === true;
+  result.fontItalic = result.fontItalic === true;
+  result.fontUnderline = result.fontUnderline === true;
+  result.fontStrikethrough = result.fontStrikethrough === true;
   result.lineStyle = result.lineStyle === 'dashed' ? 'dashed' : 'solid';
   result.arrowDirection = [
     'none',
@@ -1235,6 +1272,72 @@ function calculateDiagramCurve(start, end, customControl) {
   };
 }
 
+function calculateDiagramSCurve(start, end, customControl, fromSide, toSide) {
+  var dx = end.x - start.x;
+  var dy = end.y - start.y;
+  var length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+  var handleLength = Math.min(140, Math.max(36, length * 0.45));
+  var directions = {
+    top: { x: 0, y: -1 },
+    right: { x: 1, y: 0 },
+    bottom: { x: 0, y: 1 },
+    left: { x: -1, y: 0 }
+  };
+  var fromDirection;
+  var toDirection;
+  var firstControl;
+  var secondControl;
+  var label;
+  var offsetX;
+  var offsetY;
+  if (!directions[fromSide] || !directions[toSide]) {
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      fromSide = dx >= 0 ? 'right' : 'left';
+      toSide = dx >= 0 ? 'left' : 'right';
+    } else {
+      fromSide = dy >= 0 ? 'bottom' : 'top';
+      toSide = dy >= 0 ? 'top' : 'bottom';
+    }
+  }
+  fromDirection = directions[fromSide];
+  toDirection = directions[toSide];
+  firstControl = {
+    x: start.x + fromDirection.x * handleLength,
+    y: start.y + fromDirection.y * handleLength
+  };
+  secondControl = {
+    x: end.x + toDirection.x * handleLength,
+    y: end.y + toDirection.y * handleLength
+  };
+  label = {
+    x: (start.x + firstControl.x * 3 + secondControl.x * 3 + end.x) / 8,
+    y: (start.y + firstControl.y * 3 + secondControl.y * 3 + end.y) / 8
+  };
+  if (customControl) {
+    offsetX = (customControl.x - label.x) * 4 / 3;
+    offsetY = (customControl.y - label.y) * 4 / 3;
+    firstControl.x += offsetX;
+    firstControl.y += offsetY;
+    secondControl.x += offsetX;
+    secondControl.y += offsetY;
+    label = {
+      x: customControl.x,
+      y: customControl.y
+    };
+  }
+  return {
+    path: 'M ' + start.x + ' ' + start.y +
+      ' C ' + firstControl.x + ' ' + firstControl.y +
+      ' ' + secondControl.x + ' ' + secondControl.y +
+      ' ' + end.x + ' ' + end.y,
+    label: label,
+    control: {
+      x: label.x,
+      y: label.y
+    }
+  };
+}
+
 function calculateDiagramOrthogonalMidpoint(start, end, startAxis) {
   var firstLength = startAxis === 'horizontal' ?
     Math.abs(end.x - start.x) :
@@ -1315,6 +1418,17 @@ function calculateDiagramConnectorPath(
     middle = control;
   } else if (type === 'curved') {
     curve = calculateDiagramCurve(start, end, customControl);
+    path = curve.path;
+    middle = curve.label;
+    control = curve.control;
+  } else if (type === 'sCurve') {
+    curve = calculateDiagramSCurve(
+      start,
+      end,
+      customControl,
+      points.fromSide,
+      points.toSide
+    );
     path = curve.path;
     middle = curve.label;
     control = curve.control;
@@ -1409,6 +1523,93 @@ function calculateDiagramNodeResize(node, direction, dx, dy, minWidth, minHeight
   return result;
 }
 
+function calculateDiagramGroupBounds(nodes) {
+  var items = (nodes || []).filter(Boolean);
+  var left;
+  var top;
+  var right;
+  var bottom;
+  if (!items.length) return null;
+  left = Math.min.apply(null, items.map(function(node) {
+    return node.x;
+  }));
+  top = Math.min.apply(null, items.map(function(node) {
+    return node.y;
+  }));
+  right = Math.max.apply(null, items.map(function(node) {
+    return node.x + node.width;
+  }));
+  bottom = Math.max.apply(null, items.map(function(node) {
+    return node.y + node.height;
+  }));
+  return {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+    centerX: (left + right) / 2,
+    centerY: (top + bottom) / 2
+  };
+}
+
+function calculateDiagramGroupResize(
+  nodes,
+  bounds,
+  direction,
+  point,
+  minWidth,
+  minHeight
+) {
+  var items = (nodes || []).filter(Boolean);
+  var handleX;
+  var handleY;
+  var vectorX;
+  var vectorY;
+  var currentX;
+  var currentY;
+  var divisor;
+  var scale;
+  var minimumScale;
+  bounds = bounds || calculateDiagramGroupBounds(items);
+  if (!bounds || !items.length) return { scale: 1, nodes: [] };
+  direction = String(direction || 'se');
+  minWidth = Math.max(20, diagramNumber(minWidth, 40));
+  minHeight = Math.max(20, diagramNumber(minHeight, 30));
+  handleX = direction.indexOf('w') >= 0 ?
+    bounds.x :
+    bounds.x + bounds.width;
+  handleY = direction.indexOf('n') >= 0 ?
+    bounds.y :
+    bounds.y + bounds.height;
+  vectorX = handleX - bounds.centerX;
+  vectorY = handleY - bounds.centerY;
+  currentX = diagramNumber(point && point.x, handleX) - bounds.centerX;
+  currentY = diagramNumber(point && point.y, handleY) - bounds.centerY;
+  divisor = vectorX * vectorX + vectorY * vectorY;
+  scale = divisor > 0 ?
+    (currentX * vectorX + currentY * vectorY) / divisor :
+    1;
+  minimumScale = items.reduce(function(minimum, node) {
+    return Math.max(
+      minimum,
+      minWidth / Math.max(1, node.width),
+      minHeight / Math.max(1, node.height)
+    );
+  }, 0.01);
+  scale = Math.max(minimumScale, scale);
+  return {
+    scale: scale,
+    nodes: items.map(function(node) {
+      return diagramAssign({}, node, {
+        x: bounds.centerX + (node.x - bounds.centerX) * scale,
+        y: bounds.centerY + (node.y - bounds.centerY) * scale,
+        width: node.width * scale,
+        height: node.height * scale
+      });
+    })
+  };
+}
+
 function calculateDiagramPageZoom(
   viewportWidth,
   viewportHeight,
@@ -1500,7 +1701,6 @@ function createDiagramFactory(
   unregisterControl,
   Button,
   EditBox,
-  Window,
   Menu,
   Tabs
 ) {
@@ -1524,6 +1724,7 @@ function createDiagramFactory(
       dfdProcess: 'Process',
       dfdDataStore: 'Data Store',
       dfdDataFlow: 'Data Flow',
+      dfdSCurve: 'S Curve',
       orgChartImageLeft: 'Image on Left',
       orgChartImageRight: 'Image on Right',
       orgChartImageTop: 'Image on Top',
@@ -1583,11 +1784,21 @@ function createDiagramFactory(
       downloadJson: 'Download',
       loadJson: 'Load',
       connect: 'Connect',
+      connectStraight: 'Straight connector',
+      connectOrthogonal: 'Orthogonal connector',
+      connectCurved: 'Curved connector',
+      connectSCurve: 'S Curve connector',
       readOnly: 'Read only',
       properties: 'Properties',
       noSelection: 'Select a shape or connector.',
       multipleSelection: '{0} shapes selected.',
       text: 'Text',
+      fontSize: 'Font size',
+      textStyle: 'Text style',
+      bold: 'Bold',
+      italic: 'Italic',
+      underline: 'Underline',
+      strikethrough: 'Strikethrough',
       x: 'X',
       y: 'Y',
       width: 'Width',
@@ -1609,7 +1820,7 @@ function createDiagramFactory(
       reorderToolboxGroup: 'Drag to reorder toolbox group',
       zoomOut: 'Zoom out',
       zoomIn: 'Zoom in',
-      fit: 'Fit to content',
+      fit: 'Fit',
       grid: 'Grid',
       fullscreen: 'Full screen',
       exitFullscreen: 'Exit full screen',
@@ -1643,6 +1854,7 @@ function createDiagramFactory(
       dfdProcess: '處理程序',
       dfdDataStore: '資料儲存',
       dfdDataFlow: '資料流',
+      dfdSCurve: 'S 弧線',
       orgChartImageLeft: '圖片在左側',
       orgChartImageRight: '圖片在右側',
       orgChartImageTop: '圖片在上方',
@@ -1702,11 +1914,21 @@ function createDiagramFactory(
       downloadJson: '下載',
       loadJson: '載入',
       connect: '連線',
+      connectStraight: '直線',
+      connectOrthogonal: '直角線',
+      connectCurved: '弧線',
+      connectSCurve: 'S 線',
       readOnly: '唯讀',
       properties: '屬性',
       noSelection: '請選取圖形或連線。',
       multipleSelection: '已選取 {0} 個圖形。',
       text: '文字',
+      fontSize: '文字大小',
+      textStyle: '文字樣式',
+      bold: '粗體',
+      italic: '斜體',
+      underline: '底線',
+      strikethrough: '刪除線',
       x: 'X',
       y: 'Y',
       width: '寬度',
@@ -1728,7 +1950,7 @@ function createDiagramFactory(
       reorderToolboxGroup: '拖曳調整工具列順序',
       zoomOut: '縮小',
       zoomIn: '放大',
-      fit: '符合內容',
+      fit: '符合',
       grid: '格線',
       fullscreen: '全螢幕',
       exitFullscreen: '離開全螢幕',
@@ -1762,6 +1984,7 @@ function createDiagramFactory(
       dfdProcess: '处理过程',
       dfdDataStore: '数据存储',
       dfdDataFlow: '数据流',
+      dfdSCurve: 'S 弧线',
       orgChartImageLeft: '图片在左侧',
       orgChartImageRight: '图片在右侧',
       orgChartImageTop: '图片在上方',
@@ -1821,11 +2044,21 @@ function createDiagramFactory(
       downloadJson: '下载',
       loadJson: '载入',
       connect: '连接',
+      connectStraight: '直线',
+      connectOrthogonal: '直角线',
+      connectCurved: '弧线',
+      connectSCurve: 'S 线',
       readOnly: '只读',
       properties: '属性',
       noSelection: '请选择图形或连接线。',
       multipleSelection: '已选择 {0} 个图形。',
       text: '文本',
+      fontSize: '文字大小',
+      textStyle: '文字样式',
+      bold: '粗体',
+      italic: '斜体',
+      underline: '下划线',
+      strikethrough: '删除线',
       x: 'X',
       y: 'Y',
       width: '宽度',
@@ -1847,7 +2080,7 @@ function createDiagramFactory(
       reorderToolboxGroup: '拖曳调整工具栏顺序',
       zoomOut: '缩小',
       zoomIn: '放大',
-      fit: '适合内容',
+      fit: '适合',
       grid: '网格',
       fullscreen: '全屏',
       exitFullscreen: '退出全屏',
@@ -1929,6 +2162,7 @@ function createDiagramFactory(
 
   function Diagram(element, options) {
     var paperDimensions;
+    var savedDiagramData;
     var savedPanelState;
     var savedPaper;
     var savedPropertiesPanel;
@@ -1948,7 +2182,6 @@ function createDiagramFactory(
     this._selectedNodeIds = [];
     this._suppressClick = false;
     this._inlineTextEditor = null;
-    this._paperDialog = null;
     this._contextMenu = null;
     this._contextMenuHost = null;
     this._dockTabs = null;
@@ -2137,6 +2370,12 @@ function createDiagramFactory(
     savedToolboxState = readDiagramToolboxState(
       this.options.toolboxStateKey
     );
+    savedDiagramData = savedToolboxState &&
+      savedToolboxState.diagram &&
+      typeof savedToolboxState.diagram === 'object' &&
+      Array.isArray(savedToolboxState.diagram.nodes) ?
+      savedToolboxState.diagram :
+      null;
     savedPanelState = savedToolboxState &&
       savedToolboxState.panels &&
       typeof savedToolboxState.panels === 'object' ?
@@ -2161,7 +2400,11 @@ function createDiagramFactory(
       savedToolboxState.paper &&
       typeof savedToolboxState.paper === 'object' ?
       savedToolboxState.paper :
-      null;
+      savedDiagramData &&
+        savedDiagramData.page &&
+        typeof savedDiagramData.page === 'object' ?
+        savedDiagramData.page :
+        null;
     if (savedToolboxPanel) {
       this.options.toolbox = diagramBoolean(
         savedToolboxPanel.visible,
@@ -2318,10 +2561,12 @@ function createDiagramFactory(
       this.options.minZoom,
       this.options.maxZoom
     );
-    this._data = normalizeDiagramData({
+    this._data = normalizeDiagramData(savedDiagramData || {
       nodes: this.options.nodes,
       connectors: this.options.connectors
     });
+    this.options.nodes = this._data.nodes;
+    this.options.connectors = this._data.connectors;
     this._resetHistory();
     this._build();
     this._mountContextMenu();
@@ -2737,7 +2982,7 @@ function createDiagramFactory(
       }, {
         name: 'fullscreen',
         text: messages.presentation,
-        iconCls: 'icon-fullscreen'
+        iconCls: 'icon-projector-screen'
       }],
       onClick: function(item) {
         if (item.name === 'exportPng') {
@@ -2878,9 +3123,50 @@ function createDiagramFactory(
         'icon-clear'
       );
       this._createToolbarSeparator(this.toolbarElement);
+      this._createToolbarButton(
+        this.toolbarElement,
+        'connectStraight',
+        '',
+        function() {
+          self.setConnectMode(self._connectMode, 'straight');
+        },
+        true,
+        'icon-diagram-connect-straight'
+      );
+      this._createToolbarButton(
+        this.toolbarElement,
+        'connectOrthogonal',
+        '',
+        function() {
+          self.setConnectMode(self._connectMode, 'orthogonal');
+        },
+        true,
+        'icon-diagram-connect-orthogonal'
+      );
+      this._createToolbarButton(
+        this.toolbarElement,
+        'connectCurved',
+        '',
+        function() {
+          self.setConnectMode(self._connectMode, 'curved');
+        },
+        true,
+        'icon-diagram-connect-curved'
+      );
+      this._createToolbarButton(
+        this.toolbarElement,
+        'connectSCurve',
+        '',
+        function() {
+          self.setConnectMode(self._connectMode, 'sCurve');
+        },
+        true,
+        'icon-diagram-connect-s-curve'
+      );
       this._createToolbarButton(this.toolbarElement, 'connect', 'Connect', function() {
-        self.setConnectMode(!self._connectMode, 'orthogonal');
+        self.setConnectMode(!self._connectMode);
       }, true);
+      this._createToolbarSeparator(this.toolbarElement);
       this._createToolbarButton(this.toolbarElement, 'toolbox', 'Toolbox', function() {
         self.options.toolbox = !self.options.toolbox;
         self._syncStructure();
@@ -2914,11 +3200,19 @@ function createDiagramFactory(
       this._createToolbarButton(
         this.viewToolbarElement,
         'presentation',
-        'Slide show',
+        '',
         this.togglePresentationFullscreen,
-        false
+        false,
+        'icon-projector-screen'
       );
-      this._createToolbarButton(this.viewToolbarElement, 'fullscreen', 'Full screen', this.toggleFullscreen);
+      this._createToolbarButton(
+        this.viewToolbarElement,
+        'fullscreen',
+        '',
+        this.toggleFullscreen,
+        false,
+        'icon-fullscreen'
+      );
     }
   };
 
@@ -2965,6 +3259,15 @@ function createDiagramFactory(
     if (type === 'dfdDataFlow') {
       shape = createDiagramSvgElement('path', {
         d: 'M 5 29 Q 28 5 55 24 M 47 18 L 55 24 L 47 28',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-width': 1.5,
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round'
+      });
+    } else if (type === 'dfdSCurve') {
+      shape = createDiagramSvgElement('path', {
+        d: 'M 5 30 C 24 30 36 11 55 11 M 47 7 L 55 11 L 48 17',
         fill: 'none',
         stroke: 'currentColor',
         'stroke-width': 1.5,
@@ -3169,6 +3472,7 @@ function createDiagramFactory(
       top: this.options.viewToolbarTop
     };
     state.paper = this.getPaper();
+    state.diagram = this.getData();
     state.dockTab = this._sameSideDockTab;
     state.dockMode = this.options.sameSideDockMode;
     writeDiagramToolboxState(
@@ -4706,6 +5010,8 @@ function createDiagramFactory(
   Diagram.prototype._handlePointerDown = function(event) {
     var connectionPoint = event.target.closest('[data-diagram-connection-point]');
     var resizeHandle = event.target.closest('[data-diagram-resize]');
+    var groupResizeHandle = resizeHandle &&
+      resizeHandle.hasAttribute('data-diagram-group-resize');
     var nodeElement = event.target.closest('[data-diagram-node]');
     var nodeTextElement = event.target.closest('[data-diagram-node-text]');
     var connectorElement = event.target.closest('[data-diagram-connector]');
@@ -4812,19 +5118,7 @@ function createDiagramFactory(
       return;
     }
     if (!resizeHandle && !nodeElement) {
-      now = Date.now();
-      isDoubleClick = this._lastItemClick &&
-        this._lastItemClick.type === 'canvas' &&
-        now - this._lastItemClick.time <= 700;
-      this._lastItemClick = isDoubleClick ? null : {
-        type: 'canvas',
-        time: now
-      };
-      if (isDoubleClick) {
-        event.preventDefault();
-        this._openPaperSettings();
-        return;
-      }
+      this._lastItemClick = null;
       event.preventDefault();
       if (!additive) {
         this._selected = null;
@@ -4905,12 +5199,18 @@ function createDiagramFactory(
       this._setNodeSelection(selectedIds, node.id);
       this._suppressClick = true;
       if (!this._isNodeSelected(node.id)) return;
-    } else if (!this._isNodeSelected(node.id) || resizeHandle) {
+    } else if (
+      !this._isNodeSelected(node.id) ||
+      (resizeHandle && !groupResizeHandle)
+    ) {
       this._setNodeSelection([node.id], node.id);
     }
+    selectedIds = this._selectedNodeIds.slice();
     this._interaction = {
       pointerId: event.pointerId,
-      type: resizeHandle ? 'resize' : 'move',
+      type: groupResizeHandle ?
+        'group-resize' :
+        resizeHandle ? 'resize' : 'move',
       direction: resizeHandle ?
         resizeHandle.getAttribute('data-diagram-resize') :
         '',
@@ -4920,6 +5220,21 @@ function createDiagramFactory(
       startNodes: this._selectedNodeIds.map(function(id) {
         return diagramAssign({}, this.getNode(id));
       }, this),
+      startBounds: groupResizeHandle ?
+        calculateDiagramGroupBounds(
+          this._selectedNodeIds.map(this.getNode.bind(this)).filter(Boolean)
+        ) :
+        null,
+      startConnectors: groupResizeHandle ?
+        this._data.connectors.filter(function(item) {
+          return selectedIds.indexOf(item.from) >= 0 &&
+            selectedIds.indexOf(item.to) >= 0 &&
+            item.controlX != null &&
+            item.controlY != null;
+        }).map(function(item) {
+          return diagramAssign({}, item);
+        }) :
+        [],
       hyperlinkTrigger: nodeTextElement &&
         diagramNodeHyperlinkMatchesTrigger(node, 'click') ?
         'click' :
@@ -4978,6 +5293,7 @@ function createDiagramFactory(
     var targetNode;
     var connectionPoints;
     var alignment;
+    var groupResize;
     if (!state || event.pointerId !== state.pointerId) return;
     event.preventDefault();
     if (state.type === 'pan') {
@@ -5062,6 +5378,9 @@ function createDiagramFactory(
       if (connector.type === 'curved') {
         controlX += dx * 2;
         controlY += dy * 2;
+      } else if (connector.type === 'sCurve') {
+        controlX += dx;
+        controlY += dy;
       } else if (connector.type === 'orthogonal') {
         if (state.startGeometry.orientation === 'horizontal') controlX += dx;
         else controlY += dy;
@@ -5072,6 +5391,37 @@ function createDiagramFactory(
       connector.controlX = this._snap(controlX);
       connector.controlY = this._snap(controlY);
       state.changed = true;
+      this._renderCanvas();
+      return;
+    }
+    if (state.type === 'group-resize') {
+      groupResize = calculateDiagramGroupResize(
+        state.startNodes,
+        state.startBounds,
+        state.direction,
+        point,
+        40,
+        30
+      );
+      groupResize.nodes.forEach(function(resizedNode) {
+        var current = this.getNode(resizedNode.id);
+        if (!current) return;
+        current.x = resizedNode.x;
+        current.y = resizedNode.y;
+        current.width = resizedNode.width;
+        current.height = resizedNode.height;
+      }, this);
+      state.startConnectors.forEach(function(startConnector) {
+        var current = this.getConnector(startConnector.id);
+        if (!current) return;
+        current.controlX = state.startBounds.centerX + (
+          startConnector.controlX - state.startBounds.centerX
+        ) * groupResize.scale;
+        current.controlY = state.startBounds.centerY + (
+          startConnector.controlY - state.startBounds.centerY
+        ) * groupResize.scale;
+      }, this);
+      state.changed = Math.abs(groupResize.scale - 1) > 0.001;
       this._renderCanvas();
       return;
     }
@@ -5175,6 +5525,12 @@ function createDiagramFactory(
           if (current) diagramAssign(current, startNode);
         }, this);
       }
+      if (state.startConnectors) {
+        state.startConnectors.forEach(function(startConnector) {
+          var current = this.getConnector(startConnector.id);
+          if (current) diagramAssign(current, startConnector);
+        }, this);
+      }
       if (state.type === 'marquee') {
         this._selectedNodeIds = state.startSelection.slice();
         this._selected = this._selectedNodeIds.length ? {
@@ -5220,7 +5576,11 @@ function createDiagramFactory(
       this._openNodeHyperlink(node);
     } else if (
       event.type !== 'pointercancel' &&
-      (state.type === 'move' || state.type === 'resize') &&
+      (
+        state.type === 'move' ||
+        state.type === 'resize' ||
+        state.type === 'group-resize'
+      ) &&
       state.changed
     ) {
       this._lastItemClick = null;
@@ -5323,17 +5683,6 @@ function createDiagramFactory(
     var type;
     var id;
     if (!nodeElement && !connectorElement) {
-      if (
-        !this.options.readOnly &&
-        !this.options.disabled &&
-        (
-          event.target === this.svgElement ||
-          event.target.classList.contains('fui-diagram-page')
-        )
-      ) {
-        event.preventDefault();
-        this._openPaperSettings();
-      }
       return;
     }
     if (nodeTextElement && nodeTextElement.classList.contains(
@@ -5368,180 +5717,6 @@ function createDiagramFactory(
       if (type === 'node') this._beginNodeTextEdit(id);
       else this._beginConnectorTextEdit(id);
     }
-  };
-
-  Diagram.prototype._disposePaperDialog = function() {
-    var state = this._paperDialog;
-    if (!state) return;
-    this._paperDialog = null;
-    state.host.removeEventListener('keydown', state.onKeyDown);
-    state.sizeControl.dispose();
-    state.orientationControl.dispose();
-    state.snapSizeControl.dispose();
-    state.applyButton.dispose();
-    state.cancelButton.dispose();
-    state.window.destroy(true);
-    if (state.host.parentNode) state.host.parentNode.removeChild(state.host);
-  };
-
-  Diagram.prototype._openPaperSettings = function() {
-    var self = this;
-    var state = this._paperDialog;
-    var host;
-    var form;
-    var sizeRow;
-    var sizeLabel;
-    var sizeInput;
-    var orientationRow;
-    var orientationLabel;
-    var orientationInput;
-    var snapSizeRow;
-    var snapSizeLabel;
-    var snapSizeInput;
-    var footer;
-    var applyHost;
-    var cancelHost;
-    if (!Window || this.options.readOnly || this.options.disabled) return this;
-    if (!state) {
-      host = document.createElement('div');
-      form = document.createElement('div');
-      sizeRow = document.createElement('label');
-      sizeLabel = document.createElement('span');
-      sizeInput = document.createElement('input');
-      orientationRow = document.createElement('label');
-      orientationLabel = document.createElement('span');
-      orientationInput = document.createElement('input');
-      snapSizeRow = document.createElement('label');
-      snapSizeLabel = document.createElement('span');
-      snapSizeInput = document.createElement('input');
-      footer = document.createElement('div');
-      applyHost = document.createElement('a');
-      cancelHost = document.createElement('a');
-      host.className = 'fui-diagram-paper-dialog';
-      form.className = 'fui-diagram-paper-form';
-      sizeRow.className = 'fui-diagram-paper-field';
-      sizeLabel.className = 'fui-diagram-paper-label';
-      orientationRow.className = 'fui-diagram-paper-field';
-      orientationLabel.className = 'fui-diagram-paper-label';
-      snapSizeRow.className = 'fui-diagram-paper-field';
-      snapSizeLabel.className = 'fui-diagram-paper-label';
-      footer.className = 'fui-diagram-paper-actions';
-      applyHost.href = 'javascript:void(0)';
-      cancelHost.href = 'javascript:void(0)';
-      sizeLabel.textContent = this.messages.paperSize;
-      orientationLabel.textContent = this.messages.paperOrientation;
-      snapSizeLabel.textContent = this.messages.snapSize;
-      sizeRow.appendChild(sizeLabel);
-      sizeRow.appendChild(sizeInput);
-      orientationRow.appendChild(orientationLabel);
-      orientationRow.appendChild(orientationInput);
-      snapSizeRow.appendChild(snapSizeLabel);
-      snapSizeRow.appendChild(snapSizeInput);
-      form.appendChild(sizeRow);
-      form.appendChild(orientationRow);
-      form.appendChild(snapSizeRow);
-      host.appendChild(form);
-      footer.appendChild(applyHost);
-      footer.appendChild(cancelHost);
-      document.body.appendChild(host);
-      state = {
-        host: host,
-        sizeLabel: sizeLabel,
-        orientationLabel: orientationLabel,
-        snapSizeLabel: snapSizeLabel,
-        sizeControl: new EditBox(sizeInput, {
-          editor: 'combo',
-          width: '100%',
-          editable: false,
-          limitToList: true,
-          data: Object.keys(DIAGRAM_PAPER_SIZES).map(function(size) {
-            return { value: size, text: size };
-          }),
-          theme: this.theme
-        }),
-        orientationControl: new EditBox(orientationInput, {
-          editor: 'combo',
-          width: '100%',
-          editable: false,
-          limitToList: true,
-          data: [
-            { value: 'landscape', text: this.messages.landscape },
-            { value: 'portrait', text: this.messages.portrait }
-          ],
-          theme: this.theme
-        }),
-        snapSizeControl: new EditBox(snapSizeInput, {
-          editor: 'number',
-          width: '100%',
-          min: 5,
-          precision: 0,
-          theme: this.theme
-        }),
-        applyButton: null,
-        cancelButton: null,
-        window: null,
-        onKeyDown: null
-      };
-      state.applyButton = new Button(applyHost, {
-        text: this.messages.apply,
-        theme: this.theme,
-        onClick: function() {
-          self.setPaper(
-            state.sizeControl.getValue(),
-            state.orientationControl.getValue(),
-            state.snapSizeControl.getValue()
-          );
-          state.window.close(true);
-        }
-      });
-      state.cancelButton = new Button(cancelHost, {
-        text: this.messages.cancel,
-        theme: this.theme,
-        onClick: function() {
-          state.window.close(true);
-        }
-      });
-      state.window = new Window(host, {
-        title: this.messages.paperSettings,
-        width: 360,
-        height: 260,
-        minWidth: 320,
-        minHeight: 240,
-        modal: true,
-        draggable: true,
-        resizable: false,
-        maximizable: false,
-        minimizable: false,
-        collapsible: false,
-        closable: true,
-        constrain: true,
-        fixed: true,
-        footer: footer,
-        closed: true,
-        theme: this.theme,
-        locale: this.options.locale
-      });
-      state.onKeyDown = function(event) {
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          state.window.close(true);
-        } else if (
-          event.key === 'Enter' &&
-          !event.target.closest('.fui-editbox')
-        ) {
-          event.preventDefault();
-          state.applyButton.hostElement.click();
-        }
-      };
-      host.addEventListener('keydown', state.onKeyDown);
-      this._paperDialog = state;
-    }
-    state.sizeControl.setValue(this.options.paperSize);
-    state.orientationControl.setValue(this.options.paperOrientation);
-    state.snapSizeControl.setValue(this.options.gridSize);
-    state.window.open().center();
-    state.sizeControl.textbox().focus();
-    return this;
   };
 
   Diagram.prototype._positionInlineTextEditor = function() {
@@ -5590,11 +5765,17 @@ function createDiagramFactory(
       ) + 'px';
       state.host.style.setProperty(
         '--fui-diagram-inline-font-size',
-        Math.max(10, 14 * zoom) + 'px'
+        Math.max(10, node.fontSize * zoom) + 'px'
       );
       state.host.style.setProperty(
         '--fui-diagram-inline-text-color',
         node.textColor
+      );
+      state.textbox.style.fontWeight = node.fontBold ? '700' : '400';
+      state.textbox.style.fontStyle = node.fontItalic ? 'italic' : 'normal';
+      state.textbox.style.textDecoration = diagramTextDecoration(
+        node,
+        Boolean(normalizeDiagramHyperlink(node.hyperlink))
       );
       if (state.nodeElement) {
         state.nodeElement.classList.remove('fui-diagram-node-editing');
@@ -5619,6 +5800,11 @@ function createDiagramFactory(
       this._closeInlineTextEditor(false);
       return;
     }
+    zoom = this.options.zoomLevel;
+    state.textbox.style.fontSize = Math.max(10, connector.fontSize * zoom) + 'px';
+    state.textbox.style.fontWeight = connector.fontBold ? '700' : '400';
+    state.textbox.style.fontStyle = connector.fontItalic ? 'italic' : 'normal';
+    state.textbox.style.textDecoration = diagramTextDecoration(connector, false);
     from = this.getNode(connector.from);
     to = this.getNode(connector.to);
     if (!from || !to) {
@@ -5641,7 +5827,9 @@ function createDiagramFactory(
       ) + 'px';
     state.host.style.top =
       Math.round(
-        svgOffset.y + geometry.label.y * this.options.zoomLevel
+        svgOffset.y + (
+          geometry.label.y - Math.max(12, connector.fontSize * 0.85)
+        ) * this.options.zoomLevel
       ) + 'px';
   };
 
@@ -6282,13 +6470,20 @@ function createDiagramFactory(
   Diagram.prototype._renderNodeText = function(group, node) {
     var source = String(node.text || '');
     var textBox = diagramNodeTextBox(node);
+    var fontSize = normalizeDiagramFontSize(node.fontSize);
+    var lineHeight = Math.round(fontSize * 1.3);
+    var hasHyperlink = Boolean(normalizeDiagramHyperlink(node.hyperlink));
     var text = createDiagramSvgElement('text', {
       x: textBox.x,
       y: textBox.y,
       fill: node.textColor,
+      'font-size': fontSize,
+      'font-weight': node.fontBold ? 700 : 400,
+      'font-style': node.fontItalic ? 'italic' : 'normal',
+      'text-decoration': diagramTextDecoration(node, hasHyperlink),
       'text-anchor': 'middle',
       class: 'fui-diagram-node-text' + (
-        normalizeDiagramHyperlink(node.hyperlink) ?
+        hasHyperlink ?
           ' fui-diagram-node-text-linked' :
           ''
       ),
@@ -6297,7 +6492,7 @@ function createDiagramFactory(
     });
     var paragraphs = source.split(/\r?\n/);
     var lines = [];
-    var maxChars = Math.max(5, Math.floor(textBox.width / 8));
+    var maxChars = Math.max(2, Math.floor(textBox.width / (fontSize * 0.57)));
     paragraphs.forEach(function(paragraph) {
       var hasWhitespace = /\s/.test(paragraph);
       var words = hasWhitespace ? paragraph.split(/\s+/) : paragraph.split('');
@@ -6322,7 +6517,7 @@ function createDiagramFactory(
     lines.forEach(function(value, index) {
       var tspan = createDiagramSvgElement('tspan', {
         x: textBox.x,
-        dy: index === 0 ? (-(lines.length - 1) * 8) : 18
+        dy: index === 0 ? (-(lines.length - 1) * lineHeight / 2) : lineHeight
       });
       tspan.textContent = value;
       text.appendChild(tspan);
@@ -6351,7 +6546,12 @@ function createDiagramFactory(
     });
   };
 
-  Diagram.prototype._renderSelection = function(layer, node, primary) {
+  Diagram.prototype._renderSelection = function(
+    layer,
+    node,
+    primary,
+    showConnectionPoints
+  ) {
     var directions = [
       ['nw', node.x, node.y],
       ['n', node.x + node.width / 2, node.y],
@@ -6385,7 +6585,43 @@ function createDiagramFactory(
         layer.appendChild(handle);
       });
     }
-    this._renderConnectionPoints(layer, node);
+    if (showConnectionPoints !== false) {
+      this._renderConnectionPoints(layer, node);
+    }
+  };
+
+  Diagram.prototype._renderGroupSelection = function(layer, nodes) {
+    var bounds = calculateDiagramGroupBounds(nodes);
+    var primaryId = this._selected ? this._selected.id : '';
+    var handles;
+    if (!bounds || nodes.length < 2) return;
+    handles = [
+      ['nw', bounds.x, bounds.y],
+      ['ne', bounds.x + bounds.width, bounds.y],
+      ['se', bounds.x + bounds.width, bounds.y + bounds.height],
+      ['sw', bounds.x, bounds.y + bounds.height]
+    ];
+    layer.appendChild(createDiagramSvgElement('rect', {
+      x: bounds.x - 7,
+      y: bounds.y - 7,
+      width: bounds.width + 14,
+      height: bounds.height + 14,
+      class: 'fui-diagram-group-selection-outline'
+    }));
+    if (this.options.readOnly) return;
+    handles.forEach(function(item) {
+      layer.appendChild(createDiagramSvgElement('rect', {
+        x: item[1] - 5,
+        y: item[2] - 5,
+        width: 10,
+        height: 10,
+        class: 'fui-diagram-resize-handle fui-diagram-group-resize-handle ' +
+          'fui-diagram-resize-' + item[0],
+        'data-diagram-resize': item[0],
+        'data-diagram-group-resize': '',
+        'data-node-id': primaryId
+      }));
+    });
   };
 
   Diagram.prototype._renderCanvas = function() {
@@ -6397,6 +6633,7 @@ function createDiagramFactory(
     var selectedFrom;
     var selectedTo;
     var selectedGeometry;
+    var selectedNodes;
     var defs = createDiagramSvgElement('defs');
     var pattern = createDiagramSvgElement('pattern', {
       id: 'fui-diagram-grid-' + this._instanceId,
@@ -6471,6 +6708,9 @@ function createDiagramFactory(
       var hitPath;
       var path;
       var label;
+      var labelBackground;
+      var labelBounds;
+      var labelY;
       if (!from || !to) return;
       geometry = calculateDiagramConnectorPath(
         from,
@@ -6513,17 +6753,52 @@ function createDiagramFactory(
       });
       group.appendChild(hitPath);
       group.appendChild(path);
+      connectorLayer.appendChild(group);
       if (connector.text) {
+        labelY = geometry.label.y - Math.max(12, connector.fontSize * 0.85);
         label = createDiagramSvgElement('text', {
           x: geometry.label.x,
-          y: geometry.label.y - 7,
+          y: labelY,
+          'font-size': connector.fontSize,
+          'font-weight': connector.fontBold ? 700 : 400,
+          'font-style': connector.fontItalic ? 'italic' : 'normal',
+          'text-decoration': diagramTextDecoration(connector, false),
           class: 'fui-diagram-connector-label',
           'text-anchor': 'middle'
         });
         label.textContent = connector.text;
         group.appendChild(label);
+        try {
+          labelBounds = label.getBBox();
+        } catch (error) {
+          labelBounds = null;
+        }
+        if (!labelBounds || !labelBounds.width || !labelBounds.height) {
+          labelBounds = {
+            x: geometry.label.x - Math.max(
+              18,
+              connector.text.length * connector.fontSize * 0.57
+            ) / 2,
+            y: labelY - connector.fontSize,
+            width: Math.max(
+              18,
+              connector.text.length * connector.fontSize * 0.57
+            ),
+            height: connector.fontSize * 1.2
+          };
+        }
+        labelBackground = createDiagramSvgElement('rect', {
+          x: labelBounds.x - 4,
+          y: labelBounds.y - 2,
+          width: labelBounds.width + 8,
+          height: labelBounds.height + 5,
+          rx: 2,
+          ry: 2,
+          fill: self.options.pageColor,
+          class: 'fui-diagram-connector-label-background'
+        });
+        group.insertBefore(labelBackground, label);
       }
-      connectorLayer.appendChild(group);
     });
     if (
       this._selected &&
@@ -6557,6 +6832,7 @@ function createDiagramFactory(
         }));
       }
     }
+    selectedNodes = this._selectedNodeIds.map(this.getNode.bind(this)).filter(Boolean);
     this._data.nodes.forEach(function(node) {
       var group = createDiagramSvgElement('g', {
         class: 'fui-diagram-node' +
@@ -6572,10 +6848,15 @@ function createDiagramFactory(
         self._renderSelection(
           selectionLayer,
           node,
-          self._selected && self._selected.id === node.id
+          selectedNodes.length === 1 &&
+            self._selected && self._selected.id === node.id,
+          selectedNodes.length === 1
         );
       }
     });
+    if (selectedNodes.length > 1) {
+      this._renderGroupSelection(selectionLayer, selectedNodes);
+    }
     if (this._interaction && this._interaction.type === 'connect') {
       this._data.nodes.forEach(function(node) {
         if (!self._isNodeSelected(node.id)) {
@@ -6584,6 +6865,12 @@ function createDiagramFactory(
       });
       if (this._interaction.connectorType === 'curved') {
         previewCurve = calculateDiagramCurve(
+          this._interaction.startPoint,
+          this._interaction.currentPoint
+        );
+        previewPath = previewCurve.path;
+      } else if (this._interaction.connectorType === 'sCurve') {
+        previewCurve = calculateDiagramSCurve(
           this._interaction.startPoint,
           this._interaction.currentPoint
         );
@@ -6660,6 +6947,7 @@ function createDiagramFactory(
     (container || this.propertiesBodyElement).appendChild(row);
     control = new EditBox(input, diagramAssign({
       editor: editor,
+      spinner: editor === 'number',
       width: '100%',
       theme: 'inherit',
       value: item[key],
@@ -6668,6 +6956,7 @@ function createDiagramFactory(
           value = diagramNumber(value, item[key]);
           if (key === 'width') value = Math.max(40, value);
           if (key === 'height') value = Math.max(30, value);
+          if (key === 'fontSize') value = normalizeDiagramFontSize(value);
         }
         if (key === 'hyperlink') {
           value = String(value == null ? '' : value).trim();
@@ -6686,31 +6975,265 @@ function createDiagramFactory(
     this._propertyEditors.push(control);
   };
 
+  Diagram.prototype._paperPropertyField = function(
+    label,
+    key,
+    editor,
+    options
+  ) {
+    var self = this;
+    var row = document.createElement('label');
+    var caption = document.createElement('span');
+    var input = document.createElement('input');
+    var value = key === 'size' ?
+      this.options.paperSize :
+      key === 'orientation' ?
+        this.options.paperOrientation :
+        this.options.gridSize;
+    var control;
+    caption.textContent = label;
+    row.className = 'fui-diagram-property-row';
+    row.setAttribute('data-diagram-paper-property', key);
+    caption.className = 'fui-diagram-property-label';
+    input.value = String(value);
+    row.appendChild(caption);
+    row.appendChild(input);
+    this.propertiesBodyElement.appendChild(row);
+    control = new EditBox(input, diagramAssign({
+      editor: editor,
+      spinner: editor === 'number',
+      width: '100%',
+      theme: 'inherit',
+      value: value,
+      disabled: this.options.disabled || this.options.readOnly,
+      onChange: function(nextValue) {
+        var size = self.options.paperSize;
+        var orientation = self.options.paperOrientation;
+        var gridSize = self.options.gridSize;
+        if (key === 'size') {
+          size = normalizeDiagramPaperSize(nextValue);
+        } else if (key === 'orientation') {
+          orientation = normalizeDiagramPaperOrientation(nextValue);
+        } else {
+          gridSize = Math.max(5, diagramNumber(nextValue, gridSize));
+        }
+        self.setPaper(size, orientation, gridSize);
+      }
+    }, options || {}));
+    this._propertyEditors.push(control);
+  };
+
+  Diagram.prototype._multiPropertyField = function(
+    label,
+    items,
+    key,
+    editor,
+    options,
+    container
+  ) {
+    var self = this;
+    var common = diagramCommonProperty(items, key);
+    var row = document.createElement('label');
+    var caption = document.createElement('span');
+    var input = document.createElement('input');
+    var control;
+    caption.textContent = label;
+    row.className = 'fui-diagram-property-row';
+    caption.className = 'fui-diagram-property-label';
+    input.value = common.mixed || common.value == null ? '' : String(common.value);
+    if (common.mixed) input.placeholder = '—';
+    row.appendChild(caption);
+    row.appendChild(input);
+    (container || this.propertiesBodyElement).appendChild(row);
+    control = new EditBox(input, diagramAssign({
+      editor: editor,
+      spinner: editor === 'number',
+      width: '100%',
+      theme: 'inherit',
+      value: common.mixed ? '' : common.value,
+      onChange: function(value) {
+        if (editor === 'number') {
+          value = diagramNumber(value, items[0][key]);
+          if (key === 'width') value = Math.max(40, value);
+          if (key === 'height') value = Math.max(30, value);
+          if (key === 'fontSize') value = normalizeDiagramFontSize(value);
+        }
+        items.forEach(function(item) {
+          item[key] = value;
+        });
+        self._renderCanvas();
+        self._commit('change', {
+          itemType: 'node',
+          items: items
+        });
+      }
+    }, options || {}));
+    this._propertyEditors.push(control);
+  };
+
+  Diagram.prototype._renderPaperProperties = function() {
+    var title = document.createElement('div');
+    title.className = 'fui-diagram-property-section-title';
+    title.textContent = this.messages.paperSettings;
+    this.propertiesBodyElement.appendChild(title);
+    this._paperPropertyField(
+      this.messages.paperSize,
+      'size',
+      'combo',
+      {
+        editable: false,
+        limitToList: true,
+        data: Object.keys(DIAGRAM_PAPER_SIZES).map(function(size) {
+          return { value: size, text: size };
+        })
+      }
+    );
+    this._paperPropertyField(
+      this.messages.paperOrientation,
+      'orientation',
+      'combo',
+      {
+        editable: false,
+        limitToList: true,
+        data: [
+          { value: 'landscape', text: this.messages.landscape },
+          { value: 'portrait', text: this.messages.portrait }
+        ]
+      }
+    );
+    this._paperPropertyField(
+      this.messages.snapSize,
+      'gridSize',
+      'number',
+      { min: 5, precision: 0 }
+    );
+  };
+
+  Diagram.prototype._propertyTextStyle = function(item) {
+    var self = this;
+    var items = Array.isArray(item) ? item : [item];
+    var field = document.createElement('div');
+    var caption = document.createElement('span');
+    var controls = document.createElement('div');
+    var styles = [
+      { key: 'fontBold', text: 'B', label: this.messages.bold },
+      { key: 'fontItalic', text: 'I', label: this.messages.italic },
+      { key: 'fontUnderline', text: 'U', label: this.messages.underline },
+      { key: 'fontStrikethrough', text: 'S', label: this.messages.strikethrough }
+    ];
+    field.className = 'fui-diagram-property-text-style';
+    caption.className = 'fui-diagram-property-label';
+    controls.className = 'fui-diagram-property-text-style-buttons';
+    caption.textContent = this.messages.textStyle;
+    field.appendChild(caption);
+    field.appendChild(controls);
+    this.propertiesBodyElement.appendChild(field);
+    styles.forEach(function(style) {
+      var host = document.createElement('a');
+      var control;
+      host.setAttribute('title', style.label);
+      host.setAttribute('aria-label', style.label);
+      host.setAttribute('data-diagram-text-style', style.key);
+      controls.appendChild(host);
+      control = new Button(host, {
+        text: style.text,
+        width: '100%',
+        height: 30,
+        toggle: true,
+        selected: items.every(function(target) {
+          return target[style.key] === true;
+        }),
+        outline: true,
+        theme: 'inherit',
+        onClick: function(button, event) {
+          items.forEach(function(target) {
+            target[style.key] = event.selected === true;
+          });
+          self._renderCanvas();
+          self._commit('change', {
+            itemType: items.length > 1 ? 'node' : self._selected.type,
+            item: items.length === 1 ? items[0] : null,
+            items: items
+          });
+        }
+      });
+      self._propertyEditors.push(control);
+    });
+  };
+
+  Diagram.prototype._renderMultiProperties = function(items) {
+    var title = document.createElement('div');
+    var sizeFields = document.createElement('div');
+    title.className = 'fui-diagram-property-section-title';
+    title.textContent = this.messages.multipleSelection.replace(
+      '{0}',
+      String(items.length)
+    );
+    this.propertiesBodyElement.appendChild(title);
+    this._multiPropertyField(
+      this.messages.fontSize,
+      items,
+      'fontSize',
+      'number',
+      { precision: 0, min: 8, max: 96 }
+    );
+    this._propertyTextStyle(items);
+    sizeFields.className = 'fui-diagram-property-pair';
+    this.propertiesBodyElement.appendChild(sizeFields);
+    this._multiPropertyField(
+      this.messages.width,
+      items,
+      'width',
+      'number',
+      { precision: 0, min: 40 },
+      sizeFields
+    );
+    this._multiPropertyField(
+      this.messages.height,
+      items,
+      'height',
+      'number',
+      { precision: 0, min: 30 },
+      sizeFields
+    );
+    this._multiPropertyField(this.messages.fill, items, 'fill', 'color');
+    this._multiPropertyField(this.messages.stroke, items, 'stroke', 'color');
+  };
+
   Diagram.prototype._renderProperties = function() {
     var item;
     var positionFields;
+    var selectedNodes;
     var sizeFields;
     this._disposePropertyEditors();
     this.propertiesBodyElement.textContent = '';
     if (!this._selected) {
-      this.propertiesBodyElement.textContent = this.messages.noSelection;
+      this._renderPaperProperties();
       return;
     }
     if (this._selected.type === 'node' && this._selectedNodeIds.length > 1) {
-      this.propertiesBodyElement.textContent = this.messages.multipleSelection.replace(
-        '{0}',
-        String(this._selectedNodeIds.length)
-      );
+      selectedNodes = this._selectedNodeIds.map(
+        this.getNode.bind(this)
+      ).filter(Boolean);
+      this._renderMultiProperties(selectedNodes);
       return;
     }
     item = this._selected.type === 'node' ?
       this.getNode(this._selected.id) :
       this.getConnector(this._selected.id);
     if (!item) {
-      this.propertiesBodyElement.textContent = this.messages.noSelection;
+      this._renderPaperProperties();
       return;
     }
     this._propertyField(this.messages.text, item, 'text', 'text');
+    this._propertyField(
+      this.messages.fontSize,
+      item,
+      'fontSize',
+      'number',
+      { precision: 0, min: 8, max: 96 }
+    );
+    this._propertyTextStyle(item);
     if (this._selected.type === 'node') {
       this._propertyField(
         this.messages.hyperlink,
@@ -6814,12 +7337,27 @@ function createDiagramFactory(
     var clear = this._toolbarButtons.clear;
     var load = this._toolbarButtons.load;
     var connect = this._toolbarButtons.connect;
+    var connectTypes = [{
+      button: this._toolbarButtons.connectStraight,
+      type: 'straight'
+    }, {
+      button: this._toolbarButtons.connectOrthogonal,
+      type: 'orthogonal'
+    }, {
+      button: this._toolbarButtons.connectCurved,
+      type: 'curved'
+    }, {
+      button: this._toolbarButtons.connectSCurve,
+      type: 'sCurve'
+    }];
     var toolbox = this._toolbarButtons.toolbox;
     var properties = this._toolbarButtons.properties;
     var readOnlyButton = this._toolbarButtons.readOnly;
     var grid = this._toolbarButtons.grid;
     var fullscreen = this._toolbarButtons.fullscreen;
     var presentation = this._toolbarButtons.presentation;
+    var fullscreenText;
+    var presentationText;
     var editingDisabled = this.options.disabled || this.options.readOnly;
     if (undo) {
       if (!editingDisabled && this.canUndo()) undo.enable();
@@ -6850,6 +7388,13 @@ function createDiagramFactory(
       if (this._connectMode) connect.select(true);
       else connect.unselect(true);
     }
+    connectTypes.forEach(function(item) {
+      if (!item.button) return;
+      if (editingDisabled) item.button.disable();
+      else item.button.enable();
+      if (item.type === this._connectType) item.button.select(true);
+      else item.button.unselect(true);
+    }, this);
     if (toolbox) {
       if (editingDisabled) toolbox.disable();
       else toolbox.enable();
@@ -6878,18 +7423,20 @@ function createDiagramFactory(
       this.zoomLabelElement.textContent = Math.round(this.options.zoomLevel * 100) + '%';
     }
     if (fullscreen) {
-      fullscreen.setText(
-        diagramElementIsFullscreen(this.hostElement) ?
-          this.messages.exitFullscreen :
-          this.messages.fullscreen
-      );
+      fullscreenText = diagramElementIsFullscreen(this.hostElement) ?
+        this.messages.exitFullscreen :
+        this.messages.fullscreen;
+      fullscreen.setText('');
+      fullscreen.hostElement.title = fullscreenText;
+      fullscreen.hostElement.setAttribute('aria-label', fullscreenText);
     }
     if (presentation) {
-      presentation.setText(
-        diagramElementIsFullscreen(this.viewportElement) ?
-          this.messages.exitPresentation :
-          this.messages.presentation
-      );
+      presentationText = diagramElementIsFullscreen(this.viewportElement) ?
+        this.messages.exitPresentation :
+        this.messages.presentation;
+      presentation.setText('');
+      presentation.hostElement.title = presentationText;
+      presentation.hostElement.setAttribute('aria-label', presentationText);
     }
     if (this._contextMenu) {
       this._contextMenu.setText({
@@ -6912,6 +7459,7 @@ function createDiagramFactory(
     this._history.push(diagramClone(this._data));
     this._historyIndex = this._history.length - 1;
     this.hasChanges = true;
+    this._saveToolboxState();
     this._syncToolbarStates();
     this._fire('Changed', diagramAssign({
       action: action,
@@ -6983,7 +7531,7 @@ function createDiagramFactory(
     this._connectSourceId = '';
     if (!preserveHistory) this._resetHistory();
     this.render();
-    if (page) this._saveToolboxState();
+    this._saveToolboxState();
     return this;
   };
 
@@ -7147,7 +7695,7 @@ function createDiagramFactory(
     var connectorTools;
     var index;
     if (type != null) {
-      this._connectType = ['straight', 'curved'].indexOf(type) >= 0 ?
+      this._connectType = ['straight', 'curved', 'sCurve'].indexOf(type) >= 0 ?
         type :
         'orthogonal';
     }
@@ -7194,6 +7742,7 @@ function createDiagramFactory(
     this._selected = null;
     this._selectedNodeIds = [];
     this.hasChanges = this._historyIndex !== 0;
+    this._saveToolboxState();
     this.render();
     this._fire('Changed', { action: 'undo', data: this.getData() });
     return this;
@@ -7207,6 +7756,7 @@ function createDiagramFactory(
     this._selected = null;
     this._selectedNodeIds = [];
     this.hasChanges = true;
+    this._saveToolboxState();
     this.render();
     this._fire('Changed', { action: 'redo', data: this.getData() });
     return this;
@@ -7590,7 +8140,6 @@ function createDiagramFactory(
   };
 
   Diagram.prototype.setLocale = function(locale) {
-    this._disposePaperDialog();
     this.options.locale = normalizeDiagramLocale(locale);
     this.messages = localePacks[this.options.locale];
     this.hostElement.setAttribute(
@@ -7672,6 +8221,23 @@ function createDiagramFactory(
       this._toolbarButtons.print.setText(this.messages.print);
     }
     if (this._toolbarButtons.connect) this._toolbarButtons.connect.setText(this.messages.connect);
+    [{
+      button: this._toolbarButtons.connectStraight,
+      text: this.messages.connectStraight
+    }, {
+      button: this._toolbarButtons.connectOrthogonal,
+      text: this.messages.connectOrthogonal
+    }, {
+      button: this._toolbarButtons.connectCurved,
+      text: this.messages.connectCurved
+    }, {
+      button: this._toolbarButtons.connectSCurve,
+      text: this.messages.connectSCurve
+    }].forEach(function(item) {
+      if (!item.button) return;
+      item.button.hostElement.title = item.text;
+      item.button.hostElement.setAttribute('aria-label', item.text);
+    });
     if (this._toolbarButtons.toolbox) {
       this._toolbarButtons.toolbox.setText(this.messages.toolbox);
     }
@@ -7727,7 +8293,6 @@ function createDiagramFactory(
 
   Diagram.prototype.setTheme = function(theme) {
     var index;
-    this._disposePaperDialog();
     this.options.theme = theme == null ? 'inherit' : theme;
     this.theme = this.options.theme === 'inherit' ?
       findDiagramTheme(this._themeSource) :
@@ -7955,7 +8520,6 @@ function createDiagramFactory(
     if (this._destroyed) return;
     this._destroyed = true;
     this._closeInlineTextEditor(false);
-    this._disposePaperDialog();
     if (this._contextMenu) {
       this._contextMenu.dispose();
       this._contextMenu = null;
@@ -8041,7 +8605,6 @@ global.fabui.Diagram = createDiagramFactory(
   global.fabui.Control._unregisterControl,
   global.fabui.Button,
   global.fabui.EditBox,
-  global.fabui.Window,
   global.fabui.Menu,
   global.fabui.Tabs
 );

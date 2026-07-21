@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabUI PivotWorkspace 開發版</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260719-i18n-theme-audit-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260721-initial-filter-rules-v1">
   <style>
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -45,6 +45,7 @@
           <option value="material">Material</option>
           <option value="cupertino">Cupertino</option>
           <option value="dark-hive">Dark Hive</option>
+          <option value="mono">Mono</option><option value="mono-red">Mono Red</option><option value="mono-green">Mono Green</option>
         </select>
       </label>
       <label>
@@ -80,7 +81,7 @@
   </main>
 
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260719-chart-tooltip-v1';
+    import fabui from '../src/fabui.js?v=20260721-initial-filter-rules-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260717-pivot-workspace-v3');
@@ -167,7 +168,7 @@
       }
     });
 
-    const themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive'];
+    const themes = ['default', 'metro-blue', 'material', 'cupertino', 'dark-hive', 'mono', 'mono-red', 'mono-green'];
     const examples = {
       'quarter-region-product': {
         rowFields: ['quarter', 'region'],
@@ -206,7 +207,10 @@
           'metro-blue': 'Metro Blue',
           'material': 'Material',
           'cupertino': 'Cupertino',
-          'dark-hive': 'Dark Hive'
+          'dark-hive': 'Dark Hive',
+          'mono': 'Mono',
+          'mono-red': 'Mono Red',
+          'mono-green': 'Mono Green'
         },
         layouts: {
           'Auto': '自動',
@@ -238,7 +242,10 @@
           'metro-blue': 'Metro Blue',
           'material': 'Material',
           'cupertino': 'Cupertino',
-          'dark-hive': 'Dark Hive'
+          'dark-hive': 'Dark Hive',
+          'mono': 'Mono',
+          'mono-red': 'Mono Red',
+          'mono-green': 'Mono Green'
         },
         layouts: {
           'Auto': '自动',
@@ -270,7 +277,10 @@
           'metro-blue': 'Metro Blue',
           'material': 'Material',
           'cupertino': 'Cupertino',
-          'dark-hive': 'Dark Hive'
+          'dark-hive': 'Dark Hive',
+          'mono': 'Mono',
+          'mono-red': 'Mono Red',
+          'mono-green': 'Mono Green'
         },
         layouts: {
           'Auto': 'Auto',
@@ -374,6 +384,6 @@
     window.pivotGrid = workspace.grid;
     window.pivotChart = workspace.chart;
   </script>
-  <script type="module" src="./js/dev-controls.js?v=20260719-select-fit-v1"></script>
+  <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>
 </body>
 </html>

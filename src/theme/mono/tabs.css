@@ -1,0 +1,37 @@
+.fui-tabs.fg-theme-mono {
+  --fui-tabs-radius: 0;
+  --fui-tabs-border: #abafb8;
+  --fui-tabs-header-bg: #c7ccd1;
+  --fui-tabs-header-text: #404040;
+  --fui-tabs-panel-bg: #fafafa;
+  --fui-tabs-panel-text: #404040;
+  --fui-tabs-tab-bg: #c7ccd1;
+  --fui-tabs-tab-text: #404040;
+  --fui-tabs-hover-bg: #E6E6E6;
+  --fui-tabs-hover-text: #404040;
+  --fui-tabs-selected-bg: #fafafa;
+  --fui-tabs-selected-text: #404040;
+  --fui-tabs-selected-edge: #fafafa;
+  --fui-tabs-selected-top-bg: #fafafa;
+  --fui-tabs-selected-bottom-bg: #fafafa;
+  --fui-tabs-selected-left-bg: #fafafa;
+  --fui-tabs-selected-right-bg: #fafafa;
+  --fui-tabs-pill-bg: #84909c;
+  --fui-tabs-pill-text: #ffffff;
+  --fui-tabs-drag-indicator: #d66a2f;
+}
+
+.fui-tabs.fg-theme-mono .fui-tabs-close {
+  background-image: url('./images/tabs-close.svg');
+  background-position: center;
+}
+
+.fui-tabs.fg-theme-mono .fui-tabs-scroll-prev {
+  background-image: url('./images/tabs-prev.svg');
+  background-position: center;
+}
+
+.fui-tabs.fg-theme-mono .fui-tabs-scroll-next {
+  background-image: url('./images/tabs-next.svg');
+  background-position: center;
+}

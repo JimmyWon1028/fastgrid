@@ -1,0 +1,120 @@
+/*! FabGrid theme mono-green | Metro Green palette with monochrome SVG icons */
+@import './mono-green/tabs.css?v=20260721-mono-variants-v1';
+
+.fg-root.fg-theme-mono-green,
+.fui-tabs.fg-theme-mono-green {
+  --fg-border: #bbb;
+  --fg-border-strong: #bbb;
+  --fg-frozen-divider: #aaa;
+  --fg-header-bg: #EBECED;
+  --fg-header-text: gray;
+  --fg-cell-bg: #fafafa;
+  --fg-cell-text: #404040;
+  --fg-cell-hover-bg: #E0F892;
+  --fg-row-hover-bg: #E0F892;
+  --fg-row-selected-bg: #c8d47b;
+  --fg-row-header-bg: #EBECED;
+  --fg-row-header-text: gray;
+  --fg-selected-bg: #E0F892;
+  --fg-selected-border: #ee7f7d;
+  --fg-editor-border: #f29c9b;
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-header,
+.fg-root.fg-theme-mono-green .fg-header-frozen,
+.fg-root.fg-theme-mono-green .fg-header-frozen-right,
+.fg-root.fg-theme-mono-green .fg-footer,
+.fg-root.fg-theme-mono-green .fg-footer-frozen,
+.fg-root.fg-theme-mono-green .fg-footer-frozen-right {
+  background: #EBECED;
+}
+
+.fg-root.fg-theme-mono-green .fg-row-header-top,
+.fg-root.fg-theme-mono-green .fg-selection-top,
+.fg-root.fg-theme-mono-green .fg-header-cell,
+.fg-root.fg-theme-mono-green .fg-footer-row-header,
+.fg-root.fg-theme-mono-green .fg-footer-selection,
+.fg-root.fg-theme-mono-green .fg-footer-cell,
+.fg-root.fg-theme-mono-green .fg-row-header-cell {
+  background-color: var(--fg-header-bg);
+  color: gray;
+}
+
+.fg-root.fg-theme-mono-green .fg-body,
+.fg-root.fg-theme-mono-green .fg-frozen-pane,
+.fg-root.fg-theme-mono-green .fg-frozen-pane-right,
+.fg-root.fg-theme-mono-green .fg-selection-pane,
+.fg-root.fg-theme-mono-green .fg-cell,
+.fg-root.fg-theme-mono-green .fg-selection-cell {
+  background: #fafafa;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-even,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-even,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-alt,
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-alt {
+  background-color: #f5f5f5;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-hovered,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-hovered,
+.fg-root.fg-theme-mono-green .fg-cell:hover,
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-hovered:hover {
+  background: #E0F892;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-selected,
+.fg-root.fg-theme-mono-green .fg-selection-cell.fg-row-selected,
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-selected:hover,
+.fg-root.fg-theme-mono-green .fg-row-selected.fg-selected {
+  background: #c8d47b;
+  color: #404040;
+}
+
+.fg-root.fg-theme-mono-green .fg-selected {
+  background: #E0F892;
+  color: #404040;
+  outline-color: #ee7f7d;
+}
+
+.fg-root.fg-theme-mono-green .fg-cell.fg-row-selected.fg-selected {
+  background: var(--fg-row-hover-bg);
+  color: var(--fg-cell-text);
+}
+
+.fg-root.fg-theme-mono-green .fg-sort-asc {
+  border-bottom-color: #333;
+}
+
+.fg-root.fg-theme-mono-green .fg-sort-desc {
+  border-top-color: #333;
+}
+
+.fg-root.fg-theme-mono-green .fg-editor {
+  border-color: #f29c9b;
+}
+
+.fg-root.fg-theme-mono-green .pagination-first {
+  background: url('mono/pagination-first.svg') no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-prev {
+  background: url('mono/pagination-prev.svg') no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-next {
+  background: url('mono/pagination-next.svg') no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-last {
+  background: url('mono/pagination-last.svg') no-repeat center;
+}
+
+.fg-root.fg-theme-mono-green .pagination-load {
+  background: url('mono/pagination-load.svg') no-repeat center;
+}

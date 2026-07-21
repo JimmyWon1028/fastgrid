@@ -17,6 +17,7 @@
   min-height: 320px;
   overflow: hidden;
   border: 1px solid var(--fui-diagram-border);
+  outline: 0;
   background: var(--fui-diagram-pane-bg);
   color: var(--fui-diagram-pane-text);
   font: 14px Arial, Helvetica, sans-serif;
@@ -865,13 +866,15 @@
 .fui-diagram-node-text,
 .fui-diagram-connector-label {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 14px;
   pointer-events: none;
   user-select: none;
 }
 
+.fui-diagram-connector-label-background {
+  pointer-events: none;
+}
+
 .fui-diagram-node-text-linked {
-  text-decoration: underline;
   pointer-events: auto;
   cursor: pointer;
 }
@@ -919,11 +922,24 @@
   vector-effect: non-scaling-stroke;
 }
 
+.fui-diagram-group-selection-outline {
+  fill: none;
+  stroke: var(--fui-diagram-selection);
+  stroke-dasharray: 7 4;
+  stroke-width: 2;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
 .fui-diagram-resize-handle {
   fill: var(--fui-diagram-pane-bg);
   stroke: var(--fui-diagram-selection);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+}
+
+.fui-diagram-group-resize-handle {
+  fill: var(--fui-control-selected, #ffe48d);
 }
 
 .fui-diagram-connection-point {
@@ -1002,36 +1018,6 @@
   white-space: pre-wrap;
 }
 
-.fui-diagram-paper-form {
-  display: grid;
-  padding: 18px;
-  gap: 14px;
-}
-
-.fui-diagram-paper-field {
-  display: grid;
-  min-width: 0;
-  align-items: center;
-  grid-template-columns: 90px minmax(0, 1fr);
-  gap: 10px;
-}
-
-.fui-diagram-paper-label {
-  color: var(--fui-panel-text, inherit);
-  text-align: right;
-}
-
-.fui-diagram-paper-field > .fui-editbox {
-  width: 100% !important;
-}
-
-.fui-diagram-paper-actions {
-  display: flex;
-  padding: 8px 10px;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .fui-diagram-node-editing .fui-diagram-node-text {
   visibility: hidden;
 }
@@ -1071,6 +1057,13 @@
   padding: 10px;
 }
 
+.fui-diagram-property-section-title {
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--fui-diagram-border);
+  font-weight: 700;
+}
+
 .fui-diagram-property-row {
   display: block;
   margin: 0 0 10px;
@@ -1098,6 +1091,40 @@
 .fui-diagram-property-pair > .fui-diagram-property-row {
   min-width: 0;
   margin-bottom: 0;
+}
+
+.fui-diagram-property-text-style {
+  margin: 0 0 10px;
+}
+
+.fui-diagram-property-text-style-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.fui-diagram-property-text-style-buttons > .fui-button {
+  min-width: 0;
+}
+
+.fui-diagram-property-text-style-buttons
+  [data-diagram-text-style="fontBold"] .fui-button-text {
+  font-weight: 700;
+}
+
+.fui-diagram-property-text-style-buttons
+  [data-diagram-text-style="fontItalic"] .fui-button-text {
+  font-style: italic;
+}
+
+.fui-diagram-property-text-style-buttons
+  [data-diagram-text-style="fontUnderline"] .fui-button-text {
+  text-decoration: underline;
+}
+
+.fui-diagram-property-text-style-buttons
+  [data-diagram-text-style="fontStrikethrough"] .fui-button-text {
+  text-decoration: line-through;
 }
 
 .fui-diagram-view-toolbar {

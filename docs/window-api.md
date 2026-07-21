@@ -2,7 +2,7 @@
 
 `fabui.Window` 是 FabUI core 內建的 pure JavaScript 浮動視窗元件。API 與視覺參考 jQuery EasyUI Window／Default theme，但不依賴 jQuery、EasyUI、draggable 或 resizable runtime。
 
-Window 的內建工具與 Panel 共用各 theme 對應的 `panel_tools.png` sprite。16 組主題的 frame、header、body、footer、邊框、圓角、gradient、shadow、mask 與自訂 tool hover 色均對應本機 `res/themes/<theme>/window.css`／`panel.css`；最小化、最大化、還原、關閉、收合與展開等內建 icon 不顯示滑鼠 hover 效果，鍵盤 `focus-visible` 提示仍保留。正式 source 與 build 不依賴 `res/`。
+Window 的內建工具與 Panel 共用各 theme 對應的 `panel_tools.png` sprite。既有 16 組主題的 frame、header、body、footer、邊框、圓角、gradient、shadow、mask 與自訂 tool hover 色均對應本機 `res/themes/<theme>/window.css`／`panel.css`；`mono` 沿用 Default 結構並套用單色 SVG icon。最小化、最大化、還原、關閉、收合與展開等內建 icon 不顯示滑鼠 hover 效果，鍵盤 `focus-visible` 提示仍保留。正式 source 與 build 不依賴 `res/`。
 
 Window 疊合後只保留標題列，外框高度約為 38px；展開時恢復原本設定的高度。
 

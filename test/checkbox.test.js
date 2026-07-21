@@ -23,7 +23,7 @@ test('CheckBox exposes the official EasyUI-compatible defaults', function() {
   assert.equal(fabui.CheckBox.defaults.disabled, false);
   assert.equal(fabui.CheckBox.defaults.label, null);
   assert.equal(fabui.CheckBox.defaults.labelWidth, 'auto');
-  assert.equal(fabui.CheckBox.defaults.labelPosition, 'before');
+  assert.equal(fabui.CheckBox.defaults.labelPosition, 'after');
   assert.equal(fabui.CheckBox.defaults.labelAlign, 'left');
 });
 
@@ -40,8 +40,10 @@ test('CheckBox normalizes themes, label position and label alignment', function(
   assert.equal(normalizeCheckBoxTheme(' BLACK '), 'black');
   assert.equal(normalizeCheckBoxTheme('unknown'), 'default');
   assert.equal(normalizeCheckBoxLabelPosition('after'), 'after');
+  assert.equal(normalizeCheckBoxLabelPosition('before'), 'before');
   assert.equal(normalizeCheckBoxLabelPosition('top'), 'top');
-  assert.equal(normalizeCheckBoxLabelPosition('bottom'), 'before');
+  assert.equal(normalizeCheckBoxLabelPosition(), 'after');
+  assert.equal(normalizeCheckBoxLabelPosition('bottom'), 'after');
   assert.equal(normalizeCheckBoxLabelAlign('right'), 'right');
   assert.equal(normalizeCheckBoxLabelAlign('center'), 'left');
 });

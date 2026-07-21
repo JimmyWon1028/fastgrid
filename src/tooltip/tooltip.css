@@ -121,7 +121,9 @@
 .fui-tooltip.fg-theme-metro-gray,
 .fui-tooltip.fg-theme-metro-green,
 .fui-tooltip.fg-theme-metro-orange,
-.fui-tooltip.fg-theme-metro-red {
+.fui-tooltip.fg-theme-metro-red,
+.fui-tooltip.fg-theme-mono-red,
+.fui-tooltip.fg-theme-mono-green {
   --fui-tooltip-bg: #fafafa;
   --fui-tooltip-text: #404040;
   --fui-tooltip-radius: 0;
@@ -140,7 +142,8 @@
   --fui-tooltip-border: #abafb8;
 }
 
-.fui-tooltip.fg-theme-metro-green {
+.fui-tooltip.fg-theme-metro-green,
+.fui-tooltip.fg-theme-mono-green {
   --fui-tooltip-border: #b1c242;
 }
 
@@ -148,7 +151,8 @@
   --fui-tooltip-border: #d4a375;
 }
 
-.fui-tooltip.fg-theme-metro-red {
+.fui-tooltip.fg-theme-metro-red,
+.fui-tooltip.fg-theme-mono-red {
   --fui-tooltip-border: #f6c1bc;
 }
 

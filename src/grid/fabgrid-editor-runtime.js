@@ -70,6 +70,30 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     return type;
   }
 
+  function getEditorSpinner(config) {
+    var definition = config ? editorDefinitions[config.type] || null : null;
+    var options = config && config.options ? config.options : {};
+    if (!config || (config.type !== 'number' && config.type !== 'time')) return false;
+    if (definition && typeof definition.normalizeSpinner === 'function') {
+      return definition.normalizeSpinner(options.spinner);
+    }
+    if (options.spinner === true || String(options.spinner).toLowerCase() === 'right') return 'right';
+    if (String(options.spinner).toLowerCase() === 'left') return 'left';
+    return false;
+  }
+
+  function getEditorSpinnerWidth(config) {
+    var options = config && config.options ? config.options : {};
+    return Math.max(18, toNumber(options.iconWidth, 28));
+  }
+
+  function getNumberSpinOptions(column, config) {
+    return mergeOptions(config && config.options ? config.options : {}, {
+      precision: getNumberPrecision(column),
+      thousandsSeparator: shouldUseThousandsSeparator(column)
+    });
+  }
+
   FabGrid.prototype.startEditing = function(row, col, options) {
     var column = this.visibleColumns[col];
     var item = this.view[row];
@@ -99,6 +123,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.editing = { row: row, col: col, item: item, original: value, editor: this.editorConfig };
     this.configureEditor(column);
     this.editor.value = this.getEditorText(value, column);
+    this.updateEditorSpinnerState();
     if (this.editorConfig.type === 'combo') {
       this.editing.comboboxValue = value;
     }
@@ -121,17 +146,33 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     var editorClassName = definition && definition.className ? definition.className : 'textbox-f fg-editor-' + type + ' ' + type + '-f';
     var hasBuiltInEditorIcon = isDateLikeEditorType(type) || type === 'combo' || type === 'color';
     var iconConfigs = hasBuiltInEditorIcon ? [] : getEditorIconConfigs(config);
-    var hasEditorIcons = hasBuiltInEditorIcon || iconConfigs.length > 0;
+    var spinner = getEditorSpinner(config);
+    var spinnerWidth = spinner ? getEditorSpinnerWidth(config) : 0;
+    var editorIconWidth = getEditorIconConfigWidth(iconConfigs, type) + spinnerWidth;
+    var hasEditorIcons = hasBuiltInEditorIcon || iconConfigs.length > 0 || Boolean(spinner);
     this.editorConfig = config;
     this.editorIconConfigs = iconConfigs;
-    this.renderEditorIcons(type, iconConfigs);
+    this.editorSpinnerPosition = spinner;
+    this.editorIconHostWidth = editorIconWidth;
+    this.renderEditorIcons(type, iconConfigs, spinner, spinnerWidth);
     this.editor.className = 'fg-editor ' + editorClassName + (hasEditorIcons ? ' fg-editor-with-icons' : '');
     this.editor.setAttribute('data-editor-type', type);
     this.editor.setAttribute('autocomplete', 'off');
     this.editor.type = 'text';
     this.editor.inputMode = definition && definition.inputMode ? definition.inputMode : (isDateLikeEditorType(type) ? 'numeric' : 'text');
-    this.editor.style.paddingRight = hasEditorIcons ? (getEditorIconConfigWidth(iconConfigs, type) + 6) + 'px' : '';
+    this.editor.style.paddingLeft = spinner === 'left' ? (editorIconWidth + 6) + 'px' : '';
+    this.editor.style.paddingRight = hasEditorIcons && spinner !== 'left' ? (editorIconWidth + 6) + 'px' : '';
     this.editorIconHost.style.display = hasEditorIcons ? 'flex' : 'none';
+    this.editorIconHost.className = 'fg-editor-icons' + (spinner === 'left' ? ' fg-editor-icons-left' : '');
+    if (spinner) {
+      this.editor.setAttribute('role', 'spinbutton');
+    } else {
+      this.editor.removeAttribute('role');
+      this.editor.removeAttribute('aria-valuemin');
+      this.editor.removeAttribute('aria-valuemax');
+      this.editor.removeAttribute('aria-valuenow');
+      this.editor.removeAttribute('aria-valuetext');
+    }
     if (!isDateLikeEditorType(type)) {
       this.hideDateboxPanel();
     }
@@ -143,12 +184,19 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     }
   };
 
-  FabGrid.prototype.renderEditorIcons = function(type, iconConfigs) {
+  FabGrid.prototype.renderEditorIcons = function(type, iconConfigs, spinner, spinnerWidth) {
     var fragment = document.createDocumentFragment();
     var button;
     var icon;
+    var spinnerElement;
+    var increaseButton;
+    var decreaseButton;
+    var options = this.editorConfig && this.editorConfig.options ? this.editorConfig.options : {};
     var i;
     this.editorIconHost.innerHTML = '';
+    this.editorSpinner = null;
+    this.editorSpinnerIncrease = null;
+    this.editorSpinnerDecrease = null;
     if (iconConfigs && iconConfigs.length) {
       for (i = 0; i < iconConfigs.length; i += 1) {
         icon = iconConfigs[i];
@@ -162,7 +210,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
         button.style.width = Math.max(18, toNumber(icon.width, 22)) + 'px';
         fragment.appendChild(button);
       }
-    } else {
+    } else if (isDateLikeEditorType(type) || type === 'combo' || type === 'color') {
       button = document.createElement('button');
       button.type = 'button';
       button.className = trimText('fg-editor-trigger fg-editor-trigger-' + getEditorCssType(type) + (isDateLikeEditorType(type) ? ' icon-datebox' : ''));
@@ -170,15 +218,140 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       button.style.width = '22px';
       fragment.appendChild(button);
     }
+    if (spinner) {
+      spinnerElement = document.createElement('span');
+      increaseButton = document.createElement('button');
+      decreaseButton = document.createElement('button');
+      spinnerElement.className = 'fui-numberbox-spinner fui-numberbox-spinner-' + spinner +
+        (type === 'time' ? ' fui-timebox-spinner fg-editor-time-spinner' : ' fg-editor-number-spinner');
+      spinnerElement.style.width = spinnerWidth + 'px';
+      spinnerElement.style.flexBasis = spinnerWidth + 'px';
+      increaseButton.type = 'button';
+      increaseButton.className = 'fui-numberbox-spinner-button fui-numberbox-spinner-up fg-editor-spinner-button';
+      increaseButton.setAttribute('data-spin-direction', '1');
+      increaseButton.title = options.increaseValueText || this.getText('aria.increaseValue');
+      increaseButton.setAttribute('aria-label', increaseButton.title);
+      decreaseButton.type = 'button';
+      decreaseButton.className = 'fui-numberbox-spinner-button fui-numberbox-spinner-down fg-editor-spinner-button';
+      decreaseButton.setAttribute('data-spin-direction', '-1');
+      decreaseButton.title = options.decreaseValueText || this.getText('aria.decreaseValue');
+      decreaseButton.setAttribute('aria-label', decreaseButton.title);
+      spinnerElement.appendChild(increaseButton);
+      spinnerElement.appendChild(decreaseButton);
+      if (spinner === 'left') {
+        fragment.insertBefore(spinnerElement, fragment.firstChild);
+      } else {
+        fragment.appendChild(spinnerElement);
+      }
+      this.editorSpinner = spinnerElement;
+      this.editorSpinnerIncrease = increaseButton;
+      this.editorSpinnerDecrease = decreaseButton;
+    }
     this.editorIconHost.appendChild(fragment);
     this.editorTrigger = this.editorIconHost.querySelector('.fg-editor-trigger');
+  };
+
+  FabGrid.prototype.spinEditorValue = function(direction) {
+    var column;
+    var config;
+    var definition;
+    var options;
+    var current;
+    var nextValue;
+    var segment;
+    if (!this.editing || !this.editorSpinner) {
+      return false;
+    }
+    column = this.visibleColumns[this.editing.col];
+    config = column ? getColumnEditorConfig(column) : this.editorConfig;
+    definition = config ? editorDefinitions[config.type] || null : null;
+    if (!column || !config || !getEditorSpinner(config) || !definition || typeof definition.getSpinValue !== 'function') {
+      return false;
+    }
+    if (config.type === 'time') {
+      options = mergeOptions(config.options || {}, { mask: getEditorMask(column) });
+      segment = typeof definition.getSegmentAtCaret === 'function' ?
+        definition.getSegmentAtCaret(this.editor.selectionStart, options) : 0;
+      nextValue = definition.getSpinValue(this.editor.value, segment, direction, options);
+      this.editor.value = nextValue;
+      this.updateEditorSpinnerState();
+      this.editor.focus();
+      this.selectTimeEditorSegment(segment);
+      return true;
+    }
+    options = getNumberSpinOptions(column, config);
+    current = typeof definition.parse === 'function' ? definition.parse(this.editor.value, options) : Number(this.editor.value);
+    nextValue = definition.getSpinValue(current, direction, options);
+    this.editor.value = formatNumberEditorText(nextValue, shouldUseThousandsSeparator(column), getNumberPrecision(column));
+    this.updateEditorSpinnerState();
+    this.editor.focus();
+    this.editor.select();
+    return true;
+  };
+
+  FabGrid.prototype.updateEditorSpinnerState = function() {
+    var column;
+    var config;
+    var definition;
+    var options;
+    var value;
+    var min;
+    var max;
+    if (!this.editorSpinner || !this.editing) return;
+    column = this.visibleColumns[this.editing.col];
+    config = column ? getColumnEditorConfig(column) : this.editorConfig;
+    definition = config ? editorDefinitions[config.type] || null : null;
+    if (!definition) return;
+    if (config.type === 'time') {
+      this.editorSpinnerIncrease.disabled = false;
+      this.editorSpinnerDecrease.disabled = false;
+      this.editor.removeAttribute('aria-valuemin');
+      this.editor.removeAttribute('aria-valuemax');
+      this.editor.removeAttribute('aria-valuenow');
+      this.editor.setAttribute('aria-valuetext', this.editor.value);
+      return;
+    }
+    this.editor.removeAttribute('aria-valuetext');
+    options = getNumberSpinOptions(column, config);
+    value = typeof definition.parse === 'function' ? definition.parse(this.editor.value, options) : Number(this.editor.value);
+    min = options.min == null || options.min === '' ? null : Number(options.min);
+    max = options.max == null || options.max === '' ? null : Number(options.max);
+    this.editorSpinnerIncrease.disabled = max != null && isFinite(max) && value != null && value >= max;
+    this.editorSpinnerDecrease.disabled = min != null && isFinite(min) && value != null && value <= min;
+    if (min != null && isFinite(min)) this.editor.setAttribute('aria-valuemin', String(min));
+    else this.editor.removeAttribute('aria-valuemin');
+    if (max != null && isFinite(max)) this.editor.setAttribute('aria-valuemax', String(max));
+    else this.editor.removeAttribute('aria-valuemax');
+    if (value != null && isFinite(value)) this.editor.setAttribute('aria-valuenow', String(value));
+    else this.editor.removeAttribute('aria-valuenow');
+  };
+
+  FabGrid.prototype.handleNumberSpinnerKeyDown = function(event) {
+    if (!this.editorSpinner || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return false;
+    event.preventDefault();
+    this.spinEditorValue(event.key === 'ArrowUp' ? 1 : -1);
+    return true;
+  };
+
+  FabGrid.prototype.selectTimeEditorSegment = function(segment) {
+    var ranges = [[0, 2], [3, 5], [6, 8]];
+    var range = ranges[segment] || ranges[0];
+    if (!this.editor || !this.editor.setSelectionRange) return;
+    this.editor.setSelectionRange(
+      Math.min(range[0], this.editor.value.length),
+      Math.min(range[1], this.editor.value.length)
+    );
   };
 
   FabGrid.prototype.getEditorText = function(value, column) {
     var config = getColumnEditorConfig(column);
     var mask = getExplicitEditorMask(column);
+    var definition = editorDefinitions[config.type] || null;
     if (value == null) {
       return '';
+    }
+    if (config.type === 'time' && definition && typeof definition.format === 'function') {
+      return definition.format(value, mergeOptions(config.options || {}, { mask: getEditorMask(column) }));
     }
     if (mask) {
       return formatMaskText(value, getMaskOptions(column, mask));
@@ -215,7 +388,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     config = getColumnEditorConfig(column);
-    if (isDateLikeEditorType(config.type)) {
+    if (isDateLikeEditorType(config.type) || config.type === 'time') {
       if (editorDefinitions[config.type] && typeof editorDefinitions[config.type].isTextAllowed === 'function') {
         return !editorDefinitions[config.type].isTextAllowed(this.editor, key, config.options || {});
       }
@@ -248,7 +421,8 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return false;
     }
     var dateDefinition = editorDefinitions[getColumnEditorConfig(column).type];
-    if (isDateLikeEditorType(getColumnEditorConfig(column).type) && dateDefinition && typeof dateDefinition.handleDelete === 'function') {
+    if ((isDateLikeEditorType(getColumnEditorConfig(column).type) || getColumnEditorConfig(column).type === 'time') &&
+      dateDefinition && typeof dateDefinition.handleDelete === 'function') {
       event.preventDefault();
       dateDefinition.handleDelete(this.editor, event.key, mergeOptions(getColumnEditorConfig(column).options || {}, { mask: mask }));
       return true;
@@ -293,7 +467,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     }
     config = getColumnEditorConfig(column);
     text = String(event.data);
-    if (isDateLikeEditorType(config.type) && /[^0-9]/.test(text)) {
+    if ((isDateLikeEditorType(config.type) || config.type === 'time') && /[^0-9]/.test(text)) {
       event.preventDefault();
       return;
     }
@@ -315,13 +489,20 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     config = column ? getColumnEditorConfig(column) : null;
     mask = getEditorMask(column);
     if (mask) {
-      formatted = formatMaskText(this.editor.value, { mask: mask });
+      if (config && config.type === 'time' && editorDefinitions.time && typeof editorDefinitions.time.format === 'function') {
+        formatted = editorDefinitions.time.format(this.editor.value, mergeOptions(config.options || {}, { mask: mask }));
+      } else {
+        formatted = formatMaskText(this.editor.value, { mask: mask });
+      }
       if (formatted !== this.editor.value) {
         this.editor.value = formatted;
         this.editor.setSelectionRange(formatted.length, formatted.length);
       }
       if (config && isDateLikeEditorType(config.type)) {
         this.syncDateboxPanelToEditor();
+      }
+      if (config && config.type === 'time' && this.editorSpinner) {
+        this.updateEditorSpinnerState();
       }
       return;
     }
@@ -362,6 +543,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
         this.editor.value = formatted;
         this.editor.setSelectionRange(formatted.length, formatted.length);
       }
+      this.updateEditorSpinnerState();
     }
   };
 
@@ -377,6 +559,33 @@ export function installFabGridEditorRuntime(FabGrid, context) {
       return;
     }
     column = this.visibleColumns[edit.col];
+    if (column && getColumnEditorConfig(column).type === 'time') {
+      start = this.editor.selectionStart;
+      end = this.editor.selectionEnd;
+      if (start == null || end == null || start === end) {
+        return;
+      }
+      if (start > end) {
+        next = start;
+        start = end;
+        end = next;
+      }
+      text = editorDefinitions.time && typeof editorDefinitions.time.getCopyText === 'function' ?
+        editorDefinitions.time.getCopyText(
+          this.editor.value.slice(start, end),
+          mergeOptions(getColumnEditorConfig(column).options || {}, getMaskOptions(column, getEditorMask(column)))
+        ) :
+        this.editor.value.slice(start, end).replace(/[^0-9]/g, '');
+      clipboardData = event.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.setData) {
+        return;
+      }
+      clipboardData.setData('text/plain', text);
+      this.copyBuffer = text;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (column && getColumnEditorConfig(column).type === 'number') {
       start = this.editor.selectionStart;
       end = this.editor.selectionEnd;
@@ -424,17 +633,22 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.handleEditorTriggerClick = function(event) {
+    var spinnerButton = closest(event.target, 'fg-editor-spinner-button');
     var button = closest(event.target, 'fg-editor-trigger');
     var iconConfig;
     var iconIndex;
     var handler;
     var result;
-    if (!button) {
+    if (!button && !spinnerButton) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
     if (!this.editing || !this.editorConfig) {
+      return;
+    }
+    if (spinnerButton) {
+      this.spinEditorValue(toNumber(spinnerButton.getAttribute('data-spin-direction'), 1));
       return;
     }
     iconIndex = button.hasAttribute('data-icon-index') ? toNumber(button.getAttribute('data-icon-index'), -1) : -1;
@@ -763,10 +977,12 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     isScrollableEditor = edit.col >= this.frozenColumns && edit.col < this.scrollableColumnEnd;
     this.editor.style.zIndex = isScrollableEditor ? '3' : '10';
     this.editorIconHost.style.zIndex = isScrollableEditor ? '3' : '11';
-    if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combo' || this.editorConfig.type === 'color' || (this.editorIconConfigs && this.editorIconConfigs.length))) {
+    if (this.editorConfig && (isDateLikeEditorType(this.editorConfig.type) || this.editorConfig.type === 'combo' || this.editorConfig.type === 'color' || this.editorSpinnerPosition || (this.editorIconConfigs && this.editorIconConfigs.length))) {
       editorBorderInset = Math.max(0, toNumber(this.options.activeCellBorder, 1));
       editorVerticalInset = editorBorderInset + 1;
-      this.editorIconHost.style.left = (left + width - this.getEditorIconHostWidth() - editorBorderInset) + 'px';
+      this.editorIconHost.style.left = this.editorSpinnerPosition === 'left' ?
+        (left + editorBorderInset) + 'px' :
+        (left + width - this.getEditorIconHostWidth() - editorBorderInset) + 'px';
       this.editorIconHost.style.top = (top + editorVerticalInset) + 'px';
       this.editorIconHost.style.height = Math.max(0, height - editorVerticalInset * 2) + 'px';
     }
@@ -870,7 +1086,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     if (!this.editorIconHost || this.editorIconHost.style.display === 'none') {
       return 0;
     }
-    return Math.max(18, Math.ceil(this.editorIconHost.offsetWidth || 0));
+    return Math.max(18, Math.ceil(this.editorIconHostWidth || this.editorIconHost.offsetWidth || 0));
   };
 
   FabGrid.prototype.isDateboxPanelOpen = function() {
@@ -1264,6 +1480,8 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     this.editing = null;
     this.editorConfig = null;
     this.editorIconConfigs = [];
+    this.editorSpinnerPosition = false;
+    this.editorIconHostWidth = 0;
     this.comboboxItems = [];
     if (this.editor) {
       this.editor.style.display = 'none';
@@ -1508,6 +1726,18 @@ export function installFabGridEditorRuntime(FabGrid, context) {
         value: value
       };
     }
+    if (config.type === 'time') {
+      text = value == null ? '' : String(value).trim();
+      if (text === '' || (editorDefinitions.time && typeof editorDefinitions.time.isValid === 'function' &&
+        editorDefinitions.time.isValid(text, mergeOptions(options, { mask: getEditorMask(column) })))) {
+        return null;
+      }
+      return {
+        type: 'time',
+        message: options.invalidTimeText || (grid ? grid.getText('validation.invalidTime') : 'Invalid time'),
+        value: value
+      };
+    }
     isYearMonth = isYearMonthDateboxConfig(config, column);
     if (config.type !== 'date') {
       return null;
@@ -1669,11 +1899,19 @@ export function installFabGridEditorRuntime(FabGrid, context) {
   };
 
   FabGrid.prototype.getEditorValue = function(column) {
+    var config;
+    var mask;
     if (!column && this.editing) {
       column = this.visibleColumns[this.editing.col];
     }
-    var config = getColumnEditorConfig(column);
-    var mask = getExplicitEditorMask(column);
+    config = getColumnEditorConfig(column);
+    mask = getExplicitEditorMask(column);
+    if (config.type === 'time' && editorDefinitions.time && typeof editorDefinitions.time.getDataValue === 'function') {
+      return editorDefinitions.time.getDataValue(
+        this.editor.value,
+        mergeOptions(config.options || {}, getMaskOptions(column, getEditorMask(column)))
+      );
+    }
     if (mask) {
       return getMaskDataValue(this.editor.value, getMaskOptions(column, mask));
     }

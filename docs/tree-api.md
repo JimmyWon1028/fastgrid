@@ -84,7 +84,7 @@
 | `loader` | `null` | `(param, success, error)`，也可回傳 Promise。 |
 | `loadFilter` | `null` | `(data, parentNode) => Node[]`，在載入後正規化回應。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`。 |
-| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 16 組內建 theme。 |
+| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 19 組內建 theme。 |
 | `ariaLabel` | `''` | Tree 的無障礙名稱；空值使用 locale 文字。 |
 
 `state: 'closed'` 且未提供 `children` 的節點視為 lazy node。第一次展開會呼叫 loader，參數包含該節點的 `id`。

@@ -46,6 +46,7 @@ test('CheckGroup normalizes data without mutating source items', function() {
 test('CheckGroup normalizes direction, labels and themes', function() {
   assert.equal(normalizeCheckGroupDirection('V'), 'v');
   assert.equal(normalizeCheckGroupDirection('grid'), 'h');
+  assert.equal(normalizeCheckGroupLabelPosition(), 'after');
   assert.equal(normalizeCheckGroupLabelPosition('before'), 'before');
   assert.equal(normalizeCheckGroupLabelPosition('top'), 'after');
   assert.equal(normalizeCheckGroupLabelAlign('RIGHT'), 'right');
