@@ -46,7 +46,7 @@ Markup pane 可使用 `title`／`data-title`、`iconCls`／`data-icon-cls`、`se
 | `panels` | `[]` | 以 options 建立的初始 panes。 |
 | `cls` | `''` | Accordion host 自訂 class。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`；含繁簡別名正規化。 |
-| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定 19 組內建 theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 
 ## Pane options
 
@@ -80,7 +80,7 @@ Pane options 會傳給共用 `fabui.Panel`，並增加以下 Accordion 設定：
 | `resize({ width, height })` | 更新尺寸；也相容 `resize(width, height)`。 |
 | `setOptions(options)` | 更新排列、multiple、border、locale、theme 與尺寸。 |
 | `setLocale(locale, messages?)` | 切換三語系或覆寫 Accordion ARIA 文字。 |
-| `setTheme(theme)` | 切換或重新繼承 theme，並同步全部 Panels。 |
+| `setTheme(theme)` | 同步全部 Panels 的相容 theme 狀態，不切換 CSS。 |
 | `on(name, listener)` / `off(name, listener?)` | 訂閱或解除集合事件。 |
 | `destroy()` / `dispose()` | 解除事件與 registry，銷毀 nested Panels 並還原原始 markup。 |
 

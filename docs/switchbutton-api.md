@@ -42,7 +42,7 @@
 | `labelPosition` | `'before'` | `before`、`after` 或 `top`。 |
 | `labelAlign` | `'left'` | `left` 或 `right`。 |
 | `locale` | `'en'` | `en`、`zh-TW` 或 `zh-CN`；中文別名會正規化。 |
-| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 19 組內建主題。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `cls` | `''` | 加到最外層 wrapper 的自訂 class。 |
 | `ariaLabel` | `''` | 覆寫原生 input 的 ARIA label。 |
 | `onChange` | `null` | 狀態改變後呼叫 `(checked)`。 |
@@ -64,7 +64,7 @@
 | `getValue()`／`setValue(value)` | 讀寫原生 input value。 |
 | `setLabel(label)` | 更新 label。 |
 | `setLocale(locale, messages?)` | 切換語系；可附加自訂訊息。 |
-| `setTheme(theme)` | 切換或重新繼承主題。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `on(type, listener)`／`off(type, listener?)` | 管理 FabUI 事件。 |
 | `dispose()`／`destroy()` | 解除 listener、registry 並還原原生 input。 |
 

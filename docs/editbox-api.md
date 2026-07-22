@@ -178,7 +178,7 @@ var startTime = new fabui.EditBox('#start-time', {
 | `firstDay` | `0` | 每週第一天，`0` 代表星期日。 |
 | `showWeek` | `false` | 顯示週次。 |
 | `showLunar` | `false` | 在國曆日期下方顯示農曆日期；初一會包含月份，例如 `六月 初一`。 |
-| `theme` | `inherit` | 預設從外層 `fg-theme-*` class 繼承，找不到時使用 `default`；也可指定 `bootstrap`、`cupertino`、`material`、`material-blue`、`material-teal`、`metro` 系列、`sunny`、`pepper-grinder`、`dark-hive`、`black`、`mono`。 |
+| `theme` | `inherit` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `weekNumberHeader` | `''` | 週次欄標題。 |
 | `panelWidth` / `panelHeight` | `250` / `auto` | Popup 尺寸。 |
 | `formatter` / `parser` | 內建 | Date 與文字的轉換 function。 |
@@ -195,16 +195,11 @@ var startTime = new fabui.EditBox('#start-time', {
 var dateBox = new fabui.EditBox('#date', {
   editor: 'date',
   locale: 'zh-TW',
-  showLunar: true,
-  theme: 'material-teal'
+  showLunar: true
 });
 ```
 
-Date EditBox 建立後可用 `setTheme(theme)` 即時切換 Calendar；popup 已開啟時也會立即更新：
-
-```js
-dateBox.setTheme('black');
-```
+`setTheme(theme)` 保留相容狀態，但不會載入或切換 Theme CSS。完整規則請見 [Theme API](./theme-api.md)。
 
 ### Combo options
 

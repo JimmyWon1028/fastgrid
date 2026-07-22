@@ -33,8 +33,9 @@ var group = new fabui.RadioGroup('#fruit-group', {
 | `labelPosition` | string | `'after'` | `before` 或 `after`；預設每個項目文字顯示在選項按鈕後方。 |
 | `labelAlign` | string | `'left'` | `left` 或 `right`。 |
 | `disabled` | boolean | `false` | 是否停用整組。 |
+| `cls` | string | `''` | 加到 RadioGroup host 的自訂 class。 |
 | `locale` | string | `'en'` | `en`、`zh-TW` 或 `zh-CN`。 |
-| `theme` | string | `'inherit'` | 繼承外層或指定 19 組 FabUI theme。 |
+| `theme` | string | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `ariaLabel` | string | `''` | radiogroup accessible name。 |
 | `onChange` | function | `null` | 選取值改變時接收 `(value)`。 |
 
@@ -53,7 +54,7 @@ var group = new fabui.RadioGroup('#fruit-group', {
 | `reset()` | 還原建立元件時的選取值。 |
 | `disable()`／`enable()` | 停用或啟用整組，保留單項 disabled。 |
 | `setLocale(locale, messages?)` | 切換語系。 |
-| `setTheme(theme)` | 切換 theme 並同步所有 RadioButton。 |
+| `setTheme(theme)` | 同步所有 RadioButton 的相容 theme 狀態。 |
 | `on(type, listener)`／`off(type, listener)` | 管理 FabUI change/refresh listener。 |
 | `dispose()`／`destroy()` | dispose 所有 RadioButton 並還原 host。 |
 

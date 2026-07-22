@@ -57,7 +57,7 @@ data: [
 | `disabled` | `false` | 停用整個群組；單項 disabled 仍會保留。 |
 | `cls` | `''` | 群組 host 的自訂 class。 |
 | `locale` | `en` | `en`、`zh-TW`、`zh-CN`。 |
-| `theme` | `inherit` | 從外層 `fg-theme-*` 繼承，或指定 19 組內建 theme。 |
+| `theme` | `inherit` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `ariaLabel` | locale | 群組的可及性名稱。 |
 | `onChange` | `null` | 選取改變 callback，簽名為 `(values)`。 |
 
@@ -84,7 +84,7 @@ FabUI lifecycle 與便利方法：
 | `reset()` | 還原建立時的 value。 |
 | `disable()` / `enable()` | 切換整組停用狀態。 |
 | `setLocale(locale, messages?)` | 切換或註冊語系。 |
-| `setTheme(theme)` | 切換或重新繼承 theme。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `on(type, listener)` / `off(type, listener?)` | 管理 FabUI 事件。 |
 | `destroy()` / `dispose()` | 移除項目、解除 registry 並還原 host。 |
 

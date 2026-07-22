@@ -84,12 +84,12 @@
 | `loader` | `null` | `(param, success, error)`，也可回傳 Promise。 |
 | `loadFilter` | `null` | `(data, parentNode) => Node[]`，在載入後正規化回應。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`。 |
-| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 19 組內建 theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `ariaLabel` | `''` | Tree 的無障礙名稱；空值使用 locale 文字。 |
 
 `state: 'closed'` 且未提供 `children` 的節點視為 lazy node。第一次展開會呼叫 loader，參數包含該節點的 `id`。
 
-Tree 的展開／收合、階層線、資料夾、檔案、checkbox 與 loading 圖示使用各內建 theme 自己的 sprite 資產；hover／selected 文字與背景色、editor 邊框及主題字級也分別對應各 theme 的 EasyUI Tree 視覺。切換 `theme` 時會同步切換整組 Tree 樣式。正式 source 與 build 不依賴本機參考用的 `res/`。
+Tree 的展開／收合、階層線、資料夾、檔案、checkbox 與 loading 圖示由目前載入的 Theme CSS 決定。正式 source 與 build 不依賴本機參考用的 `res/`。
 
 ## Methods
 
@@ -124,7 +124,7 @@ Tree 的展開／收合、階層線、資料夾、檔案、checkbox 與 loading 
 | `beginEdit(target)`／`endEdit(target)`／`cancelEdit(target)` | 控制 inline 文字編輯。 |
 | `doFilter(query)` | 篩選節點並保留符合結果的祖先路徑。空字串顯示全部節點。 |
 | `setLocale(locale, messages?)` | 切換語系或註冊單次自訂文字。 |
-| `setTheme(theme)` | 切換 theme；傳入 `inherit` 重新繼承外層。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `render()` | 依目前資料重繪。 |
 | `destroy()` | 解除 listener、registry 並完整還原原始 host。 |
 

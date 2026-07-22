@@ -37,7 +37,9 @@ var button = new fabui.MenuButton('#editButton', {
 
 ## Options
 
-MenuButton 繼承 Button 的文字、尺寸、disabled、plain、outline、icon、size、fit 與 theme options。icon 預設位於文字左側，並一律使用 `iconCls: 'icon-xxx'`。icon、文字與下拉箭頭採連續排列，三者之間不顯示分隔線；需要獨立箭頭操作區時應使用 `fabui.SplitButton`。
+MenuButton 沿用 [Button API](./button-api.md) 的 `width`、`height`、`id`、`disabled`、`toggle`、`selected`、`group`、`plain`、`outline`、`text`、`iconCls`、`iconAlign`、`size`、`fit`、`cls`、`theme`、`onClick` 與 `onResize`。
+
+icon 預設位於文字左側，並一律使用 `iconCls: 'icon-xxx'`。icon、文字與下拉箭頭之間不顯示分隔線；需要獨立箭頭操作區時應使用 `fabui.SplitButton`。
 
 | Option | 預設值 | 說明 |
 | --- | --- | --- |
@@ -85,7 +87,7 @@ Markup 也可使用安全的 EasyUI 風格 `data-options`：
 | `resize({ width, height })` | 透過共用 Button 動態調整尺寸。 |
 | `setText(text)` | 更新 Button 安全文字。 |
 | `setIcon(iconCls, iconAlign?)` | 更新 Button icon。 |
-| `setTheme(theme)` | 同步切換 Button 與 Menu theme。 |
+| `setTheme(theme)` | 同步相容 theme 狀態，不載入或切換 CSS。 |
 | `on(name, listener)` / `off(name, listener?)` | 訂閱或解除事件。 |
 | `destroy()` / `dispose()` | 清除 timer／listener／registry，並還原原始 Button 與 Menu markup。 |
 

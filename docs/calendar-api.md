@@ -39,8 +39,12 @@
 | `validator(date)` | 永遠有效 | 回傳 `false` 會停用該日期。 |
 | `showLunar` | `false` | 顯示農民曆日期。 |
 | `locale` | `'en'` | `en`、`zh-TW` 或 `zh-CN`。 |
-| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定內建 theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `cls` | `''` | 加到 Calendar 內層 panel 的自訂 class。 |
+| `ariaLabel` | `null` | 覆寫 Calendar 的 accessible name。 |
+| `yearText` | locale pack | 年份選單按鈕的 accessible name。 |
+| `previousYearText`／`nextYearText` | locale pack | 上一年／下一年按鈕文字。 |
+| `previousMonthText`／`nextMonthText` | locale pack | 上一月／下一月按鈕文字。 |
 | `onSelect(date)` | `null` | 使用者或 `select()` 選取日期後觸發。 |
 | `onChange(newDate, oldDate)` | `null` | 選取日期實際變更後觸發。 |
 | `onNavigate(year, month)` | `null` | 顯示年月完成更新後觸發。 |
@@ -67,7 +71,7 @@
 | `select(date)` | 選取有效日期，觸發 `select`，實際變更時再觸發 `change`。 |
 | `refresh()` | 依目前 options 重新繪製。 |
 | `setOptions(options)` | 更新 options 並重繪。 |
-| `setTheme(theme)` | 切換或重新繼承 theme。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `setLocale(locale, messages?)` | 切換三語系，可覆寫語系文字。 |
 | `on(name, listener)` / `off(name, listener?)` | 訂閱或解除 `select`、`change`、`navigate`、`resize`。 |
 | `destroy()` / `dispose()` | 移除事件與 DOM，還原原始 host。 |

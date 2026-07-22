@@ -28,12 +28,16 @@ var panel = new fabui.Panel('#customerPanel', {
 
 | Option | 預設 | 說明 |
 | --- | --- | --- |
+| `id` | `null` | Panel 外框 id；省略時沿用或產生 id。 |
 | `title` | `''` | Header 標題。 |
 | `iconCls` | `''` | Header icon class。 |
 | `width` / `height` | `'auto'` | 支援 number、CSS size 或 `auto`。 |
 | `minWidth` / `maxWidth` | `null` | 尺寸限制。 |
 | `minHeight` / `maxHeight` | `null` | 尺寸限制。 |
 | `left` / `top` | `null` | 指定位置；設定後 Panel 使用 absolute positioning。 |
+| `cls` | `''` | 加到 Panel 外框的自訂 class。 |
+| `headerCls` / `bodyCls` | `''` | Header／body 的自訂 class。 |
+| `style` | `null` | 套用到 Panel 外框的 inline style object。 |
 | `fit` | `false` | 填滿父容器。 |
 | `border` | `true` | 是否顯示外框。 |
 | `noheader` | `false` | 隱藏 Header。 |
@@ -46,14 +50,18 @@ var panel = new fabui.Panel('#customerPanel', {
 | `tools` | `null` | 自訂工具 descriptor array。 |
 | `footer` | `null` | Footer 字串或 HTMLElement。 |
 | `content` | `null` | 初始化 body HTML。 |
+| `collapsed` / `minimized` | `false` | 建立後保持收合或最小化。 |
+| `maximized` / `closed` | `false` | 建立後保持最大化或關閉。 |
 | `href` | `null` | 開啟／展開時延遲載入的 URL。 |
 | `cache` | `true` | 是否快取已載入內容。 |
+| `loadingMessage` | `''` | 遠端內容載入期間顯示的文字。 |
 | `method` | `'get'` | 遠端載入 HTTP method。 |
 | `queryParams` | `null` | 遠端載入參數。 |
 | `loader` | `null` | 自訂 `(params, success, error)` loader。 |
 | `extractor` | 內建 | 從 response 提取 Panel HTML。 |
-| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定 FabUI theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`。 |
+| `messages` | `null` | 覆寫目前 locale 的文字。 |
 | `animate` | `true` | 最大化／還原、收合／展開時是否使用過渡動畫。 |
 | `animationDuration` | `180` | 狀態過渡時間，單位為毫秒；會遵守 `prefers-reduced-motion`。 |
 
@@ -87,7 +95,7 @@ tools: [{
 | `collapse()` / `expand()` | 收合或展開 body。 |
 | `setTitle(title)` | 更新標題。 |
 | `setContent(content)` | 更新 body HTML 或 HTMLElement。 |
-| `setTheme(theme)` / `setLocale(locale, messages?)` | 更新主題或語系。 |
+| `setTheme(theme)` / `setLocale(locale, messages?)` | 更新相容 theme 狀態或語系；`setTheme()` 不切換 CSS。 |
 | `on(name, handler)` / `off(name, handler?)` | 管理 native lifecycle listener。 |
 | `isOpen()` | Panel 是否開啟且未最小化。 |
 

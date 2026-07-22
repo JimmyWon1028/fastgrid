@@ -2,6 +2,22 @@
 
 `fabgrid-jquery` 是 `fabui.FabGrid` 的薄型 jQuery adapter。它只負責 instance、方法、option、事件與生命週期轉接，不參與 cell rendering 或 virtualization。
 
+> 狀態：jQuery wrapper 目前暫緩維護，不納入 `build`、`build all` 或預設發佈。原始碼與獨立 build script 保留，只有明確需要時才單獨編譯。
+
+## 單獨編譯
+
+```bash
+npm run build:jquery
+```
+
+此命令只產生 browser global 檔案：
+
+- `packages/fabgrid-jquery/dist/fabgrid-jquery.js`
+- `packages/fabgrid-jquery/dist/fabgrid-jquery.min.js`
+- `dist/wrapper/fabgrid-jquery.min.js`
+
+這個獨立命令會改寫上述 wrapper 輸出，但不重建 FabUI core。
+
 ## 載入與初始化
 
 Browser global build 依序載入 jQuery、FabUI 與 wrapper：
@@ -13,10 +29,10 @@ Browser global build 依序載入 jQuery、FabUI 與 wrapper：
 <script src="./fabui.min.js"></script>
 <script src="./dist/wrapper/fabgrid-jquery.min.js"></script>
 <script>
-  $("#grid").fabgrid({
+  $('#grid').fabgrid({
     itemsSource: rows,
     columns: columns,
-    frozenColumns: 1,
+    frozenColumns: 1
   });
 </script>
 ```

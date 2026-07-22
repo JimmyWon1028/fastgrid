@@ -101,7 +101,7 @@ Panel／Grid 與 Grid／Chart 之間各有一條 `role="separator"` 分隔線：
 | `chartOptions` | `{}` | 傳給 PivotChart 的 options。 |
 | `locale` | `en` | Workspace 與三個子元件的語系。 |
 | `messages` | `null` | 自訂 locale messages。 |
-| `theme` | `inherit` | 從外層 theme 繼承，或指定 19 組內建 theme；同步套用到 nested Panel／Grid／Chart root。 |
+| `theme` | `inherit` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `layout` | `Auto` | `Auto`、`Horizontal`、`Vertical`。 |
 | `compactBreakpoint` | `1050` | Auto 切換為 Vertical 的 host 寬度界線。 |
 | `panelSize` | `300` | Horizontal Panel 初始寬度。 |
@@ -174,7 +174,7 @@ chartSize: '2fr'  // Chart gets two parts, Grid gets one part
 | `setEngine(engine)` | 切換三個子元件共用的 PivotEngine。 |
 | `setItemsSource(rowsOrEngine)` | 更新原始資料或切換 Engine。 |
 | `setLocale(locale, messages?)` | 同步切換 Workspace 與三個子元件語系。 |
-| `setTheme(theme)` | 同步切換 Workspace 與 nested Panel／Grid／Chart root 的 theme。 |
+| `setTheme(theme)` | 同步相容 theme 狀態；實際配色仍由外部 Theme CSS 決定。 |
 | `refreshAsync(options?)` | 轉交 Engine 非同步分批彙總並回傳 Promise。 |
 | `cancelRefresh()` | 取消目前非同步彙總。 |
 | `setPanelVisible(visible)` | 顯示或隱藏 PivotPanel Pane。 |

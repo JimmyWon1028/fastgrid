@@ -38,7 +38,7 @@ var tooltip = new fabui.Tooltip('#help', {
 | `showDelay` | `200` | 顯示延遲毫秒。 |
 | `hideDelay` | `100` | 隱藏延遲毫秒。 |
 | `zIndex` | `9900000` | Tooltip 層級。 |
-| `theme` | `'inherit'` | 繼承最近的 `fg-theme-*`，或指定 19 組內建 theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 
 Markup 可使用 `position`、`valign`、`content`、`trackMouse`、`deltaX`、`deltaY`、`showEvent`、`hideEvent`、`showDelay`、`hideDelay`，也可使用對應的 `data-*` 屬性。
 
@@ -53,7 +53,7 @@ Markup 可使用 `position`、`valign`、`content`、`trackMouse`、`deltaX`、`
 | `hide(event?)` | 依 `hideDelay` 隱藏。 |
 | `update(content)` | 更新 HTML 或 content function 並重新定位。 |
 | `reposition()` | 依 host、滑鼠與 viewport 重新定位。 |
-| `setTheme(theme)` | 切換或重新繼承 theme。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `on(name, listener)` / `off(name, listener?)` | 訂閱或解除事件。 |
 | `destroy()` / `dispose()` | 清除 timers、DOM、事件與 Control registry，還原 host。 |
 

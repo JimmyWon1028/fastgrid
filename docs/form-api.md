@@ -39,7 +39,7 @@ Browser global：
 | `queryParams` | `{}` | 每次送出時附加的參數；同名 submit options 優先。 |
 | `url` | `null` | 送出 URL；未設定時使用 form `action`。 |
 | `locale` | `'en'` | Validation tip 語系；內建 `en`、`zh-TW`、`zh-CN`。 |
-| `theme` | `'inherit'` | 從外層 `fg-theme-*` 繼承，或指定 19 組內建 theme；validation tip 會同步。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；validation tip 配色由外部 Theme CSS 決定。 |
 | `onSubmit` | `null` | 送出前 callback，簽名為 `(params)`；可修改參數，回傳 `false` 取消。 |
 | `onProgress` | `null` | `iframe: false` 時的 upload progress callback，簽名為 `(percent)`。 |
 | `success` | `null` | Ajax 成功 callback，收到未解析的 response text。 |
@@ -65,7 +65,7 @@ Browser global：
 | `disableValidation()` | 停用驗證並清除無效狀態。 |
 | `resetValidation()` | 清除 Form 加入的 validation 標記，不改變欄位內容。 |
 | `setLocale(locale)` | 切換 validation tip 語系；已顯示的提示立即更新。 |
-| `setTheme(theme)` | 切換 Form 與 validation tip theme；傳入 `'inherit'` 重新讀取外層 theme。 |
+| `setTheme(theme)` | 更新 Form 與 validation tip 的相容 theme 狀態，不切換 CSS。 |
 | `resetDirty()` | 以目前欄位值建立新的 dirty 基準。 |
 | `isDirty(name?)` | 判斷整份表單或指定 name 是否已變更。 |
 | `getData()` | 依 `FormData` 規則回傳目前具名欄位；同名欄位回傳陣列。 |
@@ -167,7 +167,7 @@ form.on('submiterror', function(event) {
 
 Form 使用瀏覽器 HTML constraint validation API，支援 `required`、`type="email"`、`pattern`、`min`、`max`、`minlength`、`maxlength` 與 `setCustomValidity()`。為避免瀏覽器原生泡泡與 FabUI 樣式衝突，Form 以 `novalidate` 抑制原生 submit UI，再由 `validate()` 統一標記 `aria-invalid` 與 `.fui-form-invalid`。
 
-已建立的 `fabui.EditBox` 會驗證其可見 textbox；紅色 invalid 狀態只套用在實際控制框，不會把 EditBox label 一起框入。第一個無效欄位及目前 focus／hover 的無效欄位會依 `locale` 與 `ValidityState` 顯示 EasyUI 風格的箭頭提示，不依賴瀏覽器介面語言。提示附加到 `document.body` 時仍會帶入目前 Form theme。
+已建立的 `fabui.EditBox` 會驗證其可見 textbox；invalid 狀態只套用在實際控制框，不包含 label。提示依 `locale` 與 `ValidityState` 顯示，不依賴瀏覽器介面語言；配色由外部 Theme CSS 決定。
 
 內建訊息涵蓋必填、Email／URL 型別、pattern、長度、min／max、step 與 bad input。`setCustomValidity(message)` 的自訂訊息會保留呼叫端提供的原文。
 

@@ -48,7 +48,7 @@ new fabui.Button('#helpButton', {
 | `size` | `small` | `small` 或 `large`。 |
 | `fit` | `false` | 寬高填滿 parent。 |
 | `cls` | `''` | 額外套用到 host 的 class。 |
-| `theme` | `inherit` | 繼承外層 `fg-theme-*` 或指定 FabUI theme。 |
+| `theme` | `inherit` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `onClick` | `null` | click callback；回傳 `false` 可阻止 anchor 導覽。 |
 
 ## Properties
@@ -70,7 +70,7 @@ new fabui.Button('#helpButton', {
 | `select()` / `unselect()` | 設定 selected；group Button 不可直接 unselect，需選取同組另一項。 |
 | `setText(text)` | 更新安全純文字。 |
 | `setIcon(iconCls, iconAlign?)` | 更新 icon 與可選的排列方向。 |
-| `setTheme(theme)` | 套用或重新繼承 theme。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `on(name, listener)` / `off(name, listener?)` | 訂閱或解除事件。 |
 | `destroy()` / `dispose()` | 解除 listeners、Control registry，並還原 host 原始 DOM、class、style 與 ARIA。 |
 

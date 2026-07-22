@@ -389,7 +389,7 @@ PivotGrid 與 PivotPanel root 都具有 `.fg-root`，直接沿用 FabGrid 的：
 - `--fg-selected-border`
 - scrollbar、frozen divider、hover 與 active cell 規則
 
-套用 `.fg-theme-default`、`.fg-theme-metro-blue`、`.fg-theme-material` 等現有 FabGrid theme class 即可，不需要 Pivot 專用 theme 檔。
+Pivot 不需要專用 Theme CSS，會跟隨頁面最後載入的 FabUI Theme CSS。完整規則請見 [Theme API](./theme-api.md)。
 
 ## Demo
 

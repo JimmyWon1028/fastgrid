@@ -46,7 +46,7 @@
 | `labelPosition` | `'after'` | `'before'`、`'after'`、`'top'`；預設文字顯示在核取方塊後方。 |
 | `labelAlign` | `'left'` | `'left'` 或 `'right'`。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`，用於沒有 label 時的 ARIA 名稱。 |
-| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 19 組 FabUI theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `cls` | `''` | 加到外層 wrapper 的自訂 class。 |
 | `ariaLabel` | `''` | 覆寫原生 input 的可及性名稱。 |
 | `onChange(checked)` | `null` | 勾選狀態改變後觸發。 |
@@ -74,7 +74,7 @@ FabUI lifecycle 與便利方法：
 | `resize(width?, height?)` | 更新 Checkbox 尺寸。 |
 | `setLabel(label)` | 更新 label。 |
 | `setLocale(locale, messages?)` | 更新語系或註冊自訂 ARIA 文字。 |
-| `setTheme(theme)` | 更新或重新繼承 theme。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `destroy()`／`dispose()` | 移除 wrapper 與 listener、解除 registry，還原原始 input。 |
 
 所有 setter methods 都回傳 CheckBox instance。

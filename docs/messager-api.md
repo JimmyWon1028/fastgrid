@@ -115,7 +115,7 @@ fabui.Messager.progress('close');
 | `resizable` | `false` | 是否允許縮放。 |
 | `closable` | `true` | 是否顯示關閉按鈕。 |
 | `animate` | `true` | 沿用 Window 動畫開關。 |
-| `theme` | `inherit` | 繼承外層 theme 或指定內建 theme。 |
+| `theme` | `inherit` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
 | `locale` | `en` | `en`、`zh-TW`、`zh-CN`。 |
 | `html` | `false` | 訊息預設以 `textContent` 顯示。 |
 | `windowIconCls` | `''` | Window 左上角 icon，統一使用 `icon-xxx`。 |
@@ -125,7 +125,7 @@ fabui.Messager.progress('close');
 
 | Method | 說明 |
 | --- | --- |
-| `setTheme(theme)` | 設定預設 theme，並同步目前開啟的 Messager。 |
+| `setTheme(theme)` | 更新預設與目前 Messager 的相容 theme 狀態，不切換 CSS。 |
 | `setLocale(locale)` | 設定後續 Messager 的預設語系。 |
 | `close(handle, result?)` | 關閉回傳的 Window handle；Confirm 可用 `result` 指定結果。 |
 | `closeAll()` | 關閉全部 Dialog、Toast 與 Progress。 |

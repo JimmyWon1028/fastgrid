@@ -29,7 +29,8 @@ var radio = new fabui.RadioButton('#fruit-apple', {
 | `labelPosition` | string | `'after'` | `before`、`after` 或 `top`；預設文字顯示在選項按鈕後方。 |
 | `labelAlign` | string | `'left'` | `left` 或 `right`。 |
 | `locale` | string | `'en'` | `en`、`zh-TW` 或 `zh-CN`。 |
-| `theme` | string | `'inherit'` | 繼承外層或指定 19 組 FabUI theme。 |
+| `theme` | string | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
+| `cls` | string | `''` | 加到 RadioButton wrapper 的自訂 class。 |
 | `ariaLabel` | string | `''` | 覆寫 radio 的 accessible name。 |
 | `onChange` | function | `null` | checked 改變時接收 `(checked)`。 |
 
@@ -49,7 +50,7 @@ var radio = new fabui.RadioButton('#fruit-apple', {
 | `resize(width, height)` | 更新圓鈕尺寸。 |
 | `setLabel(label)` | 更新 label。 |
 | `setLocale(locale, messages?)` | 切換語系，可附加自訂訊息。 |
-| `setTheme(theme)` | 切換 theme。 |
+| `setTheme(theme)` | 更新相容 theme 狀態，不載入或切換 CSS。 |
 | `on(type, listener)`／`off(type, listener)` | 管理 FabUI change/refresh listener。 |
 | `dispose()`／`destroy()` | 解除事件、Control registry 並還原原始 input。 |
 

@@ -14,7 +14,7 @@ FabUI 也提供表單、導覽、視窗、Chart、Pivot、Diagram、Gantt 與 Sc
 | --- | --- |
 | 線上 Demo | [FabGrid](https://jimmywon1028.github.io/fabgrid/demo/grid.html) · [TreeGrid](https://jimmywon1028.github.io/fabgrid/demo/treegrid.html) · [Diagram](https://jimmywon1028.github.io/fabgrid/demo/diagram.html) · [Gantt](https://jimmywon1028.github.io/fabgrid/demo/gantt.html) · [全部 Demo](https://jimmywon1028.github.io/fabgrid/demo/index.html) |
 | 本機 Demo | [開發版索引](./demo/dev.html) · [正式版索引](./demo/index.html) |
-| API | [FabGrid](./docs/fabgrid-api.md) · [Pivot](./docs/pivotgrid-api.md) · [Diagram](./docs/diagram-api.md) · [全部文件](./docs/) |
+| API | [文件索引](./docs/) · [FabGrid](./docs/fabgrid-api.md) · [Control](./docs/control-api.md) · [Theme](./docs/theme-api.md) · [Diagram](./docs/diagram-api.md) |
 | 專案 | [工作進度](./worklogs/) · [TODO](./TODO.md) |
 
 ## 快速開始
@@ -315,7 +315,7 @@ npm run serve
 
 所有 build 都只產生 browser global JavaScript、CSS、壓縮檔與必要圖片，不產生 `.esm.*`。
 
-使用 Codex 時可用 `build <scope>,<scope> [min]` 依指定順序組合 `fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`theme`。`all` 與 `clear` 必須單獨使用。
+使用 Codex 時可用 `build <scope>,<scope> [min]` 依指定順序組合 `fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`theme`，例如 `build fabui,diagram min`。逗號左右不可留空白；`all` 與 `clear` 必須單獨使用。
 
 ## 原始碼結構
 

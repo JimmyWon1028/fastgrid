@@ -2,27 +2,37 @@
 
 `fabgrid-vue` 是 FabGrid pure JavaScript core 的 Vue 2 Options API wrapper。Wrapper 只管理 component lifecycle、props 與 events；cell rendering、virtualization、sorting、editing 與 selection 仍由 FabGrid core 執行。
 
-完整 Vue 2 Options API 單檔元件範例請參考 [`demo/js/grid-vue2.vue`](../demo/js/grid-vue2.vue)。
+> 狀態：Vue 2 wrapper 目前暫緩維護，不納入 `build`、`build all` 或預設發佈。原始碼與獨立 build script 保留，只有明確需要時才單獨編譯。
 
-此 Vue Demo 與 `demo/dev-grid.html` 使用相同資料規模、工具列設定、欄位 editor、theme、locale、群組、篩選、remote、Popup Grid、匯出與 runtime stats；Vue wrapper 不接管 cell rendering。
+完整 Options API 範例請參考 [`demo/js/grid-vue2.vue`](../demo/js/grid-vue2.vue)。大型唯讀資料可使用 `Object.freeze(rows)`，避免 Vue 2 建立深層 observer；更新時替換整個 array reference。
 
-開發期間使用靜態伺服器與 SystemJS runtime loader：
+## 單獨編譯
+
+```bash
+npm run build:vue
+```
+
+此命令只產生 browser global 檔案：
+
+- `packages/fabgrid-vue/dist/fabgrid-vue.js`
+- `packages/fabgrid-vue/dist/fabgrid-vue.min.js`
+- `dist/wrapper/fabgrid-vue.js`
+- `dist/wrapper/fabgrid-vue.min.js`
+- `dist/wrapper/vue.min.js`
+
+這個獨立命令會改寫上述 wrapper 輸出，但不重建 FabUI core。
+
+## 本機 Demo
+
+先單獨編譯 wrapper，再啟動靜態伺服器：
 
 ```bash
 npm run dev:vue
 ```
 
-開啟 `http://127.0.0.1:4174/demo/grid-vue2.html`。此頁依序載入 `dist/wrapper/vue.min.js`、`dist/fabui.min.js` 與 `dist/wrapper/fabgrid-vue.min.js` browser global，再載入 `demo/js/grid-vue2-systemjs.config.js`，由 `System.import()` 於瀏覽器執行期間動態取得並轉譯 `demo/js/grid-vue2.vue`；每次重新整理都會使用 cache-busting URL。修改 `.vue` 後重新整理瀏覽器即可看到結果。
+開啟 `http://127.0.0.1:4174/demo/grid-vue2.html`。Demo 使用 SystemJS 在瀏覽器載入 `.vue` 範例；此流程只供本機開發，不是正式發佈入口。
 
-SystemJS runtime loader 只用於本機 source-mode Demo；目前不提供獨立 Vue production HTML 頁面。
-
-`demo/grid-grid-vue2.html` 是專用的 Vue 2 wrapper 範例，使用與 `demo/grid-vue2.html` 相同的 SystemJS runtime loader 掛載 `demo/js/grid-grid-vue2.vue`；頁面載入 build 後的 Vue、FabUI 與 Vue wrapper browser global bundle，展示兩個 `FabGrid` component 各自重排與跨 Grid 移動。上方按鈕透過 `allowDragging` prop 同步開啟／關閉兩個 Grid 的資料列拖曳；頁面狀態與重設由 Vue 2 Options API 管理，cell rendering 仍由 core 負責。
-
-`demo/grid-treegrid-vue2.html` 使用與 `demo/grid-vue2.html` 相同的 SystemJS runtime loader 掛載 `demo/js/grid-treegrid-vue2.vue`，並透過既有 `fabgrid-vue` wrapper 建立 Grid／TreeGrid component。上方按鈕透過 `allowDragging` prop 同步開啟／關閉 Grid 與 TreeGrid 的資料列拖曳；Vue 2 Options API 管理資料、節點筆數、拖曳狀態、全部展開與重設，cell rendering 與 row drag 仍由 core 負責。
-
-大型唯讀資料可使用 `Object.freeze(rows)` 避免 Vue 2 對每個 row 與欄位建立深層 observer；更新時替換整個 frozen array reference。
-
-## 安裝
+## 載入
 
 Browser global 依序載入 Vue、FabUI 與 wrapper：
 

@@ -1,12 +1,29 @@
 # fabui.Diagram API 操作手冊
 
-`fabui.Diagram` 是 FabUI core 內建的 pure JavaScript SVG 圖表設計器。介面參考 DevExtreme Diagram Overview 的工具列、圖形工具箱、畫布與屬性區配置，但不依賴 DevExtreme、jQuery 或其他 runtime；內部操作按鈕重用 `fabui.Button`，搜尋與屬性欄位重用 `fabui.EditBox`，畫布右鍵選單重用 `fabui.Menu`。上方工具列由左至右分為 JSON 下載／載入、輸出、復原／編輯、連線類型／連線模式、面板／唯讀五組，中間以垂直線分隔；投影片展示位於右下角浮動檢視工具列的全螢幕左側，匯出 PNG、匯出 SVG、列印與投影片展示同時保留於畫布右鍵選單。紙張小於 viewport 時會保持水平與垂直置中，放大超出可視區域後仍可正常捲動。
+`fabui.Diagram` 是獨立的 pure JavaScript SVG 圖表設計器，不包含在 FabUI core。它不依賴 DevExtreme 或 jQuery；內部重用 `fabui.Button`、`fabui.EditBox` 與 `fabui.Menu`。
 
-工具箱的「一般」、「流程圖」、「DFD」與「組織圖」分類標題使用 `fabui.Button`，以 20px 箭頭清楚表示疊合或展開；切換語系及搜尋圖形時會保留目前狀態。拖曳工具箱或屬性面板最上方標題可將面板變成繪圖工作區內的浮動面板，也可拖至左側或右側重新停靠；兩個面板可各自停靠，包含同時停靠左側或右側。同側停靠支援兩種模式：`tabs` 重用 `fabui.Tabs`，工具箱／屬性標籤固定置於下方並只顯示目前選取面板；`stacked` 則將工具箱置於上方、屬性置於下方並同時顯示。兩個面板停靠時可由內側邊緣調整寬度，浮動時可由左右邊調寬、上下邊調高；聚焦邊緣後也可用對應方向鍵調整。47 種圖形預覽重用 Diagram SVG shape renderer；一般、流程圖與 DFD 預覽維持空心輪廓，組織圖的人像預留區依圖形顯示在左側、右側或上方。DFD 提供 Entity、Process、Data Store 節點，以及 Data Flow 與 S Curve 兩種帶箭頭的 connector 工具；S Curve 使用三次貝茲曲線呈現 S 型路徑。
+主工具列提供檔案、輸出、歷程、連線、面板與唯讀操作。右下角檢視工具列提供縮放、符合、格線、投影片展示與全螢幕。紙張小於 viewport 時會置中，放大後可正常捲動。
+
+工具箱提供一般、流程圖、DFD 與組織圖四類共 47 種圖形。分類可展開、排序與搜尋，切換語系時保留狀態。
+
+工具箱與屬性面板可浮動或停靠左右兩側。同側停靠可使用底部 `tabs`，或使用上下排列的 `stacked`；面板支援滑鼠及鍵盤調整尺寸。
+
+DFD 提供 Entity、Process、Data Store、Data Flow 與 S Curve。S Curve 使用三次貝茲曲線。
 
 工具箱與屬性面板同時浮動時，點擊任一面板的標題、內容、控件或尺寸調整邊緣，會將該面板與它的 resizer 一起提到最上層，不會改變原有位置或尺寸。
 
-## 建立
+## 載入與建立
+
+Diagram 必須在 FabUI core 之後載入：
+
+```html
+<link rel="stylesheet" href="./dist/fabui.css">
+<link rel="stylesheet" href="./dist/fabui.diagram.css">
+<script src="./dist/fabui.js"></script>
+<script src="./dist/fabui.diagram.js"></script>
+```
+
+`npm run build:diagram` 只建立 `dist/fabui.diagram.js`、`.min.js`、`.css` 與 `.min.css`。`npm run build` 不會改寫 Diagram；`npm run build:all` 才會包含它。
 
 ```html
 <div id="diagram"></div>
@@ -45,7 +62,7 @@
 | 欄位 | 說明 |
 | --- | --- |
 | `id` | 唯一字串 id；省略時自動產生。 |
-| `type` | 一般圖形：`text`、`rectangle`、`ellipse`、`cross`、`triangle`、`diamond`、`heart`、`pentagon`、`hexagon`、`octagon`、`star`、`arrowUp`、`arrowDown`、`arrowLeft`、`arrowRight`、`arrowUpDown`、`arrowLeftRight`、`roundedRectangle`、`cloud`；流程圖：`process`、`decision`、`terminator`、`predefinedProcess`、`document`、`multipleDocuments`、`manualInput`、`preparation`、`data`、`database`、`directData`、`internalStorage`、`paperTape`、`manualOperation`、`delay`、`storedData`、`sequentialData`、`merge`、`onPageReference`、`summingJunction`、`orJunction`、`display`；DFD：`dfdEntity`、圓形 `dfdProcess`、`dfdDataStore`。 |
+| `type` | 圖形類型；完整值見下方「Node 類型」。 |
 | `text` | 圖形內文字。 |
 | `fontSize` | 文字大小，預設 `14`，屬性面板限制為 8～96。 |
 | `fontBold`／`fontItalic`／`fontUnderline`／`fontStrikethrough` | 粗體、斜體、底線與刪除線布林值，預設皆為 `false`。 |
@@ -55,6 +72,15 @@
 | `width`／`height` | 圖形尺寸，最小 40×30。 |
 | `fill`／`stroke`／`strokeWidth` | 填色、框線色與框線寬度。 |
 | `textColor` | 文字顏色。 |
+
+#### Node 類型
+
+| 分類 | `type` |
+| --- | --- |
+| 一般 | `text`、`rectangle`、`ellipse`、`cross`、`triangle`、`diamond`、`heart`、`pentagon`、`hexagon`、`octagon`、`star`、`arrowUp`、`arrowDown`、`arrowLeft`、`arrowRight`、`arrowUpDown`、`arrowLeftRight`、`roundedRectangle`、`cloud` |
+| 流程圖 | `process`、`decision`、`terminator`、`predefinedProcess`、`document`、`multipleDocuments`、`manualInput`、`preparation`、`data`、`database`、`directData`、`internalStorage`、`paperTape`、`manualOperation`、`delay`、`storedData`、`sequentialData`、`merge`、`onPageReference`、`summingJunction`、`orJunction`、`display` |
+| DFD | `dfdEntity`、`dfdProcess`、`dfdDataStore` |
+| 組織圖 | `orgChartImageLeft`、`orgChartImageRight`、`orgChartImageTop` |
 
 ### Connector
 
@@ -121,11 +147,14 @@
 | `contextMenu` | `true` | 在做圖區按滑鼠右鍵顯示匯出 PNG、匯出 SVG、列印與「投影片展示」選單。 |
 | `readOnly`／`disabled` | `false`／`false` | 唯讀或停用互動。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`。 |
-| `theme` | `'inherit'` | 繼承外層 `fg-theme-*`，或指定 19 組 FabUI theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
+| `ariaLabel` | `''` | 覆寫 Diagram host 的 accessible name。 |
 
 上方工具列的「工具箱」按鈕可在執行期間開啟或關閉左側工具箱；關閉時會一併隱藏寬度調整 splitter，重新開啟後保留目前 `toolboxWidth` 與各分類的展開／疊合狀態。按鈕的 pressed 狀態會與 `options.toolbox` 同步。
 
-上方工具列的「連線」左側提供直線、直角線、弧線與 S 線四個 icon-only 類型按鈕，圖示只呈現線型、不顯示箭頭；四者互斥選取並以三語系 tooltip 說明。預設選取直角線；類型按鈕只選擇後續 connector 的 `type`，「連線」按鈕則開啟或關閉連線模式。連線模式已開啟時切換類型會立即套用到下一條新連線。實際建立的 connector 仍預設使用 `arrowDirection: 'end'`，箭頭位於終點並指向目標圖形；由左向右連接時即為向右箭頭。
+連線工具支援直線、直角線、弧線與 S 線，預設為直角線。類型按鈕設定下一條 connector 的 `type`，「連線」按鈕則切換連線模式。
+
+新 connector 預設使用 `arrowDirection: 'end'`，箭頭指向目標圖形。
 
 「唯讀」按鈕會呼叫 `setReadOnly()` 鎖定或解除鎖定做圖區，pressed 狀態與 `options.readOnly` 同步。唯讀時主工具列仍保持顯示，以便解除唯讀；復原、重做、刪除、清除、載入、連線、工具箱與屬性等編輯操作會停用，工具箱及屬性區會隱藏，但縮放、符合、格線、全螢幕、下載、右鍵匯出與投影片展示等檢視操作仍可使用。
 
@@ -159,7 +188,7 @@
 | `clearPage()` | 清除目前紙張上的所有圖形與連線，保留紙張尺寸、方向及底色；可使用 `undo()` 復原。 |
 | `selectItem(type, id)`／`clearSelection()`／`getSelection()` | 管理單一主要選取；多選時 `getSelection()` 回傳最後選取的主要 node。 |
 | `getSelections()` | 取得目前所有選取項目的 `{ type, id }` 陣列。 |
-| `setConnectMode(enabled, type?)` | 進入連線模式，再依序點擊起點與終點圖形；`type` 支援 `'orthogonal'`、`'straight'`、`'curved'`。 |
+| `setConnectMode(enabled, type?)` | 進入連線模式，再依序點擊起點與終點圖形；`type` 支援 `'orthogonal'`、`'straight'`、`'curved'`、`'sCurve'`。 |
 | `undo()`／`redo()`／`canUndo()`／`canRedo()` | 管理編輯歷程。 |
 | `setZoom(value)`／`fitToContent()`／`fitToPage(padding?)` | 設定縮放、符合目前內容或縮放到可看見整張紙；`padding` 預設為 12px。 |
 | `setShowGrid(value)` | 顯示或隱藏格線。 |
@@ -181,7 +210,7 @@
 | `getSvg()`／`exportSvg(filename?)` | 取得或下載 SVG。 |
 | `exportPng(filename?, scale?)` | 以 Promise 回傳 PNG Blob；預設 2 倍解析度，傳入檔名時同時下載。 |
 | `print()` | 在目前頁面的隱藏列印框架中載入不含網格的紙張 SVG，以目前 `paperSize` 與 `paperOrientation` 設定列印預覽方向，預設以零頁邊距排除瀏覽器 header／footer，再於內容內保留 12mm 留白，並將完整 SVG 等比例限制在單頁內；不開啟新分頁或新視窗，若無法建立列印框架則回傳 `false`。 |
-| `setLocale(locale)`／`setTheme(theme)`／`setReadOnly(value)` | 更新語系、主題與唯讀狀態。 |
+| `setLocale(locale)`／`setTheme(theme)`／`setReadOnly(value)` | 更新語系、相容 theme 狀態與唯讀狀態；`setTheme()` 不切換 CSS。 |
 | `render()` | 依目前資料重畫 SVG。 |
 | `destroy()`／`dispose()` | 移除 listener、內部控件與 registry，還原原始 host。 |
 
@@ -201,7 +230,7 @@
 
 `onChanged` 的 event args 包含 `action`、完整 `data`，以及變更項目的 `itemType`／`item`。
 工具列按鈕或程式呼叫 `setReadOnly()` 改變唯讀狀態時，`onReadOnlyChanged` 會收到目前的 `readOnly`。
-依 node 的 `hyperlinkTrigger` 單擊或雙擊有超連結的文字時，`onHyperlinkClick` 收到 `itemType: 'node'`、`item` 與實際開啟或執行的 `url`。圖形不必預先選取，第一次直接點文字即可依設定觸發。HTTP／HTTPS、mailto、tel、相對網址與頁內錨點使用新分頁開啟；`javascript:` 會在目前 Diagram 頁面執行，因此只能載入可信任的 Diagram JSON 與超連結內容。觸發超連結的點擊或雙擊不會進入文字編輯模式。
+依 `hyperlinkTrigger` 點擊 node 文字時，`onHyperlinkClick` 會收到 `itemType`、`item` 與 `url`。一般連結使用新分頁；`javascript:` 會在目前頁面執行，只能使用可信任內容。
 工具列載入 JSON 成功時，`onJsonLoaded` 收到 `file` 與匯入後的 `data`；檔案無法讀取或 JSON 無效時，`onLoadError` 收到 `file` 與 `error`，目前圖面保持不變。
 
 ## 操作與鍵盤
@@ -211,14 +240,14 @@
 - 上方工具列的「清除頁面」會移除紙張上的所有圖形與連線，但保留紙張設定，並可使用復原還原內容。
 - 上方工具列的「下載」會將包含紙張、圖形與連線的目前資料下載為 `fabui-diagram.json`；「載入」只接受 JSON 檔案，成功後替換圖面，無效檔案不會改變目前內容。
 - 拖曳工具箱或屬性面板最上方標題可讓面板浮動；浮動時可拖至工作區左側或右側停靠提示區重新 dock。若目標側已有另一面板，會依 `sameSideDockMode` 使用底部 Tabs 或工具箱在上、屬性在下的排列，且不移動原面板。分類標題右側 icon 仍只負責上下排序分類。
-- 右下角檢視工具列可從縮放百分比或工具列空白處拖曳，並限制在 Diagram 範圍內；「投影片展示」固定在「全螢幕」左側，兩者皆為 icon-only FabUI Button，分別使用 `icon-projector-screen` 與 `icon-fullscreen`，tooltip／ARIA 會隨進入或離開狀態同步。原「符合內容」按鈕文字縮短為「符合」。設定 `toolboxStateKey` 後，重新載入會連同兩個面板版面、工具箱寬度與分類狀態，還原檢視工具列位置。
+- 右下角檢視工具列可拖曳，位置限制在 Diagram 範圍內。設定 `toolboxStateKey` 後，會連同面板與工具箱狀態一起還原位置。
 - 拖曳工具箱右側分隔把手可調整寬度；把手取得焦點後，左右方向鍵每次調整 10px，搭配 `Shift` 時每次調整 30px。
 - 上方工具列與做圖區右鍵選單都可匯出 PNG、匯出 SVG 及列印目前紙張；浮動檢視工具列與右鍵選單都可選擇「投影片展示」，展示期間 icon-only Button 的 tooltip／ARIA 與右鍵選單文字都會切換為「離開投影片展示」。
 - 右下角「全螢幕」顯示完整 Diagram 編輯器；進入時先自動符合頁面，之後可繼續使用「−／＋」手動縮放。做圖區右鍵「投影片展示」只顯示 viewport，將紙張依螢幕尺寸放大置中。兩者離開後都會還原原本的縮放與捲動位置。
 - 單擊畫布空白處會清除圖形／連線選取，並在屬性面板顯示重用 `fabui.EditBox` 的紙張尺寸、方向與最小 5px 吸附間距；變更後立即更新格線與 snap，並保存在 `getData()`／匯出 JSON 的 `page.gridSize` 欄位。有效的 `toolboxStateKey` 會額外記住完整 `page`，重新載入時還原；載入含 `page` 的 JSON 也會更新這份記憶。空白處雙擊不再開啟 modal 視窗。
 - DFD 的 Entity、圓形 Process、Data Store 與其他 node 共用圖形內文字編輯；雙擊後以透明多行 `fabui.EditBox` 輸入文字。Demo 的開立製令、倉庫領料、生產工序與完工入庫均使用等寬高的圓形 `dfdProcess`。
 - 組織圖提供 `orgChartImageLeft`、`orgChartImageRight`、`orgChartImageTop` 三種人員卡片；拖入畫布後保留一般 node 的拖曳、縮放、六點連線、屬性與圖形內文字編輯。
-- 選取 node 後，可在「文字」下方輸入「超連結」，並在下一個「觸發方式」屬性選擇「單擊觸發」或「雙擊觸發」。設定完成後，即使圖形尚未選取，第一次直接點文字也會依設定開啟／執行連結，不必先點圖形；該操作不會進入文字編輯模式。有效網址會讓圖形文字顯示底線與手形指標。HTTP／HTTPS 等一般網址會在新分頁開啟；`javascript:alert('12345')` 等 script URL 會在目前 Diagram 頁面執行。Script URL 可執行任意頁面程式，只能使用可信任內容。要編輯已有超連結的 node 文字，請雙擊圖形內文字以外的區域。
+- Node 超連結可設定單擊或雙擊觸發，不需要預先選取圖形。一般網址在新分頁開啟；script URL 只可用於可信任內容。
 - 紙張放大超過 viewport 後，在沒有圖形、線條或控制點的空白處按住滑鼠左鍵拖曳可平移做圖區；`pointercancel` 會還原原本捲動位置。未超出範圍時空白處拖曳仍執行框選；放大狀態按住 `Shift`、`Ctrl` 或 `Cmd` 拖曳也可強制框選。
 - 多選圖形可一起拖曳、使用方向鍵移動或刪除；主要 node 仍可使用八個方形控制點縮放。
 - 拖曳單一或多個圖形時，若相連的直角線端點在目前吸附間距的 75% 內，並位於 5～16px 的自動對齊範圍，Diagram 會微調整組圖形，讓連線自動成為水平或垂直直線；具有自訂控制點的線條不會自動對齊。

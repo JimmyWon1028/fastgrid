@@ -27,7 +27,7 @@ Gantt 不包含在 `fabui.*` core bundle。Browser global 必須先載入 FabUI 
 
 ## 發佈檔
 
-執行 `npm run build` 會產生 core、theme 與以下獨立檔案；已有 core 時也可只執行 `npm run build:gantt`：
+執行 `npm run build:gantt` 只會產生以下 Gantt 檔案：
 
 - `dist/fabui.gantt.js`
 - `dist/fabui.gantt.min.js`
@@ -35,6 +35,8 @@ Gantt 不包含在 `fabui.*` core bundle。Browser global 必須先載入 FabUI 
 - `dist/fabui.gantt.min.css`
 
 core 的 `dist/fabui.*` 不包含 `Gantt` source 或 `.fui-gantt` styles。
+
+`npm run build` 不會建立或改寫 Gantt；`npm run build:all` 才會連同其他發佈範圍一起編譯 Gantt。
 
 ## Task 資料
 
@@ -109,6 +111,7 @@ var dependencies = [
 | `dependencies` | `[]` | Dependency array。 |
 | `columns` | Task、Start、End、Complete | 左側清單欄位。 |
 | `view` | `'week'` | `'day'`、`'week'`、`'month'`、`'year'`。 |
+| `views` | 四種內建 View | 工具列可切換的 View 清單。 |
 | `date` | `null` | 初始焦點日期。 |
 | `rangeStart`／`rangeEnd` | `null` | 明確指定 Timeline 範圍。 |
 | `height` | `620` | 內容高度。 |
@@ -120,7 +123,8 @@ var dependencies = [
 | `showDependencies` | `true` | 顯示相依線。 |
 | `currentTimeMarker` | `true` | 範圍內顯示目前時間線。 |
 | `locale` | `'en'` | `en`、`zh-TW`、`zh-CN`，含中文別名正規化。 |
-| `theme` | `'inherit'` | 繼承或指定 19 組 FabUI theme。 |
+| `theme` | `'inherit'` | 相容用 theme metadata；實際配色由外部 Theme CSS 決定。 |
+| `ariaLabel` | `''` | 覆寫 Gantt host 的 accessible name。 |
 
 ## 方法
 
@@ -140,7 +144,7 @@ var dependencies = [
 | `expand(id)`／`collapse(id)` | 展開或收合 Task。 |
 | `expandAll()`／`collapseAll()` | 展開或收合全部階層。 |
 | `setListWidth(width)` | 設定左側清單寬度。 |
-| `setTheme(theme)`／`setLocale(locale)` | 切換主題或語系。 |
+| `setTheme(theme)`／`setLocale(locale)` | 更新相容 theme 狀態或語系；`setTheme()` 不切換 CSS。 |
 | `editTask(idOrTask)` | 開啟重用 `fabui.Window`、`fabui.EditBox`、`fabui.Button` 的編輯視窗。 |
 | `on(name, handler)`／`off(name, handler)` | 訂閱或解除元件事件。 |
 | `dispose()` | 解除 listener、子控件、editor Window 與 Control registry。 |

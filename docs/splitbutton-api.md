@@ -36,7 +36,9 @@ var editButton = new fabui.SplitButton('#editButton', {
 
 ## Options
 
-SplitButton 沿用 Button／MenuButton 的文字、尺寸、disabled、plain、outline、icon、size、fit、theme、Menu 與對齊 options。icon 預設位於文字左側，並一律使用 `iconCls: 'icon-xxx'`。主操作區與箭頭區的分隔線預設隱藏，只在滑鼠移入整個 SplitButton 時顯示。
+SplitButton 沿用 [Button API](./button-api.md) 的 `width`、`height`、`id`、`disabled`、`toggle`、`selected`、`group`、`plain`、`outline`、`text`、`iconCls`、`iconAlign`、`size`、`fit`、`cls`、`theme` 與 `onResize`，並沿用 MenuButton 的 Menu options。
+
+icon 預設位於文字左側，並一律使用 `iconCls: 'icon-xxx'`。主操作區與箭頭區的分隔線預設隱藏，只在滑鼠移入整個 SplitButton 時顯示。
 
 | Option | 預設值 | 說明 |
 | --- | --- | --- |
@@ -83,7 +85,7 @@ Markup 可使用安全的 EasyUI 風格 `data-options`：
 | `resize({ width, height })` | 透過共用 MenuButton 動態調整尺寸。 |
 | `setText(text)` | 更新主區域的安全文字。 |
 | `setIcon(iconCls, iconAlign?)` | 更新主區域 icon。 |
-| `setTheme(theme)` | 同步切換 Button 與 Menu theme。 |
+| `setTheme(theme)` | 同步相容 theme 狀態，不載入或切換 CSS。 |
 | `on(name, listener)` / `off(name, listener?)` | 訂閱或解除事件。 |
 | `destroy()` / `dispose()` | 清除 timer／listener／registry，並還原原始 Button 與 Menu markup。 |
 
