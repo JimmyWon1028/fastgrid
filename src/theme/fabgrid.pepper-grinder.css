@@ -1,8 +1,8 @@
 /*! FabGrid theme pepper-grinder | performance-first data grid */
 @import './pepper-grinder/tabs.css?v=20260718-tabs-drag-right-v1';
 @import './pepper-grinder/components.css?v=20260719-components-theme-v2';
-.fg-root.fg-theme-pepper-grinder,
-.fui-tabs.fg-theme-pepper-grinder {
+.fg-root,
+.fui-tabs {
   --fg-border: #ccc;
   --fg-border-strong: #cbc7bd;
   --fg-frozen-divider: #b7b2a8;
@@ -22,99 +22,99 @@
   color: #1f1f1f;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-header,
-.fg-root.fg-theme-pepper-grinder .fg-header-frozen,
-.fg-root.fg-theme-pepper-grinder .fg-header-frozen-right,
-.fg-root.fg-theme-pepper-grinder .fg-footer,
-.fg-root.fg-theme-pepper-grinder .fg-footer-frozen,
-.fg-root.fg-theme-pepper-grinder .fg-footer-frozen-right {
+.fg-root .fg-header,
+.fg-root .fg-header-frozen,
+.fg-root .fg-header-frozen-right,
+.fg-root .fg-footer,
+.fg-root .fg-footer-frozen,
+.fg-root .fg-footer-frozen-right {
   background: #EFEFEF;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-row-header-top,
-.fg-root.fg-theme-pepper-grinder .fg-selection-top,
-.fg-root.fg-theme-pepper-grinder .fg-header-cell,
-.fg-root.fg-theme-pepper-grinder .fg-footer-row-header,
-.fg-root.fg-theme-pepper-grinder .fg-footer-selection,
-.fg-root.fg-theme-pepper-grinder .fg-footer-cell,
-.fg-root.fg-theme-pepper-grinder .fg-row-header-cell {
+.fg-root .fg-row-header-top,
+.fg-root .fg-selection-top,
+.fg-root .fg-header-cell,
+.fg-root .fg-footer-row-header,
+.fg-root .fg-footer-selection,
+.fg-root .fg-footer-cell,
+.fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-body,
-.fg-root.fg-theme-pepper-grinder .fg-frozen-pane,
-.fg-root.fg-theme-pepper-grinder .fg-frozen-pane-right,
-.fg-root.fg-theme-pepper-grinder .fg-selection-pane,
-.fg-root.fg-theme-pepper-grinder .fg-cell,
-.fg-root.fg-theme-pepper-grinder .fg-selection-cell {
+.fg-root .fg-body,
+.fg-root .fg-frozen-pane,
+.fg-root .fg-frozen-pane-right,
+.fg-root .fg-selection-pane,
+.fg-root .fg-cell,
+.fg-root .fg-selection-cell {
   background: #eceadf;
   color: #1f1f1f;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-cell.fg-row-even,
-.fg-root.fg-theme-pepper-grinder .fg-selection-cell.fg-row-even,
-.fg-root.fg-theme-pepper-grinder .fg-selection-cell.fg-row-alt,
-.fg-root.fg-theme-pepper-grinder .fg-cell.fg-row-alt {
+.fg-root .fg-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-alt,
+.fg-root .fg-cell.fg-row-alt {
   background-color: #fafafa;
   color: #1f1f1f;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-cell.fg-row-hovered,
-.fg-root.fg-theme-pepper-grinder .fg-selection-cell.fg-row-hovered,
-.fg-root.fg-theme-pepper-grinder .fg-cell:hover,
-.fg-root.fg-theme-pepper-grinder .fg-cell.fg-row-hovered:hover {
+.fg-root .fg-cell.fg-row-hovered,
+.fg-root .fg-selection-cell.fg-row-hovered,
+.fg-root .fg-cell:hover,
+.fg-root .fg-cell.fg-row-hovered:hover {
   background: #654b24;
   color: #fff;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-cell.fg-row-selected,
-.fg-root.fg-theme-pepper-grinder .fg-selection-cell.fg-row-selected,
-.fg-root.fg-theme-pepper-grinder .fg-cell.fg-row-selected:hover,
-.fg-root.fg-theme-pepper-grinder .fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected,
+.fg-root .fg-selection-cell.fg-row-selected,
+.fg-root .fg-cell.fg-row-selected:hover,
+.fg-root .fg-row-selected.fg-selected {
   background: #B83400;
   color: #fff;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-selected {
+.fg-root .fg-selected {
   background: #654b24;
   color: #fff;
   outline-color: #80b103;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-cell.fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-sort-asc {
+.fg-root .fg-sort-asc {
   border-bottom-color: #000;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-sort-desc {
+.fg-root .fg-sort-desc {
   border-top-color: #000;
 }
 
-.fg-root.fg-theme-pepper-grinder .fg-editor {
+.fg-root .fg-editor {
   border-color: #80b103;
 }
 
-.fg-root.fg-theme-pepper-grinder .pagination-first {
+.fg-root .pagination-first {
   background: url('pepper-grinder/images/pagination_icons.png') no-repeat 0 center;
 }
 
-.fg-root.fg-theme-pepper-grinder .pagination-prev {
+.fg-root .pagination-prev {
   background: url('pepper-grinder/images/pagination_icons.png') no-repeat -16px center;
 }
 
-.fg-root.fg-theme-pepper-grinder .pagination-next {
+.fg-root .pagination-next {
   background: url('pepper-grinder/images/pagination_icons.png') no-repeat -32px center;
 }
 
-.fg-root.fg-theme-pepper-grinder .pagination-last {
+.fg-root .pagination-last {
   background: url('pepper-grinder/images/pagination_icons.png') no-repeat -48px center;
 }
 
-.fg-root.fg-theme-pepper-grinder .pagination-load {
+.fg-root .pagination-load {
   background: url('pepper-grinder/images/pagination_icons.png') no-repeat -64px center;
 }

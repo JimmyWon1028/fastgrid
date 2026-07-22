@@ -1,4 +1,4 @@
-.fui-tabs.fg-theme-metro-blue {
+.fui-tabs {
   --fui-tabs-radius: 0;
   --fui-tabs-border: #c3d9e0;
   --fui-tabs-header-bg: #daeef5;
@@ -21,8 +21,8 @@
   --fui-tabs-drag-indicator: #d7561f;
 }
 
-.fui-tabs.fg-theme-metro-blue .fui-tabs-close,
-.fui-tabs.fg-theme-metro-blue .fui-tabs-scroll-prev,
-.fui-tabs.fg-theme-metro-blue .fui-tabs-scroll-next {
+.fui-tabs .fui-tabs-close,
+.fui-tabs .fui-tabs-scroll-prev,
+.fui-tabs .fui-tabs-scroll-next {
   background-image: url('images/tabs_icons.png');
 }

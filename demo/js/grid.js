@@ -31,8 +31,7 @@
     frozenColumns: 2,
     frozenRightColumns: 1,
     showRowHeaders: true,
-    allowFiltering: true,
-    showSearchRow: false,
+    filterMode: ["excel", "searchRow"],
     pagination: false,
     remote: false,
     rowGroupMode: "none",
@@ -190,7 +189,7 @@
       rowHeight: 32,
       headerHeight: 32,
       // activeCellBorder: 2,
-      searchDelay: 200,
+      searchDelay: 400,
       overscanRows: 14,
       overscanColumns: 3,
       frozenColumns: settings.frozenColumns,
@@ -210,8 +209,7 @@
         showPageInfo: true,
         showRefresh: true,
       },
-      showSearchRow: settings.showSearchRow,
-      allowFiltering: settings.allowFiltering,
+      filterMode: settings.filterMode,
       // showFooter: true,
       footerHeight: 32,
       multiSelectRows: settings.multiSelectRows,
@@ -279,8 +277,11 @@
       grid.setFilter(null);
       saveCurrentDemoSettings();
     });
-    grid.on("searchRowVisibilityChanged", function (event) {
-      demoSettings.showSearchRow = event.visible === true;
+    grid.on("filterModeChanged", function (event) {
+      demoSettings.filterMode = event.filterMode === false
+        ? false
+        : event.filterMode.slice();
+      controls.filtering.checked = event.filterMode !== false;
       saveCurrentDemoSettings();
     });
     grid.on("rowHeaderModeChanged", function (event) {
@@ -338,7 +339,8 @@
       if (grid.setAllowFiltering) {
         grid.setAllowFiltering(event.target.checked);
       }
-      demoSettings.allowFiltering = event.target.checked;
+      demoSettings.filterMode = grid.getFilterMode();
+      controls.filtering.checked = demoSettings.filterMode !== false;
       saveCurrentDemoSettings();
     });
     controls.pagination.addEventListener("change", handleDataModeChange);
@@ -506,7 +508,7 @@
         binding: "dlvno",
         header: "訂單編號",
         width: 140.4,
-        minWidth: 100,
+        // minWidth: 100,
         dataType: "string",
         editor: {
           type: "text",
@@ -1118,8 +1120,7 @@
       frozenColumns: controls.frozen.value,
       frozenRightColumns: controls.frozenRight.value,
       showRowHeaders: controls.rowHeaders.value,
-      allowFiltering: controls.filtering.checked,
-      showSearchRow: grid.options.showSearchRow === true,
+      filterMode: grid.getFilterMode(),
       pagination: controls.pagination.checked,
       remote: controls.remote.checked,
       rowGroupMode: controls.groupRows
@@ -1155,7 +1156,7 @@
         : settings.showRowHeaders === "cell"
         ? "cell"
         : "false";
-    controls.filtering.checked = settings.allowFiltering;
+    controls.filtering.checked = settings.filterMode !== false;
     controls.pagination.checked = settings.pagination;
     controls.remote.checked = settings.remote;
     if (controls.groupRows) {
@@ -1193,14 +1194,7 @@
         settings.showRowHeaders,
         DEFAULT_DEMO_SETTINGS.showRowHeaders
       ),
-      allowFiltering: normalizeBooleanSetting(
-        settings.allowFiltering,
-        DEFAULT_DEMO_SETTINGS.allowFiltering
-      ),
-      showSearchRow: normalizeBooleanSetting(
-        settings.showSearchRow,
-        DEFAULT_DEMO_SETTINGS.showSearchRow
-      ),
+      filterMode: normalizeFilterModeSetting(settings),
       pagination: normalizeBooleanSetting(
         settings.pagination,
         DEFAULT_DEMO_SETTINGS.pagination
@@ -1223,6 +1217,33 @@
         DEFAULT_DEMO_SETTINGS.editMode
       ),
     };
+  }
+
+  function normalizeFilterModeSetting(settings) {
+    var value = settings.filterMode;
+    var result = [];
+    if (value === false || (value == null && settings.allowFiltering === false)) {
+      return false;
+    }
+    if (!Array.isArray(value)) {
+      value = settings.showSearchRow === true
+        ? ["searchRow", "excel"]
+        : DEFAULT_DEMO_SETTINGS.filterMode;
+    }
+    value.forEach(function (mode) {
+      var normalized = String(mode || "").toLowerCase();
+      if (normalized === "searchrow" || normalized === "search-row") {
+        normalized = "searchRow";
+      } else if (normalized === "excel") {
+        normalized = "excel";
+      } else {
+        return;
+      }
+      if (result.indexOf(normalized) < 0) {
+        result.push(normalized);
+      }
+    });
+    return result.length ? result : false;
   }
 
   function normalizeNumberSetting(value, defaultValue, min, max) {

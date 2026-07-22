@@ -4,6 +4,7 @@ const esbuild = require('esbuild');
 
 const root = path.resolve(__dirname, '..');
 const srcDir = path.join(root, 'src');
+const minOnly = process.argv.slice(2).indexOf('min') >= 0;
 const distDir = process.env.FABUI_DIST_DIR ?
   path.resolve(process.env.FABUI_DIST_DIR) :
   path.join(root, 'dist');
@@ -71,14 +72,7 @@ const liteIconSelectors = [
   '.icon-search',
   '.icon-row-number'
 ];
-const themeSources = fs.readdirSync(path.join(srcDir, 'theme'))
-  .filter(function(file) {
-    return /^fabgrid\..+\.css$/i.test(file);
-  })
-  .sort()
-  .map(function(file) {
-    return 'theme/' + file;
-  });
+const themeSources = ['theme/fabgrid.default.css'];
 
 function banner(name) {
   return '/*! FabUI Lite ' + name + ' | FabGrid, TreeGrid, Pivot and Chart */\n';
@@ -96,9 +90,8 @@ function stripExports(source) {
     .replace(/export\s+default\s+[A-Za-z_$][\w$]*\s*;?/g, '');
 }
 
-function minifyJs(source, format) {
+function minifyJs(source) {
   return esbuild.transformSync(source, {
-    format: format,
     legalComments: 'none',
     minify: true,
     target: 'es2017'
@@ -115,7 +108,7 @@ function minifyCss(source) {
 }
 
 function shouldSkipCssImport(request) {
-  return /(?:^|\/)(?:components|tabs)\.css$/i.test(request);
+  return /(?:^|\/)tabs\.css$/i.test(request);
 }
 
 function rewriteCssUrls(source, sourceFile) {
@@ -148,7 +141,7 @@ function bundleCss(entryFile, seen) {
     return bundleCss(path.resolve(path.dirname(absolute), request), seen);
   });
   if (/[/\\]theme[/\\]fabgrid\.[^/\\]+\.css$/i.test(absolute)) {
-    source = source.replace(/,\s*\.fui-tabs\.fg-theme-[A-Za-z0-9-]+/g, '');
+    source = source.replace(/,\s*\.fui-tabs\b/g, '');
   }
   return rewriteCssUrls(source, absolute);
 }
@@ -229,9 +222,8 @@ function verifyCssAssets(file) {
   }
 }
 
-function verifyBuildOutput() {
-  const javascript = fs.readFileSync(path.join(distDir, 'fabui.lite.js'), 'utf8');
-  const cssFile = path.join(distDir, 'fabui.lite.css');
+function verifyBuildOutput(javascript) {
+  const cssFile = path.join(distDir, minOnly ? 'fabui.lite.min.css' : 'fabui.lite.css');
   const forbiddenFactories = [
     'createButtonFactory',
     'createCalendarFactory',
@@ -263,8 +255,21 @@ function verifyBuildOutput() {
       throw new Error('FabUI Lite contains an excluded component factory: ' + factory);
     }
   });
+  if (/\.fg-theme-[A-Za-z0-9-]+/.test(fs.readFileSync(cssFile, 'utf8'))) {
+    throw new Error('FabUI Lite CSS must use fixed selectors and contain only the Default theme.');
+  }
   verifyCssAssets(cssFile);
-  verifyCssAssets(path.join(distDir, 'fabui.lite.min.css'));
+  if (!minOnly) {
+    verifyCssAssets(path.join(distDir, 'fabui.lite.min.css'));
+  }
+  if (!fs.existsSync(path.join(distDir, 'fabui.lite.min.js')) ||
+      !fs.existsSync(path.join(distDir, 'fabui.lite.min.css'))) {
+    throw new Error('FabUI Lite minified output is incomplete.');
+  }
+  if (minOnly && (fs.existsSync(path.join(distDir, 'fabui.lite.js')) ||
+      fs.existsSync(path.join(distDir, 'fabui.lite.css')))) {
+    throw new Error('FabUI Lite min-only build must not keep unminified output.');
+  }
 }
 
 fs.mkdirSync(distDir, { recursive: true });
@@ -283,11 +288,15 @@ fs.rmSync(path.join(distDir, 'theme', 'mono', 'images'), { recursive: true, forc
 const javascript = createBrowserJavascriptBundle();
 const css = createCssBundle();
 
-fs.writeFileSync(path.join(distDir, 'fabui.lite.js'), javascript, 'utf8');
-fs.writeFileSync(path.join(distDir, 'fabui.lite.min.js'), banner('browser global min') + minifyJs(javascript, 'iife'), 'utf8');
-fs.writeFileSync(path.join(distDir, 'fabui.lite.css'), css, 'utf8');
+if (!minOnly) {
+  fs.writeFileSync(path.join(distDir, 'fabui.lite.js'), javascript, 'utf8');
+  fs.writeFileSync(path.join(distDir, 'fabui.lite.css'), css, 'utf8');
+}
+fs.writeFileSync(path.join(distDir, 'fabui.lite.min.js'), banner('browser global min') + minifyJs(javascript), 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.lite.min.css'), minifyCss(css), 'utf8');
 copyCssAssets(css);
-verifyBuildOutput();
+verifyBuildOutput(javascript);
 
-console.log('Built FabUI Lite bundles with FabGrid, TreeGrid, Pivot, Chart and required dependencies.');
+console.log(minOnly ?
+  'Built minified FabUI Lite bundles with FabGrid, TreeGrid, Pivot, Chart and required dependencies.' :
+  'Built FabUI Lite bundles with FabGrid, TreeGrid, Pivot, Chart and required dependencies.');

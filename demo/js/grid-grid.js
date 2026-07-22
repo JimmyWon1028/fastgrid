@@ -57,7 +57,7 @@
       allowDragging: 'Rows',
       allowSorting: false,
       allowEditing: false,
-      showSearchRow: false,
+      filterMode: ['excel', 'searchRow'],
       frozenColumns: 1,
       rowHeaderWidth: 44,
       alternatingRowStep: 1

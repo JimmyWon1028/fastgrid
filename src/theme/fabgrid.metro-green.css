@@ -1,8 +1,8 @@
 /*! FabGrid theme metro-green | performance-first data grid */
 @import './metro-green/tabs.css?v=20260719-tabs-theme-v2';
 @import './metro-green/components.css?v=20260719-components-theme-v2';
-.fg-root.fg-theme-metro-green,
-.fui-tabs.fg-theme-metro-green {
+.fg-root,
+.fui-tabs {
   --fg-border: #bbb;
   --fg-border-strong: #bbb;
   --fg-frozen-divider: #aaa;
@@ -22,99 +22,99 @@
   color: #404040;
 }
 
-.fg-root.fg-theme-metro-green .fg-header,
-.fg-root.fg-theme-metro-green .fg-header-frozen,
-.fg-root.fg-theme-metro-green .fg-header-frozen-right,
-.fg-root.fg-theme-metro-green .fg-footer,
-.fg-root.fg-theme-metro-green .fg-footer-frozen,
-.fg-root.fg-theme-metro-green .fg-footer-frozen-right {
+.fg-root .fg-header,
+.fg-root .fg-header-frozen,
+.fg-root .fg-header-frozen-right,
+.fg-root .fg-footer,
+.fg-root .fg-footer-frozen,
+.fg-root .fg-footer-frozen-right {
   background: #EBECED;
 }
 
-.fg-root.fg-theme-metro-green .fg-row-header-top,
-.fg-root.fg-theme-metro-green .fg-selection-top,
-.fg-root.fg-theme-metro-green .fg-header-cell,
-.fg-root.fg-theme-metro-green .fg-footer-row-header,
-.fg-root.fg-theme-metro-green .fg-footer-selection,
-.fg-root.fg-theme-metro-green .fg-footer-cell,
-.fg-root.fg-theme-metro-green .fg-row-header-cell {
+.fg-root .fg-row-header-top,
+.fg-root .fg-selection-top,
+.fg-root .fg-header-cell,
+.fg-root .fg-footer-row-header,
+.fg-root .fg-footer-selection,
+.fg-root .fg-footer-cell,
+.fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root.fg-theme-metro-green .fg-body,
-.fg-root.fg-theme-metro-green .fg-frozen-pane,
-.fg-root.fg-theme-metro-green .fg-frozen-pane-right,
-.fg-root.fg-theme-metro-green .fg-selection-pane,
-.fg-root.fg-theme-metro-green .fg-cell,
-.fg-root.fg-theme-metro-green .fg-selection-cell {
+.fg-root .fg-body,
+.fg-root .fg-frozen-pane,
+.fg-root .fg-frozen-pane-right,
+.fg-root .fg-selection-pane,
+.fg-root .fg-cell,
+.fg-root .fg-selection-cell {
   background: #fafafa;
   color: #404040;
 }
 
-.fg-root.fg-theme-metro-green .fg-cell.fg-row-even,
-.fg-root.fg-theme-metro-green .fg-selection-cell.fg-row-even,
-.fg-root.fg-theme-metro-green .fg-selection-cell.fg-row-alt,
-.fg-root.fg-theme-metro-green .fg-cell.fg-row-alt {
+.fg-root .fg-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-alt,
+.fg-root .fg-cell.fg-row-alt {
   background-color: #f5f5f5;
   color: #404040;
 }
 
-.fg-root.fg-theme-metro-green .fg-cell.fg-row-hovered,
-.fg-root.fg-theme-metro-green .fg-selection-cell.fg-row-hovered,
-.fg-root.fg-theme-metro-green .fg-cell:hover,
-.fg-root.fg-theme-metro-green .fg-cell.fg-row-hovered:hover {
+.fg-root .fg-cell.fg-row-hovered,
+.fg-root .fg-selection-cell.fg-row-hovered,
+.fg-root .fg-cell:hover,
+.fg-root .fg-cell.fg-row-hovered:hover {
   background: #E0F892;
   color: #404040;
 }
 
-.fg-root.fg-theme-metro-green .fg-cell.fg-row-selected,
-.fg-root.fg-theme-metro-green .fg-selection-cell.fg-row-selected,
-.fg-root.fg-theme-metro-green .fg-cell.fg-row-selected:hover,
-.fg-root.fg-theme-metro-green .fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected,
+.fg-root .fg-selection-cell.fg-row-selected,
+.fg-root .fg-cell.fg-row-selected:hover,
+.fg-root .fg-row-selected.fg-selected {
   background: #c8d47b;
   color: #404040;
 }
 
-.fg-root.fg-theme-metro-green .fg-selected {
+.fg-root .fg-selected {
   background: #E0F892;
   color: #404040;
   outline-color: #ee7f7d;
 }
 
-.fg-root.fg-theme-metro-green .fg-cell.fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root.fg-theme-metro-green .fg-sort-asc {
+.fg-root .fg-sort-asc {
   border-bottom-color: #333;
 }
 
-.fg-root.fg-theme-metro-green .fg-sort-desc {
+.fg-root .fg-sort-desc {
   border-top-color: #333;
 }
 
-.fg-root.fg-theme-metro-green .fg-editor {
+.fg-root .fg-editor {
   border-color: #f29c9b;
 }
 
-.fg-root.fg-theme-metro-green .pagination-first {
+.fg-root .pagination-first {
   background: url('metro-green/images/pagination_icons.png') no-repeat 0 center;
 }
 
-.fg-root.fg-theme-metro-green .pagination-prev {
+.fg-root .pagination-prev {
   background: url('metro-green/images/pagination_icons.png') no-repeat -16px center;
 }
 
-.fg-root.fg-theme-metro-green .pagination-next {
+.fg-root .pagination-next {
   background: url('metro-green/images/pagination_icons.png') no-repeat -32px center;
 }
 
-.fg-root.fg-theme-metro-green .pagination-last {
+.fg-root .pagination-last {
   background: url('metro-green/images/pagination_icons.png') no-repeat -48px center;
 }
 
-.fg-root.fg-theme-metro-green .pagination-load {
+.fg-root .pagination-load {
   background: url('metro-green/images/pagination_icons.png') no-repeat -64px center;
 }

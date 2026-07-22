@@ -59,7 +59,7 @@ $("#grid").fabgrid("option", {
 
 `itemsSource`、`columns`、`locale`、凍結欄與其他具有正式 setter 的設定會轉交 core setter；其他設定更新 `grid.options` 後呼叫 `invalidate()`。
 
-目前會優先呼叫正式 setter 的動態設定包括 `itemsSource`、`columns`、`locale`、`activeCellBorder`、`allowFiltering`、左右凍結欄、列號模式、列號欄寬、footer、搜尋列、列群組、編輯模式、多選、頁碼、每頁筆數與 header 顯示模式。
+目前會優先呼叫正式 setter 的動態設定包括 `itemsSource`、`columns`、`locale`、`activeCellBorder`、`filterMode`、相容的 `allowFiltering`、左右凍結欄、列號模式、列號欄寬、footer、列群組、編輯模式、多選、頁碼、每頁筆數與 header 顯示模式。
 
 再次傳入 options 不會建立第二個 instance，而是更新既有 instance。
 

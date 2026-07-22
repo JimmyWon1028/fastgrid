@@ -1,10 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import vm from 'node:vm';
+import { spawnSync } from 'node:child_process';
 
 test('default build compiles FabUI core without wrapper bundles', function() {
   var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   var buildSource = fs.readFileSync('build/build.cjs', 'utf8');
+  var themeBuilderSource = fs.readFileSync('build/theme-builder.cjs', 'utf8');
   var smokeSource = fs.readFileSync('build/smoke.cjs', 'utf8');
 
   assert.equal(packageJson.scripts.build, 'node build/build.cjs');
@@ -18,7 +23,8 @@ test('default build compiles FabUI core without wrapper bundles', function() {
     /rmSync\(path\.join\(distDir, 'theme'\), \{ recursive: true, force: true \}\)/
   );
   assert.match(buildSource, /'editbox\/time-editbox\.js'/);
-  assert.match(buildSource, /path\.join\(outputThemeDir, 'mono'\)/);
+  assert.match(buildSource, /buildThemeOutput\(\{/);
+  assert.match(themeBuilderSource, /path\.join\(outputThemeDir, 'mono'\)/);
   assert.doesNotMatch(smokeSource, /wrapper outputs are incomplete/);
   assert.doesNotMatch(smokeSource, /'wrapper'/);
 });
@@ -28,8 +34,10 @@ test('all build commands omit ESM output files', function() {
   var buildScripts = [
     'build/build.cjs',
     'build/build-lite.cjs',
+    'build/build-diagram.cjs',
     'build/build-gantt.cjs',
     'build/build-scheduler.cjs',
+    'build/build-theme.cjs',
     'build/build-vue.cjs',
     'build/build-jquery.cjs'
   ];
@@ -46,6 +54,51 @@ test('all build commands omit ESM output files', function() {
   });
 });
 
+test('theme build supports regular and min-only isolated output', function() {
+  var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabui-theme-build-'));
+  var sentinel = path.join(tempDir, 'fabui.lite.min.js');
+  var result;
+  var themeFiles;
+
+  assert.equal(packageJson.scripts['build:theme'], 'node build/build-theme.cjs');
+  fs.writeFileSync(sentinel, 'keep', 'utf8');
+  try {
+    result = spawnSync(process.execPath, ['build/build-theme.cjs'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    themeFiles = fs.readdirSync(path.join(tempDir, 'theme'));
+    assert.equal(themeFiles.filter(function(file) {
+      return /^fabui\..+\.css$/i.test(file) && !/\.min\.css$/i.test(file);
+    }).length, 18);
+    assert.equal(themeFiles.filter(function(file) {
+      return /^fabui\..+\.min\.css$/i.test(file);
+    }).length, 18);
+    assert.equal(themeFiles.includes('fabui.default.css'), false);
+
+    result = spawnSync(process.execPath, ['build/build-theme.cjs', 'min'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    themeFiles = fs.readdirSync(path.join(tempDir, 'theme'));
+    assert.equal(themeFiles.filter(function(file) {
+      return /^fabui\..+\.min\.css$/i.test(file);
+    }).length, 18);
+    assert.equal(themeFiles.filter(function(file) {
+      return /^fabui\..+\.css$/i.test(file) && !/\.min\.css$/i.test(file);
+    }).length, 0);
+    assert.equal(fs.readFileSync(sentinel, 'utf8'), 'keep');
+    assert.equal(fs.existsSync(path.join(tempDir, 'theme', 'mono', 'pagination-next.svg')), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('Lite build keeps Mono family assets in the shared flat directory', function() {
   var buildSource = fs.readFileSync('build/build-lite.cjs', 'utf8');
 
@@ -54,6 +107,38 @@ test('Lite build keeps Mono family assets in the shared flat directory', functio
     buildSource,
     /rmSync\(path\.join\(distDir, 'theme', 'mono', 'images'\), \{ recursive: true, force: true \}\)/
   );
+});
+
+test('Lite build supports min-only isolated output', function() {
+  var packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  var tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fabui-lite-build-'));
+  var sentinel = path.join(tempDir, 'fabui.min.js');
+  var result;
+  var context;
+
+  assert.equal(packageJson.scripts['build:lite'], 'node build/build-lite.cjs');
+  fs.writeFileSync(sentinel, 'keep', 'utf8');
+  try {
+    result = spawnSync(process.execPath, ['build/build-lite.cjs', 'min'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { FABUI_DIST_DIR: tempDir })
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.min.js')), true);
+    assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.min.css')), true);
+    assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.js')), false);
+    assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.css')), false);
+    assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.esm.js')), false);
+    assert.equal(fs.existsSync(path.join(tempDir, 'fabui.lite.esm.min.js')), false);
+    assert.equal(fs.readFileSync(sentinel, 'utf8'), 'keep');
+    context = {};
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync(path.join(tempDir, 'fabui.lite.min.js'), 'utf8'), context);
+    assert.equal(typeof context.fabui.FabGrid, 'function');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test('EditBox jQuery wrapper remains removed', function() {

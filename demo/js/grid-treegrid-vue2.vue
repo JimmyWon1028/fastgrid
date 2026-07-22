@@ -103,7 +103,7 @@ function createBaseGridOptions() {
     allowDragging: "Rows",
     allowSorting: false,
     allowEditing: false,
-    showSearchRow: false,
+    filterMode: ['excel', 'searchRow'],
     frozenColumns: 1,
     rowHeaderWidth: 44,
     alternatingRowStep: 1,
@@ -211,6 +211,6 @@ app.$mount("#app");
 </script>
 
 <style>
-@import "../dist/fabui.css?v=20260721-mono-theme-v3";
+@import "../dist/fabui.css?v=20260722-theme-css-split-v1";
 @import "./style/grid-treegrid.css";
 </style>

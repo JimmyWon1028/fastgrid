@@ -20,6 +20,10 @@ export function applyHeaderCellStyle(targetStyle, customStyle) {
   }
 }
 
+export function getSizeLayerWidth(fixedLeftWidth, frozenWidth, scrollableWidth, frozenRightWidth) {
+  return Math.max(0, fixedLeftWidth + frozenWidth + scrollableWidth + frozenRightWidth);
+}
+
 export function installFabGridView(FabGrid, context) {
   var CellType = context.CellType;
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
@@ -34,6 +38,7 @@ export function installFabGridView(FabGrid, context) {
   var getColumnSearchIconConfigs = context.getColumnSearchIconConfigs;
   var getColumnSearchKey = context.getColumnSearchKey;
   var getColumnSearchOperatorSymbol = context.getColumnSearchOperatorSymbol;
+  var getActiveFilterMode = context.getActiveFilterMode;
   var getComboboxTextByValue = context.getComboboxTextByValue;
   var getEditorMask = context.getEditorMask;
   var getExplicitEditorMask = context.getExplicitEditorMask;
@@ -781,7 +786,13 @@ export function installFabGridView(FabGrid, context) {
       null;
     bodyPaneBottom = footerOffsetBottom + footerHeight;
 
-    this.sizeLayer.style.width = Math.max(metrics.width, fixedLeftWidth + this.frozenWidth + this.scrollableWidth + this.frozenRightWidth) + 'px';
+    // Let CSS min-width track the live client width after a vertical scrollbar appears.
+    this.sizeLayer.style.width = getSizeLayerWidth(
+      fixedLeftWidth,
+      this.frozenWidth,
+      this.scrollableWidth,
+      this.frozenRightWidth
+    ) + 'px';
     this.sizeLayer.style.height = (totalHeight + footerHeight) + 'px';
     this.rowHeaderTop.style.width = rowHeaderWidth + 'px';
     this.rowHeaderTop.style.height = this.getHeaderHeight() + 'px';
@@ -1169,8 +1180,8 @@ export function installFabGridView(FabGrid, context) {
   FabGrid.prototype.hasActiveFilter = function() {
     return !!this.filterPredicate ||
       !!this.searchText ||
-      (this.options.allowFiltering !== false && this.options.showSearchRow === true && this.hasColumnSearch) ||
-      (this.options.allowFiltering !== false && this.options.showSearchRow !== true && hasExcelFilterEntries(this.excelFilters));
+      (getActiveFilterMode(this.options) === 'searchRow' && this.hasColumnSearch) ||
+      (getActiveFilterMode(this.options) === 'excel' && hasExcelFilterEntries(this.excelFilters));
   };
 
   FabGrid.prototype.getFixedLeftWidth = function() {
@@ -1469,6 +1480,7 @@ export function installFabGridView(FabGrid, context) {
     var searchOperator = this.getColumnSearchOperator(column);
     var excelFilterActive = this.isExcelFilterActive(column);
     var headerText = this.getHeaderCellText(column);
+    var headerTextWidth;
     var headerContentWidth;
 
     cell.className = 'fg-header-cell';
@@ -1482,12 +1494,16 @@ export function installFabGridView(FabGrid, context) {
     cell.setAttribute('data-col', column._viewIndex);
     cell.setAttribute('data-frozen', frozen ? '1' : '0');
     title.className = 'fg-header-title' +
-      (this.options.allowFiltering !== false ? ' fg-header-title-filterable' : '');
-    if (this.options.allowFiltering !== false) {
-      headerContentWidth = this.measureAutoSizeText(headerText, textMeasureContext) +
-        (sortDirection ? 13 : 0);
+      (getActiveFilterMode(this.options) ? ' fg-header-title-filterable' : '') +
+      (sortDirection ? ' fg-header-title-sorted' : '');
+    if (getActiveFilterMode(this.options)) {
+      headerTextWidth = this.measureAutoSizeText(headerText, textMeasureContext);
+      headerContentWidth = headerTextWidth + (column.align === 'right' ? 0 : 13);
       if (headerContentWidth + 30 > column._width) {
         title.className += ' fg-header-title-filter-narrow';
+        if (column.align === 'right' && headerTextWidth + 13 <= column._width) {
+          title.className += ' fg-header-title-filter-right-inset';
+        }
       }
     }
     title.style.height = this.getHeaderTitleHeight() + 'px';
@@ -1505,11 +1521,11 @@ export function installFabGridView(FabGrid, context) {
     sortWrap.appendChild(sort);
     title.appendChild(sortWrap);
     cell.appendChild(title);
-    if (this.options.allowFiltering !== false) {
+    if (getActiveFilterMode(this.options)) {
       filterIcon.className = 'fg-filter-icon' +
-        (this.options.showSearchRow === true && searchOperator ? ' fg-filter-icon-active' : '') +
-        (this.options.showSearchRow !== true && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
-      filterIcon.textContent = this.options.showSearchRow === true && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
+        (getActiveFilterMode(this.options) === 'searchRow' && searchOperator ? ' fg-filter-icon-active' : '') +
+        (getActiveFilterMode(this.options) === 'excel' && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
+      filterIcon.textContent = getActiveFilterMode(this.options) === 'searchRow' && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
       filterIcon.setAttribute('data-col', column._viewIndex);
       filterIcon.setAttribute('role', 'button');
       filterIcon.setAttribute('aria-label', this.getText('filter.openMenu', { column: headerText }));
@@ -1517,7 +1533,7 @@ export function installFabGridView(FabGrid, context) {
       filterIcon.setAttribute('aria-expanded', this.filterMenuColumn === column && this.isFilterMenuOpen() ? 'true' : 'false');
       title.appendChild(filterIcon);
     }
-    if (this.options.allowFiltering !== false && this.options.showSearchRow === true) {
+    if (getActiveFilterMode(this.options) === 'searchRow') {
       searchEditorConfig = getColumnEditorConfig(column);
       searchIcons = getColumnSearchIconConfigs(column);
       search = document.createElement('span');

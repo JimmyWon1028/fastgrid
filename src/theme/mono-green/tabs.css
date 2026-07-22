@@ -1,4 +1,4 @@
-.fui-tabs.fg-theme-mono-green {
+.fui-tabs {
   --fui-tabs-radius: 0;
   --fui-tabs-border: #b1c242;
   --fui-tabs-header-bg: #e5f0c9;
@@ -21,17 +21,17 @@
   --fui-tabs-drag-indicator: #8170db;
 }
 
-.fui-tabs.fg-theme-mono-green .fui-tabs-close {
+.fui-tabs .fui-tabs-close {
   background-image: url('../mono/images/tabs-close.svg');
   background-position: center;
 }
 
-.fui-tabs.fg-theme-mono-green .fui-tabs-scroll-prev {
+.fui-tabs .fui-tabs-scroll-prev {
   background-image: url('../mono/images/tabs-prev.svg');
   background-position: center;
 }
 
-.fui-tabs.fg-theme-mono-green .fui-tabs-scroll-next {
+.fui-tabs .fui-tabs-scroll-next {
   background-image: url('../mono/images/tabs-next.svg');
   background-position: center;
 }

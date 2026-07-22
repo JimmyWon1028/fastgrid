@@ -156,7 +156,7 @@ test('Window exposes the documented EasyUI-compatible defaults', function() {
 });
 
 test('Window theme styles match every EasyUI window reference palette', function() {
-  var css = readFileSync(
+  var baseCss = readFileSync(
     new URL('../src/window/window.css', import.meta.url),
     'utf8'
   );
@@ -187,11 +187,14 @@ test('Window theme styles match every EasyUI window reference palette', function
   ];
 
   Object.keys(expected).forEach(function(theme) {
-    var match = css.match(new RegExp(
-      '\\.fui-window\\.fg-theme-' +
-      theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      '\\s*\\{([\\s\\S]*?)\\}'
-    ));
+    var css = theme === 'default' ? baseCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
+    var match = Array.from(css.matchAll(/\.fui-window\s*\{([^}]*)\}/g))
+      .find(function(entry) {
+        return entry[1].toLowerCase().includes(expected[theme][0].toLowerCase());
+      });
     assert.ok(match, theme);
     names.forEach(function(name, index) {
       var value = expected[theme][index].replace(
@@ -206,10 +209,10 @@ test('Window theme styles match every EasyUI window reference palette', function
     });
   });
 
-  assert.match(css, /background:\s*var\(--fui-window-frame\)/);
-  assert.match(css, /background:\s*var\(--fui-window-mask-bg\)/);
-  assert.match(css, /box-shadow:\s*2px 2px 3px var\(--fui-window-shadow-color\)/);
-  assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
+  assert.match(baseCss, /background:\s*var\(--fui-window-frame\)/);
+  assert.match(baseCss, /background:\s*var\(--fui-window-mask-bg\)/);
+  assert.match(baseCss, /box-shadow:\s*2px 2px 3px var\(--fui-window-shadow-color\)/);
+  assert.doesNotMatch(baseCss, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
 });
 
 test('Window built-in tool icons do not change on mouse hover', function() {
@@ -330,20 +333,20 @@ test('Window modal mask receives the matching theme overlay color', function() {
     /\.fui-window-mask\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(204,\s*204,\s*204,\s*0\.4\);/
   );
   assert.match(
-    css,
-    /\.fui-window-mask\.fg-theme-material,[\s\S]*?--fui-window-mask-bg:\s*rgba\(238,\s*238,\s*238,\s*0\.4\);/
+    readFileSync(new URL('../src/theme/material/components.css', import.meta.url), 'utf8'),
+    /\.fui-window-mask\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(238,\s*238,\s*238,\s*0\.4\);/
   );
   assert.match(
-    css,
-    /\.fui-window-mask\.fg-theme-sunny\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(170,\s*170,\s*170,\s*0\.4\);/
+    readFileSync(new URL('../src/theme/sunny/components.css', import.meta.url), 'utf8'),
+    /\.fui-window-mask\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(170,\s*170,\s*170,\s*0\.4\);/
   );
   assert.match(
-    css,
-    /\.fui-window-mask\.fg-theme-dark-hive\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(68,\s*68,\s*68,\s*0\.4\);/
+    readFileSync(new URL('../src/theme/dark-hive/components.css', import.meta.url), 'utf8'),
+    /\.fui-window-mask\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(68,\s*68,\s*68,\s*0\.4\);/
   );
   assert.match(
-    css,
-    /\.fui-window-mask\.fg-theme-black\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(0,\s*0,\s*0,\s*0\.4\);/
+    readFileSync(new URL('../src/theme/black/components.css', import.meta.url), 'utf8'),
+    /\.fui-window-mask\s*\{[\s\S]*?--fui-window-mask-bg:\s*rgba\(0,\s*0,\s*0,\s*0\.4\);/
   );
 });
 

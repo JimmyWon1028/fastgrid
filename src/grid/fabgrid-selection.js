@@ -6,6 +6,7 @@ export function installFabGridSelection(FabGrid, context) {
   var getByBinding = context.getByBinding;
   var getColumnEditorConfig = context.getColumnEditorConfig;
   var getExplicitEditorMask = context.getExplicitEditorMask;
+  var getActiveFilterMode = context.getActiveFilterMode;
   var getMaskCopyText = context.getMaskCopyText;
   var getMaskDataValue = context.getMaskDataValue;
   var getMaskOptions = context.getMaskOptions;
@@ -941,7 +942,7 @@ export function installFabGridSelection(FabGrid, context) {
   FabGrid.prototype.handleTopLeftSearchDblClick = function(event) {
     var topCell;
     var rect;
-    if (this.options.allowFiltering === false || this.options.showSearchRow !== true) {
+    if (getActiveFilterMode(this.options) !== 'searchRow') {
       return false;
     }
     topCell = closest(event.target, 'fg-row-header-top') || closest(event.target, 'fg-selection-top');
@@ -1266,8 +1267,7 @@ export function installFabGridSelection(FabGrid, context) {
       event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
       row !== 0 ||
       !this.options ||
-      this.options.allowFiltering === false ||
-      this.options.showSearchRow !== true ||
+      getActiveFilterMode(this.options) !== 'searchRow' ||
       typeof this.focusHeaderSearchInput !== 'function') {
       return false;
     }
@@ -1903,7 +1903,9 @@ export function installFabGridSelection(FabGrid, context) {
     }
     if (col >= this.frozenColumns && col < this.scrollableColumnEnd) {
       scrollLeft = this.bodyScroll.scrollLeft;
-      if (colObj._left - this.frozenWidth < scrollLeft) {
+      if (colObj._width > scrollableViewportWidth) {
+        this.bodyScroll.scrollLeft = colObj._left - this.frozenWidth;
+      } else if (colObj._left - this.frozenWidth < scrollLeft) {
         this.bodyScroll.scrollLeft = colObj._left - this.frozenWidth;
       } else if (colObj._left + colObj._width - this.frozenWidth > scrollLeft + scrollableViewportWidth) {
         this.bodyScroll.scrollLeft = colObj._left + colObj._width - this.frozenWidth - scrollableViewportWidth;

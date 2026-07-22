@@ -16,6 +16,7 @@
   --fg-drag-indicator-opacity: 0.55;
   --fg-active-cell-border: 1px;
   --fg-editor-border: #2563eb;
+  --fg-filter-operator-color: blue;
   --fg-scrollbar-size: 12px;
   --fg-scrollbar-gutter-size: 22px;
   --fg-scrollbar-track: #f2f2f2;
@@ -293,7 +294,31 @@
 }
 
 .fg-header-title-filter-narrow {
+  padding-right: 0;
+}
+
+.fg-header-title-filter-narrow.fg-header-title-sorted {
+  padding-right: 0;
+}
+
+.fg-header-align-right .fg-header-title-filter-narrow.fg-header-title-filter-right-inset {
   padding-right: 6px;
+}
+
+.fg-header-title-filter-narrow.fg-header-title-sorted .fg-sort-wrap {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  margin-left: 0;
+  transform: translateY(-50%);
+}
+
+.fg-header-align-right .fg-header-title-filterable.fg-header-title-sorted .fg-sort-wrap {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  margin-left: 0;
+  transform: translateY(-50%);
 }
 
 .fg-header-label {
@@ -402,9 +427,10 @@
   width: 10px;
   height: 22px;
   margin-left: 3px;
+  padding-bottom: 4px;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .fg-sort-wrap-none {
@@ -448,7 +474,7 @@
 .fg-filter-icon {
   position: absolute;
   top: 5px;
-  right: 0;
+  right: -2px;
   bottom: 0;
   z-index: 3;
   width: 18px;
@@ -460,7 +486,7 @@
 .fg-filter-icon::before {
   position: absolute;
   top: 0;
-  left: 4px;
+  left: 2px;
   width: 0;
   height: 0;
   border-top: 5px solid currentColor;
@@ -472,7 +498,7 @@
 .fg-filter-icon::after {
   position: absolute;
   top: 5px;
-  left: 8px;
+  left: 6px;
   width: 2px;
   height: 5px;
   background: currentColor;
@@ -486,13 +512,13 @@
 
 .fg-filter-icon-active {
   top: 2px;
-  right: 0;
+  right: -2px;
   display: block;
   width: 22px;
   height: auto;
-  color: #3b82f6;
+  color: var(--fg-filter-operator-color, blue);
   font-size: 13px;
-  font-weight: bold;
+  font-weight: normal;
   line-height: 18px;
   text-align: center;
 }

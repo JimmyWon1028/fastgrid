@@ -264,16 +264,16 @@
   ];
 
   var EXPORT_TARGETS = [
-    '.fg-theme-custom',
-    '.fg-theme-custom .fg-root',
-    '.fg-theme-custom .fui-button',
-    '.fg-theme-custom .fui-editbox',
-    '.fg-theme-custom .fui-panel',
-    '.fg-theme-custom .fui-tabs',
-    '.fg-theme-custom .fui-tree',
-    '.fg-theme-custom .fui-calendar',
-    '.fg-theme-custom .fui-menu',
-    '.fg-theme-custom .fui-propertygrid'
+    ':root',
+    '.fg-root',
+    '.fui-button',
+    '.fui-editbox',
+    '.fui-panel',
+    '.fui-tabs',
+    '.fui-tree',
+    '.fui-calendar',
+    '.fui-menu',
+    '.fui-propertygrid'
   ];
 
   function element(tagName, options) {
@@ -620,7 +620,7 @@
       locale: 'zh-TW',
       frozenColumns: 1,
       allowFiltering: true,
-      showSearchRow: false,
+      filterMode: ['excel', 'searchRow'],
       selectionMode: 'CellRange'
     }));
     var formPanel = addControl(new fabui.Panel(hosts.formPanel, {
@@ -694,7 +694,9 @@
     var previewControls;
     var actionButtons = [];
     var liveStyle;
-    var currentTheme = 'default';
+    var currentTheme = global.fabuiDemoTheme ?
+      global.fabuiDemoTheme.current :
+      'default';
 
     if (missing.length) {
       throw new Error('FabUI components unavailable: ' + missing.join(', '));
@@ -735,7 +737,7 @@
     baseTheme = new fabui.EditBox(settingsHosts.themeHost, {
       editor: 'combo',
       width: '100%',
-      value: 'default',
+      value: currentTheme,
       editable: false,
       limitToList: true,
       data: THEMES
@@ -816,27 +818,8 @@
       return match ? match.text : value;
     }
 
-    function clearPreviewThemeClasses() {
-      THEMES.forEach(function(theme) {
-        shell.preview.classList.remove('fg-theme-' + theme.value);
-        if (previewControls.grid.root) {
-          previewControls.grid.root.classList.remove('fg-theme-' + theme.value);
-        }
-      });
-    }
-
     function refreshPreviewTheme(theme) {
-      clearPreviewThemeClasses();
-      shell.preview.classList.add('fg-theme-' + theme);
-      previewControls.all.forEach(function(control) {
-        if (
-          control === previewControls.grid ||
-          control instanceof fabui.EditBox
-        ) return;
-        if (typeof control.setTheme === 'function') control.setTheme('inherit');
-      });
       if (previewControls.grid.root) {
-        previewControls.grid.root.classList.add('fg-theme-' + theme);
         previewControls.grid.refresh();
       }
       previewHosts.themeName.textContent = getThemeLabel(theme);
@@ -875,8 +858,6 @@
     function createExportCss() {
       return '/* FabUI custom theme based on "' + currentTheme +
         '". Load this file after fabui.css. */\n' +
-        '/* Add fg-theme-' + currentTheme +
-        ' and fg-theme-custom to the common wrapper. */\n' +
         createCss(EXPORT_TARGETS);
     }
 
@@ -959,7 +940,12 @@
     });
 
     baseTheme.on('change', function(event) {
-      loadTheme(event && event.value ? event.value : baseTheme.getValue());
+      var theme = event && event.value ? event.value : baseTheme.getValue();
+      if (global.fabuiDemoTheme && theme !== currentTheme) {
+        global.fabuiDemoTheme.reload(theme);
+        return;
+      }
+      loadTheme(theme);
     });
 
     global.addEventListener('resize', function() {
@@ -969,7 +955,7 @@
       previewControls.grid.invalidate();
     });
 
-    loadTheme('default');
+    loadTheme(currentTheme);
 
     global.fabThemeBuilderDemo = {
       layout: builderLayout,

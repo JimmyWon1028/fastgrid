@@ -44,7 +44,8 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `gridOptions` | `Object` | 傳給 core 的進階完整 options。 |
 | `allowEditing` | `Boolean` | 是否允許編輯。 |
 | `allowDragging` | `Boolean\|String` | `None`、`Columns`、`Rows`、`All`，或相容 boolean 設定。 |
-| `allowFiltering` | `Boolean` | Search Row 與 Excel-like 欄位篩選的共用開關；關閉時保留 Quick Search。 |
+| `allowFiltering` | `Boolean` | 舊版相容入口；新程式請使用 `filterMode`。 |
+| `filterMode` | `false\|Array` | `false` 關閉欄位篩選；陣列列出可用模式，第一項為目前模式，例如 `['excel', 'searchRow']`。 |
 | `allowSorting` | `Boolean` | 是否允許排序。 |
 | `allowResizing` | `Boolean` | 是否允許調整欄寬。 |
 | `activeCellBorder` | `Number` | Active cell 與 cell editor 邊框寬度，單位為 px。 |
@@ -78,10 +79,10 @@ Browser bundle 會自動執行 `Vue.use(fabuiVue)`。
 | `items-source-changed` | `itemsSourceChanged` |
 | `loaded-rows` | `loadedRows` |
 | `filter-changed` | `filterChanged` |
+| `filter-mode-changed` | `filterModeChanged` |
 | `format-item` | `formatItem`；參數包含 `panel`、`cell`、`row`、`col`、`item`、`column` 與 `value`。 |
 | `dragging-row` / `dragged-row` | `draggingRow` / `draggedRow` |
 | `row-header-mode-changed` | `rowHeaderModeChanged` |
-| `search-row-visibility-changed` | `searchRowVisibilityChanged` |
 
 ## Component ref
 

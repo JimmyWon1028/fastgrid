@@ -1,4 +1,4 @@
-.fui-tabs.fg-theme-material {
+.fui-tabs {
   --fui-tabs-radius: 4px;
   --fui-tabs-border: #dddddd;
   --fui-tabs-header-bg: #f5f5f5;
@@ -21,8 +21,8 @@
   --fui-tabs-drag-indicator: #ff4411;
 }
 
-.fui-tabs.fg-theme-material .fui-tabs-close,
-.fui-tabs.fg-theme-material .fui-tabs-scroll-prev,
-.fui-tabs.fg-theme-material .fui-tabs-scroll-next {
+.fui-tabs .fui-tabs-close,
+.fui-tabs .fui-tabs-scroll-prev,
+.fui-tabs .fui-tabs-scroll-next {
   background-image: url('images/tabs_icons.png');
 }

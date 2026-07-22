@@ -8,7 +8,7 @@ import {
   normalizePagination,
   normalizeRemoteData,
   setByBinding
-} from './fabgrid-data.js?v=20260721-remote-in-string-v1';
+} from './fabgrid-data.js?v=20260722-filter-mode-v1';
 import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260718-row-drop-width-v1';
 import { installFabGridTree } from './fabgrid-tree.js?v=20260717-tree-context-menu-v1';
@@ -25,9 +25,9 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260721-grid-time-editor-v1';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260721-grid-time-editor-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260721-column-min-width-option-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260722-horizontal-overflow-v1';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260722-search-nav-select-all-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260722-frozen-wide-column-scroll-v1';
 import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260721-grid-time-editor-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
@@ -51,6 +51,8 @@ export function createFabGridFactory(editorDefinitions) {
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
     'black', 'mono', 'mono-red', 'mono-green'
   ];
+  var FILTER_MODE_EXCEL = 'excel';
+  var FILTER_MODE_SEARCH_ROW = 'searchRow';
 
   var DEFAULT_OPTIONS = {
     rowHeight: 32,
@@ -80,10 +82,10 @@ export function createFabGridFactory(editorDefinitions) {
     allowPinning: false,
     headerDisplayMode: 'header',
     headerToggleKey: false,
-    showSearchRow: false,
+    filterMode: [FILTER_MODE_EXCEL, FILTER_MODE_SEARCH_ROW],
     filterRules: [],
     searchRowHeight: null,
-    searchDelay: 200,
+    searchDelay: 400,
     excelFilterMaxValues: 1000,
     alternatingRowStep: 1,
     autoClipboard: true,
@@ -129,29 +131,6 @@ export function createFabGridFactory(editorDefinitions) {
     '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
   ];
 
-  function resolveStylesheetTheme(documentRef) {
-    var links;
-    var href;
-    var file;
-    var match;
-    var theme;
-    var i;
-    if (!documentRef || typeof documentRef.querySelectorAll !== 'function') {
-      return '';
-    }
-    links = documentRef.querySelectorAll('link[rel~="stylesheet"][href]');
-    for (i = 0; i < links.length; i += 1) {
-      href = String(links[i].getAttribute('href') || '').split(/[?#]/)[0].replace(/\\/g, '/');
-      file = href.slice(href.lastIndexOf('/') + 1);
-      match = /^fabui\.([a-z0-9-]+)(?:\.min)?\.css$/i.exec(file);
-      theme = match ? match[1].toLowerCase() : '';
-      if (FABGRID_THEMES.indexOf(theme) >= 0) {
-        return theme;
-      }
-    }
-    return '';
-  }
-
   function FabGrid(element, options) {
     var self = this;
     Control.call(this);
@@ -161,7 +140,7 @@ export function createFabGridFactory(editorDefinitions) {
     }
 
     this.options = mergeOptions(DEFAULT_OPTIONS, options || {});
-    normalizeGridOptions(this.options);
+    normalizeGridOptions(this.options, options || {});
     this.applyPagerOptions();
     this.options.showRowHeaders = normalizeRowHeaderMode(this.options.showRowHeaders);
     this.setLocale(this.options.locale, this.options.messages, true);
@@ -192,6 +171,7 @@ export function createFabGridFactory(editorDefinitions) {
     this.columnSearchOperators = {};
     this.hasColumnSearch = false;
     this.excelFilters = {};
+    this.excelFilterValueCache = createDictionary();
     this.sortState = null;
     this.sortStates = [];
     this.headerDisplayMode = normalizeHeaderDisplayMode(this.options.headerDisplayMode);
@@ -333,7 +313,7 @@ export function createFabGridFactory(editorDefinitions) {
     this.applyInitialFilterRules(this.options.filterRules);
     this.setItemsSource(this.options.remote === true ? [] : (this.options.itemsSource || []), true);
     this.createWijmoEvents();
-    this.bindOptionEvent('updatedView');
+    this.bindOptionEvents();
     this.createDom();
     this.datePopup = new DatePopup({
       className: 'fui-grid-date-popup',
@@ -611,6 +591,7 @@ export function createFabGridFactory(editorDefinitions) {
       'draggingColumn',
       'draggingRow',
       'filterChanged',
+      'filterModeChanged',
       'formatItem',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
@@ -665,6 +646,15 @@ export function createFabGridFactory(editorDefinitions) {
     }
   };
 
+  FabGrid.prototype.bindOptionEvents = function() {
+    var name;
+    for (name in this.wijmoEvents) {
+      if (Object.prototype.hasOwnProperty.call(this.wijmoEvents, name)) {
+        this.bindOptionEvent(name);
+      }
+    }
+  };
+
   FabGrid.prototype.setLocale = function(locale, messages, silent) {
     this.options.locale = normalizeLocaleName(locale || this.options.locale || getDefaultLocaleName());
     this.options.messages = messages || this.options.messages || null;
@@ -695,10 +685,8 @@ export function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.createDom = function() {
     var root = document.createElement('div');
-    var stylesheetTheme = resolveStylesheetTheme(document);
     root.className = 'fg-root' +
-      (this.useScrollLinkedHorizontal ? ' fg-scroll-linked-horizontal' : '') +
-      (stylesheetTheme ? ' fg-theme-' + stylesheetTheme : '');
+      (this.useScrollLinkedHorizontal ? ' fg-scroll-linked-horizontal' : '');
     root.tabIndex = 0;
     root.setAttribute('role', 'grid');
 
@@ -960,6 +948,7 @@ export function createFabGridFactory(editorDefinitions) {
     var i;
     var col;
     this.columns = [];
+    this.excelFilterValueCache = createDictionary();
     for (i = 0; i < (columns || []).length; i += 1) {
       col = mergeOptions({
         binding: '',
@@ -1090,49 +1079,62 @@ export function createFabGridFactory(editorDefinitions) {
   };
 
   FabGrid.prototype.setAllowFiltering = function(value) {
-    var enabled = value !== false;
-    var changed = this.options.allowFiltering !== enabled;
-    if (!changed) {
-      return;
-    }
-    this.options.allowFiltering = enabled;
-    if (!enabled) {
-      this.options.filterRules = [];
-      this.columnSearchValues = {};
-      this.columnSearchOperators = {};
-      this.hasColumnSearch = false;
-      this.excelFilters = {};
-    }
-    this.cancelHeaderSearchTimer();
-    this.hideFilterMenu();
-    this.applyFilterChange(true, 'allowFiltering');
+    return FabGrid.prototype.setFilterMode.call(
+      this,
+      value === false ? false : DEFAULT_OPTIONS.filterMode
+    );
   };
 
-  FabGrid.prototype.setShowSearchRow = function(value) {
-    var visible = value === true;
-    var changed = this.options.showSearchRow !== visible;
+  FabGrid.prototype.setFilterMode = function(value) {
+    var normalized = normalizeFilterMode(value);
+    var previousMode = getActiveFilterMode(this.options);
+    var nextMode = getActiveFilterMode({ filterMode: normalized });
+    var changed = !areFilterModesEqual(this.options.filterMode, normalized);
     var hadFilter;
     if (!changed) {
-      return;
+      return false;
     }
-    hadFilter = visible ? hasExcelFilterEntries(this.excelFilters) : this.hasColumnSearch === true;
-    if (visible) {
-      this.excelFilters = {};
-    } else {
+    hadFilter = false;
+    if (!hasFilterMode({ filterMode: normalized }, FILTER_MODE_SEARCH_ROW) ||
+        (previousMode === FILTER_MODE_SEARCH_ROW && nextMode !== FILTER_MODE_SEARCH_ROW)) {
+      hadFilter = hadFilter || this.hasColumnSearch === true;
       this.options.filterRules = [];
       this.columnSearchValues = {};
       this.columnSearchOperators = {};
       this.hasColumnSearch = false;
     }
-    this.options.showSearchRow = visible;
+    if (!hasFilterMode({ filterMode: normalized }, FILTER_MODE_EXCEL) ||
+        (previousMode === FILTER_MODE_EXCEL && nextMode !== FILTER_MODE_EXCEL)) {
+      hadFilter = hadFilter || hasExcelFilterEntries(this.excelFilters);
+      this.excelFilters = {};
+    }
+    this.options.filterMode = normalized;
+    this.options.allowFiltering = normalized !== false;
     this.cancelHeaderSearchTimer();
     this.hideFilterMenu();
-    this.applyFilterChange(true, 'searchRowVisibility');
-    this.emit('searchRowVisibilityChanged', {
-      visible: visible,
-      showSearchRow: visible,
-      clearedFilter: hadFilter
-    });
+    this.applyFilterChange(true, 'filterMode');
+    if (typeof this.emit === 'function') {
+      this.emit('filterModeChanged', {
+        filterMode: normalized === false ? false : normalized.slice(),
+        activeMode: nextMode,
+        clearedFilter: hadFilter
+      });
+    }
+    return true;
+  };
+
+  FabGrid.prototype.getFilterMode = function() {
+    return this.options.filterMode === false ? false : this.options.filterMode.slice();
+  };
+
+  FabGrid.prototype._activateFilterMode = function(mode) {
+    var modes = this.options.filterMode;
+    if (!hasFilterMode(this.options, mode) || getActiveFilterMode(this.options) === mode) {
+      return false;
+    }
+    return this.setFilterMode([mode].concat(modes.filter(function(item) {
+      return item !== mode;
+    })));
   };
 
   FabGrid.prototype.setEditMode = function(value) {
@@ -1427,7 +1429,7 @@ export function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.getSearchRowHeight = function() {
     var fallback = toNumber(this.options.rowHeight, DEFAULT_OPTIONS.rowHeight);
     var height = this.options.searchRowHeight == null ? fallback : toNumber(this.options.searchRowHeight, fallback);
-    return this.options.allowFiltering !== false && this.options.showSearchRow === true ? Math.max(22, height) : 0;
+    return getActiveFilterMode(this.options) === FILTER_MODE_SEARCH_ROW ? Math.max(22, height) : 0;
   };
 
   FabGrid.prototype.syncHeaderLayout = function() {
@@ -2556,6 +2558,7 @@ export function createFabGridFactory(editorDefinitions) {
       'draggingColumn',
       'draggingRow',
       'filterChanged',
+      'filterModeChanged',
       'formatItem',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
@@ -2793,10 +2796,18 @@ export function createFabGridFactory(editorDefinitions) {
       },
       allowFiltering: {
         get: function() {
-          return this.options.allowFiltering !== false;
+          return this.options.filterMode !== false;
         },
         set: function(value) {
           this.setAllowFiltering(value);
+        }
+      },
+      filterMode: {
+        get: function() {
+          return this.getFilterMode();
+        },
+        set: function(value) {
+          this.setFilterMode(value);
         }
       },
       allowResizing: {
@@ -2938,7 +2949,8 @@ export function createFabGridFactory(editorDefinitions) {
     return Math.max(1, Math.floor(number));
   }
 
-  function normalizeGridOptions(options) {
+  function normalizeGridOptions(options, suppliedOptions) {
+    suppliedOptions = suppliedOptions || options || {};
     options.rowHeight = normalizePositiveNumber(options.rowHeight, DEFAULT_OPTIONS.rowHeight);
     options.columnMinWidth = normalizePositiveNumber(options.columnMinWidth, DEFAULT_OPTIONS.columnMinWidth);
     options.overscanRows = normalizeNonNegativeInteger(options.overscanRows, DEFAULT_OPTIONS.overscanRows);
@@ -2949,7 +2961,54 @@ export function createFabGridFactory(editorDefinitions) {
     options.alternatingRowStep = normalizeAlternatingRowStep(options.alternatingRowStep);
     options.selectionMode = normalizeSelectionMode(options.selectionMode);
     options.highlightActiveRow = options.highlightActiveRow !== false;
+    options.filterMode = Object.prototype.hasOwnProperty.call(suppliedOptions, 'filterMode') ?
+      normalizeFilterMode(suppliedOptions.filterMode) :
+      suppliedOptions.allowFiltering === false ? false : normalizeFilterMode(DEFAULT_OPTIONS.filterMode);
+    options.allowFiltering = options.filterMode !== false;
+    delete options.showSearchRow;
     return options;
+  }
+
+  function normalizeFilterMode(value) {
+    var source;
+    var result = [];
+    if (value === false) {
+      return false;
+    }
+    source = Array.isArray(value) ? value : value === undefined ? DEFAULT_OPTIONS.filterMode : [];
+    source.forEach(function(item) {
+      var normalized = String(item || '').toLowerCase();
+      if (normalized === 'excel') {
+        normalized = FILTER_MODE_EXCEL;
+      } else if (normalized === 'searchrow' || normalized === 'search-row') {
+        normalized = FILTER_MODE_SEARCH_ROW;
+      } else {
+        return;
+      }
+      if (result.indexOf(normalized) < 0) {
+        result.push(normalized);
+      }
+    });
+    return result.length ? result : false;
+  }
+
+  function getActiveFilterMode(options) {
+    return options && Array.isArray(options.filterMode) && options.filterMode.length ?
+      options.filterMode[0] : null;
+  }
+
+  function hasFilterMode(options, mode) {
+    return !!(options && Array.isArray(options.filterMode) && options.filterMode.indexOf(mode) >= 0);
+  }
+
+  function areFilterModesEqual(left, right) {
+    if (left === false || right === false) {
+      return left === right;
+    }
+    return Array.isArray(left) && Array.isArray(right) &&
+      left.length === right.length && left.every(function(item, index) {
+        return item === right[index];
+      });
   }
 
   function normalizeSelectionMode(value) {
@@ -3325,6 +3384,9 @@ export function createFabGridFactory(editorDefinitions) {
   }
 
   function getColumnSearchOperatorSymbol(operator) {
+    if (String(operator || '').toLowerCase() === 'in') {
+      return 'IN';
+    }
     operator = normalizeColumnSearchOperator(operator);
     if (operator === 'starts') {
       return '^';
@@ -3590,6 +3652,7 @@ export function createFabGridFactory(editorDefinitions) {
     getColumnSearchIconConfigs: getColumnSearchIconConfigs,
     getColumnSearchKey: getColumnSearchKey,
     getColumnSearchOperatorSymbol: getColumnSearchOperatorSymbol,
+    getActiveFilterMode: getActiveFilterMode,
     getComboboxTextByValue: getComboboxTextByValue,
     getEditorMask: getEditorMask,
     getExplicitEditorMask: getExplicitEditorMask,
@@ -3626,9 +3689,11 @@ export function createFabGridFactory(editorDefinitions) {
     getColumnSearchIconConfigs: getColumnSearchIconConfigs,
     getColumnSearchKey: getColumnSearchKey,
     getColumnSearchOperatorDefinitions: getColumnSearchOperatorDefinitions,
+    getActiveFilterMode: getActiveFilterMode,
     getComboboxTextByValue: getComboboxTextByValue,
     getEditorMask: getEditorMask,
     getExcelFilterValueKey: getExcelFilterValueKey,
+    hasFilterMode: hasFilterMode,
     getMaskCaretPosition: getMaskCaretPosition,
     hasClass: hasClass,
     isDateLikeEditorType: isDateLikeEditorType,
@@ -3648,6 +3713,7 @@ export function createFabGridFactory(editorDefinitions) {
     getMaskCopyText: getMaskCopyText,
     getMaskDataValue: getMaskDataValue,
     getMaskOptions: getMaskOptions,
+    getActiveFilterMode: getActiveFilterMode,
     getNumberCopyText: getNumberCopyText,
     isHotKey: isHotKey,
     isSafeBinding: isSafeBinding,
@@ -3729,6 +3795,8 @@ export function createFabGridFactory(editorDefinitions) {
     DEFAULT_OPTIONS: DEFAULT_OPTIONS,
     formatNumberDisplayText: formatNumberDisplayText,
     getColumnSearchKey: getColumnSearchKey,
+    getActiveFilterMode: getActiveFilterMode,
+    hasFilterMode: hasFilterMode,
     mergeOptions: mergeOptions,
     normalizeColumnSearchOperator: normalizeColumnSearchOperator,
     rowMatchesExcelFilters: rowMatchesExcelFilters,
@@ -3757,7 +3825,6 @@ export function createFabGridFactory(editorDefinitions) {
 
   FabGrid.locales = getLocaleMap();
   FabGrid.themes = FABGRID_THEMES.slice();
-  FabGrid.resolveStylesheetTheme = resolveStylesheetTheme;
   FabGrid.normalizeLocale = normalizeLocaleName;
   FabGrid.editorDefinitions = editorDefinitions;
   FabGrid.defaultLocale = getDefaultLocaleName();

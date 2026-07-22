@@ -1,8 +1,8 @@
 /*! FabGrid theme metro | performance-first data grid */
 @import './metro/tabs.css?v=20260719-tabs-theme-v2';
 @import './metro/components.css?v=20260719-components-theme-v2';
-.fg-root.fg-theme-metro,
-.fui-tabs.fg-theme-metro {
+.fg-root,
+.fui-tabs {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
   --fg-frozen-divider: #b8b8b8;
@@ -22,99 +22,99 @@
   color: #444;
 }
 
-.fg-root.fg-theme-metro .fg-header,
-.fg-root.fg-theme-metro .fg-header-frozen,
-.fg-root.fg-theme-metro .fg-header-frozen-right,
-.fg-root.fg-theme-metro .fg-footer,
-.fg-root.fg-theme-metro .fg-footer-frozen,
-.fg-root.fg-theme-metro .fg-footer-frozen-right {
+.fg-root .fg-header,
+.fg-root .fg-header-frozen,
+.fg-root .fg-header-frozen-right,
+.fg-root .fg-footer,
+.fg-root .fg-footer-frozen,
+.fg-root .fg-footer-frozen-right {
   background: #fff;
 }
 
-.fg-root.fg-theme-metro .fg-row-header-top,
-.fg-root.fg-theme-metro .fg-selection-top,
-.fg-root.fg-theme-metro .fg-header-cell,
-.fg-root.fg-theme-metro .fg-footer-row-header,
-.fg-root.fg-theme-metro .fg-footer-selection,
-.fg-root.fg-theme-metro .fg-footer-cell,
-.fg-root.fg-theme-metro .fg-row-header-cell {
+.fg-root .fg-row-header-top,
+.fg-root .fg-selection-top,
+.fg-root .fg-header-cell,
+.fg-root .fg-footer-row-header,
+.fg-root .fg-footer-selection,
+.fg-root .fg-footer-cell,
+.fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root.fg-theme-metro .fg-body,
-.fg-root.fg-theme-metro .fg-frozen-pane,
-.fg-root.fg-theme-metro .fg-frozen-pane-right,
-.fg-root.fg-theme-metro .fg-selection-pane,
-.fg-root.fg-theme-metro .fg-cell,
-.fg-root.fg-theme-metro .fg-selection-cell {
+.fg-root .fg-body,
+.fg-root .fg-frozen-pane,
+.fg-root .fg-frozen-pane-right,
+.fg-root .fg-selection-pane,
+.fg-root .fg-cell,
+.fg-root .fg-selection-cell {
   background: #fff;
   color: #444;
 }
 
-.fg-root.fg-theme-metro .fg-cell.fg-row-even,
-.fg-root.fg-theme-metro .fg-selection-cell.fg-row-even,
-.fg-root.fg-theme-metro .fg-selection-cell.fg-row-alt,
-.fg-root.fg-theme-metro .fg-cell.fg-row-alt {
+.fg-root .fg-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-alt,
+.fg-root .fg-cell.fg-row-alt {
   background-color: #fafafa;
   color: #444;
 }
 
-.fg-root.fg-theme-metro .fg-cell.fg-row-hovered,
-.fg-root.fg-theme-metro .fg-selection-cell.fg-row-hovered,
-.fg-root.fg-theme-metro .fg-cell:hover,
-.fg-root.fg-theme-metro .fg-cell.fg-row-hovered:hover {
+.fg-root .fg-cell.fg-row-hovered,
+.fg-root .fg-selection-cell.fg-row-hovered,
+.fg-root .fg-cell:hover,
+.fg-root .fg-cell.fg-row-hovered:hover {
   background: #E6E6E6;
   color: #444;
 }
 
-.fg-root.fg-theme-metro .fg-cell.fg-row-selected,
-.fg-root.fg-theme-metro .fg-selection-cell.fg-row-selected,
-.fg-root.fg-theme-metro .fg-cell.fg-row-selected:hover,
-.fg-root.fg-theme-metro .fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected,
+.fg-root .fg-selection-cell.fg-row-selected,
+.fg-root .fg-cell.fg-row-selected:hover,
+.fg-root .fg-row-selected.fg-selected {
   background: #CCE6FF;
   color: #000;
 }
 
-.fg-root.fg-theme-metro .fg-selected {
+.fg-root .fg-selected {
   background: #E6E6E6;
   color: #444;
   outline-color: #de8f3a;
 }
 
-.fg-root.fg-theme-metro .fg-cell.fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root.fg-theme-metro .fg-sort-asc {
+.fg-root .fg-sort-asc {
   border-bottom-color: #6190CD;
 }
 
-.fg-root.fg-theme-metro .fg-sort-desc {
+.fg-root .fg-sort-desc {
   border-top-color: #6190CD;
 }
 
-.fg-root.fg-theme-metro .fg-editor {
+.fg-root .fg-editor {
   border-color: #ffbe80;
 }
 
-.fg-root.fg-theme-metro .pagination-first {
+.fg-root .pagination-first {
   background: url('metro/images/pagination_icons.png') no-repeat 0 center;
 }
 
-.fg-root.fg-theme-metro .pagination-prev {
+.fg-root .pagination-prev {
   background: url('metro/images/pagination_icons.png') no-repeat -16px center;
 }
 
-.fg-root.fg-theme-metro .pagination-next {
+.fg-root .pagination-next {
   background: url('metro/images/pagination_icons.png') no-repeat -32px center;
 }
 
-.fg-root.fg-theme-metro .pagination-last {
+.fg-root .pagination-last {
   background: url('metro/images/pagination_icons.png') no-repeat -48px center;
 }
 
-.fg-root.fg-theme-metro .pagination-load {
+.fg-root .pagination-load {
   background: url('metro/images/pagination_icons.png') no-repeat -64px center;
 }

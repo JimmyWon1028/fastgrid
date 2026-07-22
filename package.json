@@ -13,6 +13,7 @@
     "build:gantt": "node build/build-gantt.cjs",
     "build:lite": "node build/build-lite.cjs",
     "build:scheduler": "node build/build-scheduler.cjs",
+    "build:theme": "node build/build-theme.cjs",
     "build:vue": "node build/build-vue.cjs",
     "build:jquery": "node build/build-jquery.cjs",
     "dev:vue": "python3 -m http.server 4174",

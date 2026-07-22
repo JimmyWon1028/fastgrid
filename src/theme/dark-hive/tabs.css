@@ -1,4 +1,4 @@
-.fui-tabs.fg-theme-dark-hive {
+.fui-tabs {
   --fui-tabs-border: #444444;
   --fui-tabs-header-bg: #222222;
   --fui-tabs-header-text: #eeeeee;
@@ -20,8 +20,8 @@
   --fui-tabs-drag-indicator: #f68d5a;
 }
 
-.fui-tabs.fg-theme-dark-hive .fui-tabs-close,
-.fui-tabs.fg-theme-dark-hive .fui-tabs-scroll-prev,
-.fui-tabs.fg-theme-dark-hive .fui-tabs-scroll-next {
+.fui-tabs .fui-tabs-close,
+.fui-tabs .fui-tabs-scroll-prev,
+.fui-tabs .fui-tabs-scroll-next {
   background-image: url('images/tabs_icons.png');
 }

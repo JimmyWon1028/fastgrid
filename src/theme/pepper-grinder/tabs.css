@@ -1,4 +1,4 @@
-.fui-tabs.fg-theme-pepper-grinder {
+.fui-tabs {
   --fui-tabs-border: #cbc7bd;
   --fui-tabs-header-bg: #f8f7f6;
   --fui-tabs-header-text: #654b24;
@@ -20,8 +20,8 @@
   --fui-tabs-drag-indicator: #5f8fc7;
 }
 
-.fui-tabs.fg-theme-pepper-grinder .fui-tabs-close,
-.fui-tabs.fg-theme-pepper-grinder .fui-tabs-scroll-prev,
-.fui-tabs.fg-theme-pepper-grinder .fui-tabs-scroll-next {
+.fui-tabs .fui-tabs-close,
+.fui-tabs .fui-tabs-scroll-prev,
+.fui-tabs .fui-tabs-scroll-next {
   background-image: url('images/tabs_icons.png');
 }

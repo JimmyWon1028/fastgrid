@@ -135,7 +135,7 @@ test('Tree source contains delegated keyboard, lazy loading, editing and DnD pat
 });
 
 test('Tree uses the matching EasyUI sprite assets for every FabUI theme', function() {
-  var css = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
+  var baseCss = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
   var themes = [
     'default',
     'black',
@@ -155,24 +155,26 @@ test('Tree uses the matching EasyUI sprite assets for every FabUI theme', functi
     'sunny'
   ];
 
-  assert.match(css, /background-position:\s*-18px 0/);
-  assert.match(css, /background-position:\s*-144px 0/);
-  assert.match(css, /background-position:\s*-208px -18px/);
-  assert.match(css, /background-position:\s*-240px 0/);
-  assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
+  assert.match(baseCss, /background-position:\s*-18px 0/);
+  assert.match(baseCss, /background-position:\s*-144px 0/);
+  assert.match(baseCss, /background-position:\s*-208px -18px/);
+  assert.match(baseCss, /background-position:\s*-240px 0/);
+  assert.doesNotMatch(baseCss, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
 
   themes.forEach(function(theme) {
+    var css = theme === 'default' ? baseCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
     var png = readFileSync(
       new URL('../src/theme/' + theme + '/images/tree_icons.png', import.meta.url)
     );
     var gif = readFileSync(
       new URL('../src/theme/' + theme + '/images/loading.gif', import.meta.url)
     );
-    var escapedTheme = theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
     assert.match(
       css,
-      new RegExp("--fui-tree-icons:\\s*url\\('\\.\\./theme/" + escapedTheme + "/images/tree_icons\\.png'\\)")
+      /--fui-tree-icons:\s*url\('[^']*tree_icons\.png'\)/
     );
     assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', theme);
     assert.equal(png.readUInt32BE(16), 272, theme);
@@ -182,7 +184,7 @@ test('Tree uses the matching EasyUI sprite assets for every FabUI theme', functi
 });
 
 test('Tree theme states match every EasyUI reference theme', function() {
-  var css = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
+  var baseCss = readFileSync(new URL('../src/tree/tree.css', import.meta.url), 'utf8');
   var expected = {
     default: ['#eaf2ff', '#000000', '#ffe48d', '#000000', '#95B8E7'],
     black: ['#777777', '#ffffff', '#0052A3', '#ffffff', '#000000'],
@@ -203,10 +205,14 @@ test('Tree theme states match every EasyUI reference theme', function() {
   };
 
   Object.keys(expected).forEach(function(theme) {
-    var match = css.match(new RegExp(
-      '\\.fui-tree\\.fg-theme-' + theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      '\\s*\\{([\\s\\S]*?)\\}'
-    ));
+    var css = theme === 'default' ? baseCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
+    var match = Array.from(css.matchAll(/\.fui-tree\s*\{([^}]*)\}/g))
+      .find(function(entry) {
+        return entry[1].toLowerCase().includes(expected[theme][0].toLowerCase());
+      });
     var block = match && match[1];
     var values = expected[theme];
 
@@ -218,9 +224,12 @@ test('Tree theme states match every EasyUI reference theme', function() {
     assert.match(block, new RegExp('--fui-tree-editor-border:\\s*' + values[4], 'i'), theme);
   });
 
-  assert.match(css, /\.fui-tree\s*\{[\s\S]*?color:\s*inherit/);
-  assert.doesNotMatch(css, /\.fui-tree\.fg-theme-(?:black|dark-hive)\s*\{[^}]*--fui-tree-text:/);
-  assert.match(css, /\.fui-tree-node:hover[\s\S]*color:\s*var\(--fui-tree-hover-text\)/);
-  assert.match(css, /\.fui-tree-node-selected[\s\S]*color:\s*var\(--fui-tree-selected-text\)/);
-  assert.match(css, /\.fui-tree\.fg-theme-bootstrap[\s\S]*--fui-tree-font-size:\s*12px/);
+  assert.match(baseCss, /\.fui-tree\s*\{[\s\S]*?color:\s*inherit/);
+  assert.doesNotMatch(baseCss, /\.fg-theme-/);
+  assert.match(baseCss, /\.fui-tree-node:hover[\s\S]*color:\s*var\(--fui-tree-hover-text\)/);
+  assert.match(baseCss, /\.fui-tree-node-selected[\s\S]*color:\s*var\(--fui-tree-selected-text\)/);
+  assert.match(
+    readFileSync(new URL('../src/theme/bootstrap/components.css', import.meta.url), 'utf8'),
+    /\.fui-tree\s*\{[\s\S]*--fui-tree-font-size:\s*12px/
+  );
 });

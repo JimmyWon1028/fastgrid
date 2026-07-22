@@ -187,9 +187,9 @@ FakeGrid.prototype.setRowHeaderWidth = function (value) {
   this.options.rowHeaderWidth = value;
   this.setterCalls.push(["setRowHeaderWidth", value]);
 };
-FakeGrid.prototype.setShowSearchRow = function (value) {
-  this.options.showSearchRow = value;
-  this.setterCalls.push(["setShowSearchRow", value]);
+FakeGrid.prototype.setFilterMode = function (value) {
+  this.options.filterMode = value;
+  this.setterCalls.push(["setFilterMode", value]);
 };
 FakeGrid.prototype.setAllowFiltering = function (value) {
   this.options.allowFiltering = value;
@@ -261,7 +261,7 @@ test("jQuery wrapper uses official core setters for dynamic options", function (
     pageSize: 50,
     rowHeaderWidth: 80,
     rowGroups: rowGroups,
-    showSearchRow: true,
+    filterMode: ['searchRow', 'excel'],
   });
   assert.deepEqual($(element).fabgrid("instance").setterCalls, [
     ["setAllowFiltering", false],
@@ -272,7 +272,7 @@ test("jQuery wrapper uses official core setters for dynamic options", function (
     ["setPageSize", 50],
     ["setRowHeaderWidth", 80],
     ["setRowGroups", rowGroups],
-    ["setShowSearchRow", true],
+    ["setFilterMode", ['searchRow', 'excel']],
   ]);
 });
 

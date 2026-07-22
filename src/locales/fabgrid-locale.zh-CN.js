@@ -143,8 +143,8 @@
     },
     topLeftMenu: {
       ariaLabel: 'Grid 菜单',
-      showSearchRow: '显示搜索行',
-      hideSearchRow: '隐藏搜索行',
+      useSearchRow: '使用搜索行',
+      useExcelFilter: '使用 Excel-like 筛选',
       clearFilter: '清除筛选',
       rowHeaders: '行号',
       rowHeadersOff: '行号：关闭',

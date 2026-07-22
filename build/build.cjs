@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const esbuild = require('esbuild');
+const { buildThemeOutput } = require('./theme-builder.cjs');
 
 const root = path.resolve(__dirname, '..');
 const srcDir = path.join(root, 'src');
@@ -101,7 +102,7 @@ function minifyCss(source) {
 }
 
 function isStandaloneComponentStyle(request) {
-  return /(?:^|\/)(?:components|diagram\/diagram)\.css$/i.test(request);
+  return /(?:^|\/)diagram\/diagram\.css$/i.test(request);
 }
 
 function stripStandaloneThemeSelectors(source) {
@@ -136,58 +137,6 @@ function bundleCss(entryFile, seen) {
     return bundleCss(path.resolve(path.dirname(absolute), request), seen);
   });
   return rewriteCssUrls(stripStandaloneThemeSelectors(source), absolute);
-}
-
-function copyThemeImages(sourceDir, outputDir) {
-  fs.readdirSync(sourceDir, { withFileTypes: true }).forEach(function(entry) {
-    const source = path.join(sourceDir, entry.name);
-    const output = path.join(outputDir, entry.name);
-    if (!entry.isDirectory() || entry.name === '.DS_Store') return;
-    if (entry.name === 'images') {
-      if (path.resolve(source) === path.join(srcDir, 'theme', 'mono', 'images')) return;
-      fs.cpSync(source, output, {
-        recursive: true,
-        filter: function(file) {
-          return path.basename(file) !== '.DS_Store';
-        }
-      });
-      return;
-    }
-    copyThemeImages(source, output);
-  });
-}
-
-function copyThemeOutput() {
-  const sourceThemeDir = path.join(srcDir, 'theme');
-  const outputThemeDir = path.join(distDir, 'theme');
-  fs.mkdirSync(outputThemeDir, { recursive: true });
-  fs.readdirSync(sourceThemeDir, { withFileTypes: true }).forEach(function(entry) {
-    const source = path.join(sourceThemeDir, entry.name);
-    if (entry.name === '.DS_Store') return;
-    if (entry.isFile() && /^fabgrid\..+\.css$/i.test(entry.name)) {
-      const outputName = entry.name.replace(/^fabgrid\./i, 'fabui.');
-      const output = path.join(outputThemeDir, outputName);
-      const css = stripStandaloneThemeSelectors(fs.readFileSync(source, 'utf8').replace(/@import\s+(?:url\()?(['"])([^'"]+\.css)(?:[?#][^'"]*)?\1\)?\s*;/g, function(match, quote, request) {
-        return isStandaloneComponentStyle(request) ? '' : match;
-      })).replace(
-        /url\((['"]?)mono\/images\//g,
-        'url($1mono/'
-      );
-      fs.writeFileSync(output, css, 'utf8');
-      fs.writeFileSync(output.replace(/\.css$/i, '.min.css'), minifyCss(css), 'utf8');
-    }
-  });
-  copyThemeImages(sourceThemeDir, outputThemeDir);
-  fs.cpSync(
-    path.join(sourceThemeDir, 'mono', 'images'),
-    path.join(outputThemeDir, 'mono'),
-    {
-      recursive: true,
-      filter: function(file) {
-        return path.basename(file) !== '.DS_Store';
-      }
-    }
-  );
 }
 
 function readSource(file) {
@@ -284,6 +233,9 @@ function verifyBuildOutput() {
   }
   if (/\.fui-diagram(?:[\s,{.:#>])/.test(css)) {
     throw new Error('FabUI Diagram styles must remain outside the core CSS bundle.');
+  }
+  if (/\.fg-theme-[A-Za-z0-9-]+/.test(css)) {
+    throw new Error('FabUI base CSS must use fixed selectors and contain only the Default theme.');
   }
   if (javascript.indexOf('global.fabui.EditBox = createEditBoxFactory(global.fabui.editorDefinitions)') < 0) {
     throw new Error('fabui.EditBox is missing from the JavaScript bundle.');
@@ -418,13 +370,18 @@ fs.rmSync(path.join(distDir, 'theme'), { recursive: true, force: true });
 fs.rmSync(path.join(distDir, 'images-mono'), { recursive: true, force: true });
 
 const javascript = createJavascriptBundle();
-const css = banner('styles') + bundleCss(path.join(srcDir, 'fabui.css'));
+const css = (banner('styles') + bundleCss(path.join(srcDir, 'fabui.css'))).trimEnd() + '\n';
 
 fs.writeFileSync(path.join(distDir, 'fabui.js'), javascript, 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.min.js'), banner('browser global min') + minifyJs(javascript, 'iife'), 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.css'), css, 'utf8');
 fs.writeFileSync(path.join(distDir, 'fabui.min.css'), minifyCss(css), 'utf8');
-copyThemeOutput();
+buildThemeOutput({
+  srcDir: srcDir,
+  distDir: distDir,
+  clean: false,
+  minOnly: false
+});
 verifyBuildOutput();
 
 console.log('Built FabUI bundles with theme and image dependencies.');

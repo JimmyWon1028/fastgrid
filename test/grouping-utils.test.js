@@ -14,7 +14,13 @@ function createInstalledGrid(rows, groups, columns) {
   installFabGridData(TestGrid, {
     DEFAULT_OPTIONS: { pageSize: 10 },
     formatNumberDisplayText: function(value) { return String(value); },
+    getActiveFilterMode: function(options) {
+      return Array.isArray(options.filterMode) ? options.filterMode[0] : null;
+    },
     getColumnSearchKey: function(column) { return column.binding; },
+    hasFilterMode: function(options, mode) {
+      return Array.isArray(options.filterMode) && options.filterMode.indexOf(mode) >= 0;
+    },
     mergeOptions: function(base, override) { return Object.assign({}, base, override); },
     normalizeColumnSearchOperator: function(operator) { return operator || ''; },
     rowMatchesExcelFilters: function() { return true; },

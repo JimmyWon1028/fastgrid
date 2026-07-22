@@ -63,7 +63,7 @@ test('Panel state changes use shared reduced-motion aware transitions', function
 });
 
 test('Panel theme styles match every EasyUI panel reference palette', function() {
-  var css = readFileSync(
+  var baseCss = readFileSync(
     new URL('../src/panel/panel.css', import.meta.url),
     'utf8'
   );
@@ -99,11 +99,14 @@ test('Panel theme styles match every EasyUI panel reference palette', function()
   ];
 
   Object.keys(expected).forEach(function(theme) {
-    var match = css.match(new RegExp(
-      '\\.fui-panel\\.fg-theme-' +
-      theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      '\\s*\\{([\\s\\S]*?)\\}'
-    ));
+    var css = theme === 'default' ? baseCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
+    var match = Array.from(css.matchAll(/\.fui-panel\s*\{([^}]*)\}/g))
+      .find(function(entry) {
+        return entry[1].toLowerCase().includes(expected[theme][0].toLowerCase());
+      });
     assert.ok(match, theme);
     names.forEach(function(name, index) {
       var value = expected[theme][index].replace(
@@ -118,7 +121,7 @@ test('Panel theme styles match every EasyUI panel reference palette', function()
     });
   });
 
-  assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
+  assert.doesNotMatch(baseCss, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
 });
 
 test('Panel and Window use the matching EasyUI panel tool sprite', function() {
@@ -146,6 +149,10 @@ test('Panel and Window use the matching EasyUI panel tool sprite', function() {
   };
 
   Object.keys(expectedHashes).forEach(function(theme) {
+    var themeCss = theme === 'default' ? iconCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
     var png = readFileSync(
       new URL(
         '../src/theme/' + theme + '/images/panel_tools.png',
@@ -155,12 +162,8 @@ test('Panel and Window use the matching EasyUI panel tool sprite', function() {
     var hash = createHash('sha1').update(png).digest('hex');
     assert.equal(hash, expectedHashes[theme], theme);
     assert.match(
-      iconCss,
-      new RegExp(
-        "--fui-panel-tools:\\s*url\\('theme/" +
-        theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-        "/images/panel_tools\\.png'\\)"
-      ),
+      themeCss,
+      /--fui-panel-tools:\s*url\('[^']*panel_tools\.png'\)/,
       theme
     );
   });

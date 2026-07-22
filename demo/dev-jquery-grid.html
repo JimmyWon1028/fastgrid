@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FabGrid jQuery Dev Demo</title>
-    <link rel="stylesheet" href="../src/fabui.css?v=20260721-initial-filter-rules-v1" />
+    <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-icon-clear-v1" />
+  <script src="./js/theme-loader.js?v=20260722-theme-reload-v1"></script>
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
@@ -64,17 +65,17 @@
     </main>
 
     <script src="https://code.jquery.com/jquery-4.0.0.min.js"></script>
-    <script src="./js/grid-toolbar.js?v=20260721-initial-filter-rules-v1"></script>
+    <script src="./js/grid-toolbar.js?v=20260722-filter-mode-v1"></script>
     <script src="./js/grid-data.js?v=20260721-initial-filter-rules-v1"></script>
     <script src="./js/grid-locales.js?v=20260721-initial-filter-rules-v1"></script>
-    <script src="./js/grid-query.js?v=20260721-initial-filter-rules-v1"></script>
+    <script src="./js/grid-query.js?v=20260722-remote-op-symbol-v1"></script>
     <script type="module">
-      import fabui from "../src/fabui.js?v=20260721-initial-filter-rules-v1";
-      import { createFabGridJQuery } from "../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260715-row-header-width-v1";
+      import fabui from "../src/fabui.js?v=20260722-filter-mode-switch-v1";
+      import { createFabGridJQuery } from "../packages/fabgrid-jquery/src/fabgrid-jquery.js?v=20260722-filter-mode-v1";
 
       window.fabui = fabui;
       createFabGridJQuery(window.jQuery, fabui);
-      await import("./js/grid-jquery.js?v=20260721-initial-filter-rules-v1");
+      await import("./js/grid-jquery.js?v=20260722-filter-mode-v1");
       await import(
         "../src/locales/fabgrid-locale.zh-TW.js?v=20260716-excel-filter-escape-v1"
       );
@@ -84,7 +85,7 @@
       await import(
         "../src/locales/fabgrid-locale.en.js?v=20260716-excel-filter-escape-v1"
       );
-      await import("./js/grid.js?v=20260721-initial-filter-rules-v1");
+      await import("./js/grid.js?v=20260722-search-delay-400-v1");
     </script>
     <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>
 </body>

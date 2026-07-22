@@ -181,7 +181,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
     baseOptions.allowEditing = false;
     baseOptions.editOnSelect = false;
     baseOptions.allowFiltering = false;
-    baseOptions.showSearchRow = false;
+    baseOptions.filterMode = false;
     baseOptions.showColumnChooser = false;
     baseOptions.showRowHeaders = false;
     baseOptions.allowSorting = false;
@@ -1222,7 +1222,7 @@ export function createPivotGridFactory(FabGrid, PivotEngine) {
       columns: columns,
       allowEditing: false,
       allowFiltering: true,
-      showSearchRow: false,
+      filterMode: ['excel'],
       showRowHeaders: true,
       selectionMode: 'CellRange',
       locale: this.locale,

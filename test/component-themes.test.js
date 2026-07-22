@@ -47,8 +47,9 @@ test('Mono theme keeps its icon assets SVG-only and maps every referenced file',
   var directory = new URL('../src/theme/mono/images/', import.meta.url);
   var files = readdirSync(directory);
   var cssFiles = [
-    '../src/theme/mono/icons.css',
-    '../src/theme/mono/default-alias.css',
+    '../src/theme/mono/components.css',
+    '../src/theme/mono-red/components.css',
+    '../src/theme/mono-green/components.css',
     '../src/theme/mono/tabs.css',
     '../src/theme/mono-red/tabs.css',
     '../src/theme/mono-green/tabs.css',
@@ -134,12 +135,13 @@ test('Mono theme uses the Metro Gray palette with its own SVG icon layer', funct
     new URL('../src/theme/fabgrid.metro-gray.css', import.meta.url),
     'utf8'
   ));
-  var monoComponents = variables(readFileSync(
-    new URL('../src/theme/mono/components.css', import.meta.url),
-    'utf8'
-  ));
-  var metroComponents = variables(readFileSync(
+  var metroComponentSource = readFileSync(
     new URL('../src/theme/metro-gray/components.css', import.meta.url),
+    'utf8'
+  );
+  var metroComponents = variables(metroComponentSource);
+  var monoComponents = variables(metroComponentSource + readFileSync(
+    new URL('../src/theme/mono/components.css', import.meta.url),
     'utf8'
   ));
   var monoTabs = variables(readFileSync(
@@ -150,15 +152,17 @@ test('Mono theme uses the Metro Gray palette with its own SVG icon layer', funct
     new URL('../src/theme/metro-gray/tabs.css', import.meta.url),
     'utf8'
   ));
-  var monoAliasSource = readFileSync(
-    new URL('../src/theme/mono/default-alias.css', import.meta.url),
-    'utf8'
-  );
-  var monoAliases = variables(monoAliasSource.split('/* Mono Red')[0]);
+  var monoAliases = monoComponents;
 
   assert.deepEqual(monoGrid, metroGrid);
-  assert.deepEqual(monoComponents, metroComponents);
-  assert.deepEqual(monoTabs, metroTabs);
+  Object.keys(metroComponents).forEach(function(name) {
+    if (/^url\(/.test(metroComponents[name])) return;
+    assert.equal(monoComponents[name], metroComponents[name], name);
+  });
+  Object.keys(metroTabs).forEach(function(name) {
+    if (/^url\(/.test(metroTabs[name])) return;
+    assert.equal(monoTabs[name], metroTabs[name], name);
+  });
   assert.equal(monoAliases['--fui-accordion-selected-bg'], '#84909c');
   assert.equal(monoAliases['--fui-layout-splitter-active'], '#84909c');
   assert.equal(monoAliases['--fui-panel-header-bg'], '#c7ccd1');
@@ -166,6 +170,32 @@ test('Mono theme uses the Metro Gray palette with its own SVG icon layer', funct
   assert.equal(monoAliases['--fui-tree-selected-bg'], '#84909c');
   assert.equal(monoAliases['--fui-window-frame'], '#c7ccd1');
   assert.equal(monoAliases['--fui-datebox-footer-bg'], '#c7ccd1');
+});
+
+test('Base CSS contains Default only and external themes use fixed selectors', function() {
+  var entry = readFileSync(
+    new URL('../src/fabui.css', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(entry, /theme\/fabgrid\.default\.css/);
+  assert.doesNotMatch(entry, /theme\/fabgrid\.(?!default)[^'"?]+\.css/);
+  themes.forEach(function(theme) {
+    var rootCss = readFileSync(
+      new URL('../src/theme/fabgrid.' + theme + '.css', import.meta.url),
+      'utf8'
+    );
+    var components = readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
+    var tabs = readFileSync(
+      new URL('../src/theme/' + theme + '/tabs.css', import.meta.url),
+      'utf8'
+    );
+    assert.doesNotMatch(rootCss + components + tabs, /\.fg-theme-/, theme);
+    if (theme !== 'default') assert.match(rootCss, /\.fg-root/);
+  });
 });
 
 test('Mono Red and Mono Green reuse their matching Metro palettes and Mono icons', function() {
@@ -185,8 +215,21 @@ test('Mono Red and Mono Green reuse their matching Metro palettes and Mono icons
   ].forEach(function(pair) {
     var grid = variables('../src/theme/fabgrid.' + pair.mono + '.css');
     var metroGrid = variables('../src/theme/fabgrid.' + pair.metro + '.css');
-    var components = variables('../src/theme/' + pair.mono + '/components.css');
+    var metroComponentSource = readFileSync(
+      new URL('../src/theme/' + pair.metro + '/components.css', import.meta.url),
+      'utf8'
+    );
     var metroComponents = variables('../src/theme/' + pair.metro + '/components.css');
+    var components = Object.assign(
+      {},
+      Object.fromEntries(Array.from(
+        metroComponentSource.matchAll(/(--[\w-]+):\s*([^;]+);/g),
+        function(match) {
+          return [match[1], match[2].trim().toLowerCase()];
+        }
+      )),
+      variables('../src/theme/' + pair.mono + '/components.css')
+    );
     var tabs = variables('../src/theme/' + pair.mono + '/tabs.css');
     var metroTabs = variables('../src/theme/' + pair.metro + '/tabs.css');
     var rootCss = readFileSync(
@@ -199,8 +242,18 @@ test('Mono Red and Mono Green reuse their matching Metro palettes and Mono icons
     );
 
     assert.deepEqual(grid, metroGrid, pair.mono + ' grid palette');
-    assert.deepEqual(components, metroComponents, pair.mono + ' component palette');
-    assert.deepEqual(tabs, metroTabs, pair.mono + ' tabs palette');
+    Object.keys(metroComponents).forEach(function(name) {
+      if (/^url\(/.test(metroComponents[name])) return;
+      assert.equal(
+        components[name],
+        metroComponents[name],
+        pair.mono + ' component palette ' + name
+      );
+    });
+    Object.keys(metroTabs).forEach(function(name) {
+      if (/^url\(/.test(metroTabs[name])) return;
+      assert.equal(tabs[name], metroTabs[name], pair.mono + ' tabs palette ' + name);
+    });
     assert.match(rootCss, /mono\/images\/pagination-first\.svg/);
     assert.match(tabsCss, /\.\.\/mono\/images\/tabs-close\.svg/);
     assert.doesNotMatch(rootCss + tabsCss, /\.(?:png|gif)\b/i);

@@ -17,7 +17,7 @@ import {
   registerControl,
   unregisterControl
 } from './core/control.js?v=20260721-mono-variants-v1';
-import { createFabGridFactory } from './grid/fabgrid.js?v=20260721-stylesheet-default-theme-v1';
+import { createFabGridFactory } from './grid/fabgrid.js?v=20260722-frozen-wide-column-scroll-v1';
 import { CellType } from './grid/fabgrid-types.js?v=20260721-mono-variants-v1';
 import { createLayoutFactory } from './layout/layout.js?v=20260721-mono-variants-v1';
 import { createMenuFactory } from './menu/menu.js?v=20260721-mono-variants-v1';

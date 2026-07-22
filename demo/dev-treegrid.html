@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FabGrid TreeGrid Source Demo</title>
-  <link rel="stylesheet" href="../src/fabui.css?v=20260721-initial-filter-rules-v1">
+  <link rel="stylesheet" href="../src/fabui.css?v=20260722-filter-active-theme-v1">
+  <script src="./js/theme-loader.js?v=20260722-filter-active-theme-v1"></script>
   <link rel="stylesheet" href="./style/treegrid.css?v=20260717-tree-context-menu-core-v1">
 </head>
 <body class="fg-theme-default">
@@ -68,11 +69,11 @@
 
   <script src="./js/treegrid-data.js?v=20260721-initial-filter-rules-v1"></script>
   <script type="module">
-    import fabui from '../src/fabui.js?v=20260721-initial-filter-rules-v1';
+    import fabui from '../src/fabui.js?v=20260722-filter-mode-switch-v1';
 
     window.fabui = fabui;
     await import('../src/locales/fabgrid-locale.zh-TW.js?v=20260716-excel-filter-escape-v1');
-    await import('./js/treegrid.js?v=20260721-initial-filter-rules-v1');
+    await import('./js/treegrid.js?v=20260722-filter-mode-v1');
   </script>
   <script type="module" src="./js/dev-controls.js?v=20260721-initial-filter-rules-v1"></script>
 </body>

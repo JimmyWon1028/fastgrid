@@ -138,7 +138,11 @@
     setValue(host, "frozenRightInput", values.frozenRightColumns);
     setValue(host, "rowHeadersInput", values.showRowHeaders);
     setValue(host, "groupRowsInput", values.rowGroupMode);
-    setChecked(host, "searchRowInput", values.showSearchRow);
+    setChecked(
+      host,
+      "searchRowInput",
+      Array.isArray(values.filterMode) || values.allowFiltering === true
+    );
     setChecked(host, "paginationInput", values.pagination);
     setChecked(host, "remoteInput", values.remote);
     setChecked(host, "multiSelectInput", values.multiSelectRows);

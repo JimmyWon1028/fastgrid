@@ -31,29 +31,45 @@
     var comparableActual = typeof rawActual === 'number' ? rawActual : actual;
     var comparableExpected = typeof rawActual === 'number' ? Number(rule.value) : expected;
 
-    switch (rule.op) {
+    switch (String(rule.op || '').toLowerCase()) {
+      case '%..%':
       case 'contains':
         return actual.indexOf(expected) >= 0;
+      case '%..':
       case 'ends':
         return actual.lastIndexOf(expected) === actual.length - expected.length;
+      case '!..%':
       case 'not-starts':
         return actual.indexOf(expected) !== 0;
+      case '!%..%':
       case 'not-contains':
         return actual.indexOf(expected) < 0;
+      case '!%..':
       case 'not-ends':
         return actual.lastIndexOf(expected) !== actual.length - expected.length;
+      case '>=':
       case 'gte':
         return comparableActual >= comparableExpected;
+      case '>':
       case 'gt':
         return comparableActual > comparableExpected;
+      case '<=':
       case 'lte':
         return comparableActual <= comparableExpected;
+      case '<':
       case 'lt':
         return comparableActual < comparableExpected;
+      case '<>':
       case 'ne':
         return comparableActual !== comparableExpected;
+      case '=':
       case 'eq':
         return comparableActual === comparableExpected;
+      case 'in':
+        return expected.split(',').map(function(item) {
+          return item.trim();
+        }).indexOf(actual) >= 0;
+      case '..%':
       default:
         return actual.indexOf(expected) === 0;
     }

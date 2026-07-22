@@ -14,7 +14,7 @@ var GRID_EVENTS = [
   'draggedRow',
   'draggingRow',
   'rowHeaderModeChanged',
-  'searchRowVisibilityChanged'
+  'filterModeChanged'
 ];
 
 var OPTION_PROPS = [
@@ -29,6 +29,7 @@ var OPTION_PROPS = [
   'selectionMode',
   'frozenColumns',
   'frozenRightColumns',
+  'filterMode',
   'isReadOnly',
   'locale',
   'pagination',
@@ -250,6 +251,13 @@ export function createFabGridVue(Vue, fabui) {
       allowEditing: { type: Boolean, default: undefined },
       allowDragging: { type: [Boolean, String], default: undefined },
       allowFiltering: { type: Boolean, default: undefined },
+      filterMode: {
+        type: [Array, Boolean],
+        default: undefined,
+        validator: function(value) {
+          return value === false || Array.isArray(value);
+        }
+      },
       allowSorting: { type: Boolean, default: undefined },
       allowResizing: { type: Boolean, default: undefined },
       activeCellBorder: { type: Number, default: undefined },
@@ -306,6 +314,11 @@ export function createFabGridVue(Vue, fabui) {
         if (!this.control || value === undefined) return;
         if (typeof this.control.setAllowFiltering === 'function') this.control.setAllowFiltering(value);
         else this.applyOption('allowFiltering', value);
+      },
+      filterMode: function(value) {
+        if (!this.control || value === undefined) return;
+        if (typeof this.control.setFilterMode === 'function') this.control.setFilterMode(value);
+        else this.applyOption('filterMode', value);
       },
       allowSorting: function(value) { this.applyOption('allowSorting', value); },
       allowResizing: function(value) { this.applyOption('allowResizing', value); },
@@ -402,7 +415,9 @@ export function createFabGridVue(Vue, fabui) {
         var self = this;
         if (!this.control) return;
         Object.keys(options).forEach(function(name) {
-          if (name === 'allowFiltering' && typeof self.control.setAllowFiltering === 'function') {
+          if (name === 'filterMode' && typeof self.control.setFilterMode === 'function') {
+            self.control.setFilterMode(options[name]);
+          } else if (name === 'allowFiltering' && typeof self.control.setAllowFiltering === 'function') {
             self.control.setAllowFiltering(options[name]);
           } else {
             self.control.options[name] = options[name];

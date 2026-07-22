@@ -33,13 +33,3 @@
 .fui-split-button.fui-menu-button-open .fui-split-button-arrow {
   background: rgba(127, 127, 127, 0.16);
 }
-
-.fui-split-button.fg-theme-dark-hive .fui-split-button-arrow:hover,
-.fui-split-button.fg-theme-black .fui-split-button-arrow:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.fui-split-button.fg-theme-dark-hive:not(.fui-button-disabled):hover .fui-split-button-arrow,
-.fui-split-button.fg-theme-black:not(.fui-button-disabled):hover .fui-split-button-arrow {
-  border-left-color: rgba(255, 255, 255, 0.18);
-}

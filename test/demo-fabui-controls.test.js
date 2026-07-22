@@ -21,6 +21,26 @@ var helperScript = readFileSync(
   new URL('../demo/js/demo-controls.js', import.meta.url),
   'utf8'
 );
+var themeLoaderScript = readFileSync(
+  new URL('../demo/js/theme-loader.js', import.meta.url),
+  'utf8'
+);
+var grid2Script = readFileSync(
+  new URL('../demo/js/grid2-components.js', import.meta.url),
+  'utf8'
+);
+var gridScript = readFileSync(
+  new URL('../demo/js/grid.js', import.meta.url),
+  'utf8'
+);
+var gridToolbarScript = readFileSync(
+  new URL('../demo/js/grid-toolbar.js', import.meta.url),
+  'utf8'
+);
+var devGridHtml = readFileSync(
+  new URL('../demo/dev-grid.html', import.meta.url),
+  'utf8'
+);
 var diagramHtml = readFileSync(
   new URL('../demo/dev-diagram.html', import.meta.url),
   'utf8'
@@ -156,6 +176,27 @@ test('Every static Demo theme selector offers the Mono theme', function() {
   );
 });
 
+test('Demo themes load external CSS and reload instead of switching classes', function() {
+  var pages = readdirSync(demoDirectory)
+    .filter(function(name) {
+      return /\.html$/.test(name);
+    });
+  var matched = 0;
+
+  pages.forEach(function(name) {
+    var html = readFileSync(new URL(name, demoDirectory), 'utf8');
+    if (!/(?:src|dist)\/fabui(?:\.lite)?(?:\.min)?\.css/.test(html)) return;
+    matched += 1;
+    assert.match(html, /theme-loader\.js\?v=[^"']+/, name);
+  });
+  assert.ok(matched > 0);
+  assert.match(themeLoaderScript, /url\.searchParams\.set\('theme', theme\)/);
+  assert.match(themeLoaderScript, /global\.location\.assign\(url\.href\)/);
+  assert.match(themeLoaderScript, /theme\/fabui\.' \+ theme \+ '\.css'/);
+  assert.match(themeLoaderScript, /themeHref\.searchParams\.set\('v', themeCssVersion\)/);
+  assert.doesNotMatch(themeLoaderScript, /classList\.(?:add|remove)/);
+});
+
 test('Every source-mode Demo loads the shared FabUI control enhancer', function() {
   var pages = readdirSync(demoDirectory)
     .filter(function(name) {
@@ -257,6 +298,27 @@ test('The Grid Demo bridges live Number EditBox input to source controls', funct
   assert.equal(bridgeNumberEditBoxInput(source, numberControl, 'change'), false);
 });
 
+test('The Dev Grid bottom filter uses a FabUI text EditBox', function() {
+  assert.match(devGridHtml, /id="demoFilterInput"/);
+  assert.match(
+    grid2Script,
+    /createEditBox\(\s*"demoFilterInput",\s*\{\s*editor:\s*"text"/
+  );
+});
+
+test('The Dev Grid filtering switch follows the filterMode API', function() {
+  assert.match(gridScript, /filterMode:\s*settings\.filterMode/);
+  assert.match(gridScript, /grid\.on\("filterModeChanged"/);
+  assert.match(gridScript, /controls\.filtering\.checked = event\.filterMode !== false/);
+  assert.match(gridScript, /filterMode:\s*grid\.getFilterMode\(\)/);
+  assert.match(gridScript, /function normalizeFilterModeSetting\(settings\)/);
+  assert.doesNotMatch(gridScript, /grid\.options\.showSearchRow/);
+  assert.match(
+    gridToolbarScript,
+    /Array\.isArray\(values\.filterMode\) \|\| values\.allowFiltering === true/
+  );
+});
+
 test('The Windows 7 Demo remembers only supported themes', function() {
   var stored = null;
   var storage = {
@@ -355,7 +417,7 @@ test('Every build-mode Demo loads dist FabUI and the shared control enhancer', f
     var html = readFileSync(new URL(name, demoDirectory), 'utf8');
     assert.match(
       html,
-      /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=20260721-mono-theme-v3"\s*\/?>/,
+      /<link\s+rel="stylesheet"\s+href="\.\.\/dist\/fabui\.css\?v=20260722-theme-css-split-v1"\s*\/?>/,
       name
     );
     assert.match(
@@ -405,7 +467,7 @@ test('Every webpage stylesheet reference uses the FabUI dist filename', function
   }).forEach(function(item) {
     assert.match(
       item.source,
-      /\.\.\/dist\/fabui\.css\?v=20260721-mono-theme-v3/,
+      /\.\.\/dist\/fabui\.css\?v=20260722-theme-css-split-v1/,
       item.name
     );
   });

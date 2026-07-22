@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>FabGrid Smoke Test</title>
   <link rel="stylesheet" href="../dist/fabui.css?v=20260721-mono-theme-v3">
-  <link rel="stylesheet" href="../dist/diagram.min.css?v=20260721-mono-theme-v2">
+  <link rel="stylesheet" href="../dist/fabui.diagram.min.css?v=20260722-diagram-bundle-name-v1">
   <style>
     html,
     body {
@@ -25,7 +25,7 @@
 <body>
   <div id="grid"></div>
   <div id="largeGrid" style="width: 900px; height: 420px; margin-top: 20px;"></div>
-  <div id="headerLayoutGrid" style="position: absolute; left: -10000px; width: 240px; height: 90px; min-height: 90px;"></div>
+  <div id="headerLayoutGrid" style="position: absolute; left: -10000px; width: 450px; height: 90px; min-height: 90px;"></div>
   <div id="cellTemplateGrid" style="position: absolute; left: -10000px; width: 420px; height: 90px; min-height: 90px;"></div>
   <input id="editBoxSmoke" value="FabUI" style="position: absolute; left: -10000px;">
   <a id="buttonSmoke" href="javascript:void(0)" style="position: absolute; left: -10000px;">Button</a>
@@ -72,7 +72,7 @@
   <div id="windowSmoke" title="Original window title" style="display:none">Window</div>
   <pre id="result">pending</pre>
   <script src="../dist/fabui.min.js?v=20260721-mono-theme-v2"></script>
-  <script src="../dist/diagram.min.js?v=20260721-mono-theme-v2"></script>
+  <script src="../dist/fabui.diagram.min.js?v=20260722-diagram-bundle-name-v1"></script>
   <script>
     (function() {
       window.addEventListener('error', function(event) {
@@ -233,12 +233,15 @@
           headerHeight: 34,
           columns: [
             { binding: 'wide', header: '應付金額', width: 120, align: 'right' },
-            { binding: 'narrow', header: '文字日期', width: 70 }
+            { binding: 'narrow', header: '文字日期', width: 70 },
+            { binding: 'borderline', header: '米數', width: 60, align: 'right' },
+            { binding: 'inset', header: '米數', width: 50, align: 'right' },
+            { binding: 'tight', header: '顆數', width: 35, align: 'right' }
           ],
-          itemsSource: [{ wide: 6700, narrow: '2026/07/02' }]
+          itemsSource: [{ wide: 6700, narrow: '2026/07/02', borderline: 18, inset: 18, tight: 10 }]
         });
         var cellTemplateGrid = new fabui.FabGrid('#cellTemplateGrid', {
-          showSearchRow: true,
+          filterMode: ['searchRow', 'excel'],
           columns: [
             {
               binding: 'id',
@@ -346,20 +349,75 @@
           rightAlignedFilterIconRect &&
           rightAlignedFilterLabelRect.right <= rightAlignedFilterIconRect.left
         );
+        var rightAlignedBorderlineHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="2"]');
+        var rightAlignedBorderlineLabel = rightAlignedBorderlineHeader ?
+          rightAlignedBorderlineHeader.querySelector('.fg-header-label') : null;
+        var rightAlignedBorderlineTitle = rightAlignedBorderlineHeader ?
+          rightAlignedBorderlineHeader.querySelector('.fg-header-title') : null;
+        var rightAlignedBorderlineLeftBeforeSort = rightAlignedBorderlineLabel ?
+          rightAlignedBorderlineLabel.getBoundingClientRect().left : null;
+        var rightAlignedBorderlinePaddingBeforeSort = rightAlignedBorderlineTitle ?
+          window.getComputedStyle(rightAlignedBorderlineTitle).paddingRight : null;
+        headerLayoutGrid.toggleSort(2);
+        rightAlignedBorderlineHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="2"]');
+        rightAlignedBorderlineLabel = rightAlignedBorderlineHeader ?
+          rightAlignedBorderlineHeader.querySelector('.fg-header-label') : null;
+        rightAlignedBorderlineTitle = rightAlignedBorderlineHeader ?
+          rightAlignedBorderlineHeader.querySelector('.fg-header-title') : null;
+        var rightAlignedBorderlineLeftAfterSort = rightAlignedBorderlineLabel ?
+          rightAlignedBorderlineLabel.getBoundingClientRect().left : null;
+        var rightAlignedBorderlinePaddingAfterSort = rightAlignedBorderlineTitle ?
+          window.getComputedStyle(rightAlignedBorderlineTitle).paddingRight : null;
+        var rightAlignedBorderlineIcon = rightAlignedBorderlineHeader ?
+          rightAlignedBorderlineHeader.querySelector('.fg-filter-icon') : null;
+        var rightAlignedBorderlineLabelRectAfterSort = rightAlignedBorderlineLabel ?
+          rightAlignedBorderlineLabel.getBoundingClientRect() : null;
+        var rightAlignedBorderlineIconRect = rightAlignedBorderlineIcon ?
+          rightAlignedBorderlineIcon.getBoundingClientRect() : null;
+        var rightAlignedHeaderTextAnchorStableWorks =
+          rightAlignedBorderlineLeftBeforeSort != null &&
+          rightAlignedBorderlineLeftAfterSort != null &&
+          Math.abs(rightAlignedBorderlineLeftAfterSort - rightAlignedBorderlineLeftBeforeSort) <= 0.5;
+        var rightAlignedInsetHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="3"]');
+        var rightAlignedInsetTitle = rightAlignedInsetHeader ?
+          rightAlignedInsetHeader.querySelector('.fg-header-title') : null;
+        var rightAlignedTightHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="4"]');
+        var rightAlignedTightTitle = rightAlignedTightHeader ?
+          rightAlignedTightHeader.querySelector('.fg-header-title') : null;
+        var rightAlignedHeaderAdaptiveInsetWorks =
+          rightAlignedBorderlinePaddingBeforeSort === '24px' &&
+          rightAlignedBorderlinePaddingAfterSort === '24px' &&
+          rightAlignedBorderlineLabelRectAfterSort &&
+          rightAlignedBorderlineIconRect &&
+          rightAlignedBorderlineLabelRectAfterSort.right <= rightAlignedBorderlineIconRect.left &&
+          rightAlignedInsetTitle &&
+          window.getComputedStyle(rightAlignedInsetTitle).paddingRight === '6px' &&
+          rightAlignedTightTitle &&
+          window.getComputedStyle(rightAlignedTightTitle).paddingRight === '0px';
+        headerLayoutGrid.toggleSort(1);
         var narrowFilterHeader = headerLayoutGrid.hostElement.querySelector('.fg-header-cell[data-col="1"]');
         var narrowFilterTitle = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-header-title') : null;
         var narrowFilterLabel = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-header-label') : null;
+        var narrowFilterSort = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-sort') : null;
         var narrowFilterIcon = narrowFilterHeader ? narrowFilterHeader.querySelector('.fg-filter-icon') : null;
         var narrowFilterLabelRect = narrowFilterLabel ? narrowFilterLabel.getBoundingClientRect() : null;
+        var narrowFilterSortRect = narrowFilterSort ? narrowFilterSort.getBoundingClientRect() : null;
         var narrowFilterIconRect = narrowFilterIcon ? narrowFilterIcon.getBoundingClientRect() : null;
-        var narrowFilterTextUsesIconSpaceWorks = !!(
+        var narrowFilterTextOverlapsIconWorks = !!(
           narrowFilterTitle &&
           narrowFilterLabel &&
           narrowFilterLabelRect &&
           narrowFilterIconRect &&
           narrowFilterTitle.classList.contains('fg-header-title-filter-narrow') &&
-          narrowFilterLabel.scrollWidth <= narrowFilterLabel.clientWidth &&
+          narrowFilterLabel.scrollWidth >= narrowFilterLabel.clientWidth &&
           narrowFilterLabelRect.right > narrowFilterIconRect.left
+        );
+        var narrowSortFilterGapWorks = !!(
+          narrowFilterTitle &&
+          narrowFilterTitle.classList.contains('fg-header-title-sorted') &&
+          narrowFilterSortRect &&
+          narrowFilterIconRect &&
+          Math.abs((narrowFilterIconRect.left + 2) - narrowFilterSortRect.right - 2) <= 0.5
         );
         var stringTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-string="0"]');
         var functionTemplateCell = cellTemplateGrid.hostElement.querySelector('[data-cell-template-function="name"]');
@@ -542,6 +600,7 @@
           nameHeaderSortWrapRect.left - nameHeaderLabelRect.right <= 4 &&
           nameHeaderSortRect.left >= nameHeaderSortWrapRect.left &&
           nameHeaderSortRect.right <= nameHeaderSortWrapRect.right &&
+          Math.abs(nameHeaderSortRect.bottom - nameHeaderLabelRect.bottom) <= 1 &&
           nameHeaderRect.right - nameHeaderSortWrapRect.right > 20;
         grid.toggleSort(2, true);
         grid.toggleSort(0, true);
@@ -2667,7 +2726,10 @@
                 }),
                 filterHeaderTextVerticallyCenteredWorks: filterHeaderTextVerticallyCenteredWorks,
                 filterHeaderTextClearsIconWorks: filterHeaderTextClearsIconWorks,
-                narrowFilterTextUsesIconSpaceWorks: narrowFilterTextUsesIconSpaceWorks,
+          rightAlignedHeaderTextAnchorStableWorks: rightAlignedHeaderTextAnchorStableWorks,
+          rightAlignedHeaderAdaptiveInsetWorks: rightAlignedHeaderAdaptiveInsetWorks,
+                narrowFilterTextOverlapsIconWorks: narrowFilterTextOverlapsIconWorks,
+                narrowSortFilterGapWorks: narrowSortFilterGapWorks,
                 excelFilterPopupDynamicHeightWorks: excelFilterPopupDynamicHeightWorks,
                 excelFilterPopupAlignsHeaderLeftWorks: excelFilterPopupAlignsHeaderLeftWorks,
                 excelFilterPopupBottomShadowWorks: excelFilterPopupBottomShadowWorks,
@@ -3199,7 +3261,7 @@
         host.style.cssText = 'position:absolute;left:-9999px;top:0;width:640px;height:280px;';
         document.body.appendChild(host);
         searchGrid = new fabui.FabGrid(host, {
-          showSearchRow: true,
+          filterMode: ['searchRow', 'excel'],
           showRowHeaders: true,
           frozenColumns: 1,
           frozenRightColumns: 1,

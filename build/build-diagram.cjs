@@ -47,7 +47,7 @@ function createBrowserBundle(source) {
     '    typeof global.fabui.EditBox !== "function" ||\n' +
     '    typeof global.fabui.Menu !== "function" ||\n' +
     '    typeof global.fabui.Tabs !== "function") {\n' +
-    '  throw new Error("Load fabui.js before diagram.js.");\n' +
+    '  throw new Error("Load fabui.js before fabui.diagram.js.");\n' +
     '}\n' +
     source + '\n' +
     'global.fabui.Diagram = createDiagramFactory(\n' +
@@ -64,19 +64,19 @@ function createBrowserBundle(source) {
 
 function verifyOutput() {
   const core = fs.readFileSync(path.join(distDir, 'fabui.js'), 'utf8');
-  const browser = fs.readFileSync(path.join(distDir, 'diagram.js'), 'utf8');
+  const browser = fs.readFileSync(path.join(distDir, 'fabui.diagram.js'), 'utf8');
   if (/createDiagramFactory|global\.fabui\.Diagram/.test(core)) {
     throw new Error('FabUI core bundle must not contain Diagram.');
   }
-  if (browser.indexOf('Load fabui.js before diagram.js.') < 0 ||
+  if (browser.indexOf('Load fabui.js before fabui.diagram.js.') < 0 ||
       browser.indexOf('global.fabui.Diagram = createDiagramFactory') < 0) {
     throw new Error('Diagram browser bundle dependency contract is incomplete.');
   }
   [
-    'diagram.js',
-    'diagram.min.js',
-    'diagram.css',
-    'diagram.min.css'
+    'fabui.diagram.js',
+    'fabui.diagram.min.js',
+    'fabui.diagram.css',
+    'fabui.diagram.min.css'
   ].forEach(function(file) {
     const output = path.join(distDir, file);
     if (!fs.existsSync(output) || !fs.statSync(output).size) {
@@ -86,7 +86,7 @@ function verifyOutput() {
 }
 
 if (!fs.existsSync(path.join(distDir, 'fabui.js'))) {
-  throw new Error('Build FabUI core before building diagram.*.');
+  throw new Error('Build FabUI core before building fabui.diagram.*.');
 }
 
 const source = stripExports(fs.readFileSync(sourceFile, 'utf8'));
@@ -95,20 +95,26 @@ const browser = createBrowserBundle(source);
 
 fs.mkdirSync(distDir, { recursive: true });
 [
+  'diagram.js',
+  'diagram.min.js',
+  'diagram.css',
+  'diagram.min.css',
   'diagram.esm.js',
-  'diagram.esm.min.js'
+  'diagram.esm.min.js',
+  'fabui.diagram.esm.js',
+  'fabui.diagram.esm.min.js'
 ].forEach(function(file) {
   fs.rmSync(path.join(distDir, file), { force: true });
 });
-fs.writeFileSync(path.join(distDir, 'diagram.js'), browser, 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.diagram.js'), browser, 'utf8');
 fs.writeFileSync(
-  path.join(distDir, 'diagram.min.js'),
+  path.join(distDir, 'fabui.diagram.min.js'),
   banner('browser global min') + minifyJs(browser),
   'utf8'
 );
-fs.writeFileSync(path.join(distDir, 'diagram.css'), styles, 'utf8');
+fs.writeFileSync(path.join(distDir, 'fabui.diagram.css'), styles, 'utf8');
 fs.writeFileSync(
-  path.join(distDir, 'diagram.min.css'),
+  path.join(distDir, 'fabui.diagram.min.css'),
   minifyCss(styles),
   'utf8'
 );

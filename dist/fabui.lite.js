@@ -1022,7 +1022,9 @@ function hasExcelFilters(filters) {
 function installFabGridData(FabGrid, context) {
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
   var formatNumberDisplayText = context.formatNumberDisplayText;
+  var getActiveFilterMode = context.getActiveFilterMode;
   var getColumnSearchKey = context.getColumnSearchKey;
+  var hasFilterMode = context.hasFilterMode;
   var mergeOptions = context.mergeOptions;
   var normalizeColumnSearchOperator = context.normalizeColumnSearchOperator;
   var rowMatchesExcelFilters = context.rowMatchesExcelFilters;
@@ -1049,7 +1051,70 @@ function installFabGridData(FabGrid, context) {
     if (operator === '!%..') {
       return 'not-ends';
     }
+    if (operator === '>=') {
+      return 'gte';
+    }
+    if (operator === '>') {
+      return 'gt';
+    }
+    if (operator === '<=') {
+      return 'lte';
+    }
+    if (operator === '<') {
+      return 'lt';
+    }
+    if (operator === '<>') {
+      return 'ne';
+    }
+    if (operator === '=') {
+      return 'eq';
+    }
+    if (operator.toLowerCase() === 'in') {
+      return 'in';
+    }
     return normalizeColumnSearchOperator(operator);
+  }
+
+  function serializeRemoteFilterOperator(operator) {
+    var source = String(operator || '').trim();
+    var normalized = normalizeRemotePatternOperator(source);
+    if (normalized === 'starts') {
+      return '..%';
+    }
+    if (normalized === 'contains') {
+      return '%..%';
+    }
+    if (normalized === 'ends') {
+      return '%..';
+    }
+    if (normalized === 'not-starts') {
+      return '!..%';
+    }
+    if (normalized === 'not-contains') {
+      return '!%..%';
+    }
+    if (normalized === 'not-ends') {
+      return '!%..';
+    }
+    if (normalized === 'gte') {
+      return '>=';
+    }
+    if (normalized === 'gt') {
+      return '>';
+    }
+    if (normalized === 'lte') {
+      return '<=';
+    }
+    if (normalized === 'lt') {
+      return '<';
+    }
+    if (normalized === 'ne') {
+      return '<>';
+    }
+    if (normalized === 'eq') {
+      return '=';
+    }
+    return source;
   }
 
   function serializeRemoteInValue(value) {
@@ -1404,11 +1469,11 @@ function installFabGridData(FabGrid, context) {
       } else {
         value = String(rule.value).trim();
       }
-      if (!field || !value) {
+      if (!field) {
         return;
       }
       column = columnBindings[field];
-      if (column && self.options.allowFiltering !== false && self.options.showSearchRow === true) {
+      if (column && getActiveFilterMode(self.options) === 'searchRow') {
         key = getColumnSearchKey(column);
         value = String(self.columnSearchValues[key] == null ? '' : self.columnSearchValues[key]).trim();
         if (!value) {
@@ -1421,18 +1486,22 @@ function installFabGridData(FabGrid, context) {
         if (currentOperator && currentOperator !== configuredUiOperator) {
           operator = currentOperator;
         }
+      } else if (!value) {
+        return;
       }
       rules.push({
         field: field,
-        op: operator || 'starts',
+        op: self.options.remote === true ?
+          serializeRemoteFilterOperator(operator || 'starts') : operator || 'starts',
         value: value
       });
       configuredFields[field] = true;
     });
-    if (this.options.allowFiltering !== false && this.options.showSearchRow === true) {
+    if (getActiveFilterMode(this.options) === 'searchRow') {
       this.columns.forEach(function(column) {
         var key = getColumnSearchKey(column);
         var value = self.columnSearchValues[key];
+        var operator;
         if (
           typeof column.binding === 'string' &&
           column.binding &&
@@ -1440,14 +1509,15 @@ function installFabGridData(FabGrid, context) {
           value != null &&
           String(value).trim()
         ) {
+          operator = normalizeColumnSearchOperator(self.columnSearchOperators[key]) || 'starts';
           rules.push({
             field: column.binding,
-            op: normalizeColumnSearchOperator(self.columnSearchOperators[key]) || 'starts',
+            op: self.options.remote === true ? serializeRemoteFilterOperator(operator) : operator,
             value: String(value).trim()
           });
         }
       });
-    } else if (this.options.allowFiltering !== false) {
+    } else if (getActiveFilterMode(this.options) === 'excel') {
       this.columns.forEach(function(column) {
         var key = getColumnSearchKey(column);
         var filter = (self.excelFilters || {})[key];
@@ -1640,6 +1710,12 @@ function installFabGridData(FabGrid, context) {
     var storedOperator;
     var key;
     var i;
+    var hasConfiguredColumnRule = false;
+    var hasColumnSearchValue = false;
+    this.options.filterRules = [];
+    if (!hasFilterMode(this.options, 'searchRow')) {
+      return appliedRules;
+    }
     if (typeof parsedRules === 'string') {
       try {
         parsedRules = JSON.parse(parsedRules);
@@ -1669,7 +1745,11 @@ function installFabGridData(FabGrid, context) {
       operator = normalizeColumnSearchOperator(rawOperator);
       uiOperator = this.options.remote === true ? normalizeRemotePatternOperator(rawOperator) : operator;
       column = field ? this.getColumn(field) : null;
-      if (!field || !value || (this.options.remote !== true && rawOperator && !operator)) {
+      if (
+        !field ||
+        (this.options.remote !== true && (!value || (rawOperator && !operator))) ||
+        (this.options.remote === true && !value && (!column || !uiOperator))
+      ) {
         continue;
       }
       storedOperator = this.options.remote === true ? rawOperator || 'starts' : operator || 'starts';
@@ -1682,23 +1762,28 @@ function installFabGridData(FabGrid, context) {
         continue;
       }
       key = getColumnSearchKey(column);
-      this.columnSearchValues[key] = value;
+      hasConfiguredColumnRule = true;
+      if (value) {
+        this.columnSearchValues[key] = value;
+        hasColumnSearchValue = true;
+      }
       if (uiOperator) {
         this.columnSearchOperators[key] = uiOperator;
       }
-      appliedRules.push({
-        field: column.binding,
-        op: storedOperator,
-        value: value
-      });
+      if (value) {
+        appliedRules.push({
+          field: column.binding,
+          op: storedOperator,
+          value: value
+        });
+      }
     }
-    if (normalizedRules.length) {
-      this.options.allowFiltering = true;
+    if (hasConfiguredColumnRule) {
+      this.options.filterMode = ['searchRow'].concat(this.options.filterMode.filter(function(mode) {
+        return mode !== 'searchRow';
+      }));
     }
-    if (appliedRules.length) {
-      this.options.showSearchRow = true;
-      this.hasColumnSearch = true;
-    }
+    this.hasColumnSearch = hasColumnSearchValue;
     this.options.filterRules = normalizedRules.map(function(ruleItem) {
       return {
         field: ruleItem.field,
@@ -1741,7 +1826,7 @@ function installFabGridData(FabGrid, context) {
   FabGrid.prototype.setColumnSearch = function(column, value) {
     var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
     var key;
-    if (!col || this.options.allowFiltering === false) {
+    if (!col || getActiveFilterMode(this.options) !== 'searchRow') {
       return false;
     }
     this.cancelHeaderSearchTimer();
@@ -1760,7 +1845,7 @@ function installFabGridData(FabGrid, context) {
   FabGrid.prototype.setColumnSearchOperator = function(column, operator) {
     var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
     var key;
-    if (!col || this.options.allowFiltering === false) {
+    if (!col || getActiveFilterMode(this.options) !== 'searchRow') {
       return false;
     }
     key = getColumnSearchKey(col);
@@ -1793,7 +1878,7 @@ function installFabGridData(FabGrid, context) {
     var col = typeof column === 'number' ? this.visibleColumns[column] || this.columns[column] : typeof column === 'object' ? column : this.getColumn(column);
     var key;
     var normalized;
-    if (!col || this.options.allowFiltering === false || this.options.showSearchRow === true) {
+    if (!col || getActiveFilterMode(this.options) !== 'excel') {
       return false;
     }
     this.excelFilters = this.excelFilters || {};
@@ -1877,11 +1962,11 @@ function installFabGridData(FabGrid, context) {
     this.refresh();
     columnSearchValues = mergeOptions({}, this.columnSearchValues || {});
     columnSearchOperators = mergeOptions({}, this.columnSearchOperators || {});
-    columnSearchActive = this.options.allowFiltering !== false && this.options.showSearchRow === true && Object.keys(columnSearchValues).some(function(key) {
+    columnSearchActive = getActiveFilterMode(this.options) === 'searchRow' && Object.keys(columnSearchValues).some(function(key) {
       return String(columnSearchValues[key] == null ? '' : columnSearchValues[key]).trim() !== '';
     });
     excelFilters = cloneExcelFilters(this.excelFilters || {});
-    excelFilterActive = this.options.allowFiltering !== false && this.options.showSearchRow !== true && hasExcelFilters(excelFilters);
+    excelFilterActive = getActiveFilterMode(this.options) === 'excel' && hasExcelFilters(excelFilters);
     active = typeof this.filterPredicate === 'function' || Boolean(this.searchText) || columnSearchActive || excelFilterActive;
     if (source) {
       this.emit('filterChanged', {
@@ -1907,9 +1992,9 @@ function installFabGridData(FabGrid, context) {
     var rows = this.source.slice();
     var filterPredicate = this.filterPredicate;
     var searchText = this.searchText;
-    var columnSearchValues = this.options.allowFiltering !== false && this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchValues : null;
-    var columnSearchOperators = this.options.allowFiltering !== false && this.options.showSearchRow === true && this.hasColumnSearch ? this.columnSearchOperators : null;
-    var excelFilters = this.options.allowFiltering !== false && this.options.showSearchRow !== true && hasExcelFilters(this.excelFilters) ? this.excelFilters : null;
+    var columnSearchValues = getActiveFilterMode(this.options) === 'searchRow' && this.hasColumnSearch ? this.columnSearchValues : null;
+    var columnSearchOperators = getActiveFilterMode(this.options) === 'searchRow' && this.hasColumnSearch ? this.columnSearchOperators : null;
+    var excelFilters = getActiveFilterMode(this.options) === 'excel' && hasExcelFilters(this.excelFilters) ? this.excelFilters : null;
     var columns = this.columns;
     var sortStates = this.getSortStates();
     var selectionState = this.captureSelectionState();
@@ -4662,6 +4747,10 @@ function applyHeaderCellStyle(targetStyle, customStyle) {
   }
 }
 
+function getSizeLayerWidth(fixedLeftWidth, frozenWidth, scrollableWidth, frozenRightWidth) {
+  return Math.max(0, fixedLeftWidth + frozenWidth + scrollableWidth + frozenRightWidth);
+}
+
 function installFabGridView(FabGrid, context) {
   var CellType = context.CellType;
   var DEFAULT_OPTIONS = context.DEFAULT_OPTIONS;
@@ -4676,6 +4765,7 @@ function installFabGridView(FabGrid, context) {
   var getColumnSearchIconConfigs = context.getColumnSearchIconConfigs;
   var getColumnSearchKey = context.getColumnSearchKey;
   var getColumnSearchOperatorSymbol = context.getColumnSearchOperatorSymbol;
+  var getActiveFilterMode = context.getActiveFilterMode;
   var getComboboxTextByValue = context.getComboboxTextByValue;
   var getEditorMask = context.getEditorMask;
   var getExplicitEditorMask = context.getExplicitEditorMask;
@@ -5423,7 +5513,13 @@ function installFabGridView(FabGrid, context) {
       null;
     bodyPaneBottom = footerOffsetBottom + footerHeight;
 
-    this.sizeLayer.style.width = Math.max(metrics.width, fixedLeftWidth + this.frozenWidth + this.scrollableWidth + this.frozenRightWidth) + 'px';
+    // Let CSS min-width track the live client width after a vertical scrollbar appears.
+    this.sizeLayer.style.width = getSizeLayerWidth(
+      fixedLeftWidth,
+      this.frozenWidth,
+      this.scrollableWidth,
+      this.frozenRightWidth
+    ) + 'px';
     this.sizeLayer.style.height = (totalHeight + footerHeight) + 'px';
     this.rowHeaderTop.style.width = rowHeaderWidth + 'px';
     this.rowHeaderTop.style.height = this.getHeaderHeight() + 'px';
@@ -5811,8 +5907,8 @@ function installFabGridView(FabGrid, context) {
   FabGrid.prototype.hasActiveFilter = function() {
     return !!this.filterPredicate ||
       !!this.searchText ||
-      (this.options.allowFiltering !== false && this.options.showSearchRow === true && this.hasColumnSearch) ||
-      (this.options.allowFiltering !== false && this.options.showSearchRow !== true && hasExcelFilterEntries(this.excelFilters));
+      (getActiveFilterMode(this.options) === 'searchRow' && this.hasColumnSearch) ||
+      (getActiveFilterMode(this.options) === 'excel' && hasExcelFilterEntries(this.excelFilters));
   };
 
   FabGrid.prototype.getFixedLeftWidth = function() {
@@ -6111,6 +6207,7 @@ function installFabGridView(FabGrid, context) {
     var searchOperator = this.getColumnSearchOperator(column);
     var excelFilterActive = this.isExcelFilterActive(column);
     var headerText = this.getHeaderCellText(column);
+    var headerTextWidth;
     var headerContentWidth;
 
     cell.className = 'fg-header-cell';
@@ -6124,12 +6221,16 @@ function installFabGridView(FabGrid, context) {
     cell.setAttribute('data-col', column._viewIndex);
     cell.setAttribute('data-frozen', frozen ? '1' : '0');
     title.className = 'fg-header-title' +
-      (this.options.allowFiltering !== false ? ' fg-header-title-filterable' : '');
-    if (this.options.allowFiltering !== false) {
-      headerContentWidth = this.measureAutoSizeText(headerText, textMeasureContext) +
-        (sortDirection ? 13 : 0);
+      (getActiveFilterMode(this.options) ? ' fg-header-title-filterable' : '') +
+      (sortDirection ? ' fg-header-title-sorted' : '');
+    if (getActiveFilterMode(this.options)) {
+      headerTextWidth = this.measureAutoSizeText(headerText, textMeasureContext);
+      headerContentWidth = headerTextWidth + (column.align === 'right' ? 0 : 13);
       if (headerContentWidth + 30 > column._width) {
         title.className += ' fg-header-title-filter-narrow';
+        if (column.align === 'right' && headerTextWidth + 13 <= column._width) {
+          title.className += ' fg-header-title-filter-right-inset';
+        }
       }
     }
     title.style.height = this.getHeaderTitleHeight() + 'px';
@@ -6147,11 +6248,11 @@ function installFabGridView(FabGrid, context) {
     sortWrap.appendChild(sort);
     title.appendChild(sortWrap);
     cell.appendChild(title);
-    if (this.options.allowFiltering !== false) {
+    if (getActiveFilterMode(this.options)) {
       filterIcon.className = 'fg-filter-icon' +
-        (this.options.showSearchRow === true && searchOperator ? ' fg-filter-icon-active' : '') +
-        (this.options.showSearchRow !== true && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
-      filterIcon.textContent = this.options.showSearchRow === true && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
+        (getActiveFilterMode(this.options) === 'searchRow' && searchOperator ? ' fg-filter-icon-active' : '') +
+        (getActiveFilterMode(this.options) === 'excel' && excelFilterActive ? ' fg-filter-icon-excel-active' : '');
+      filterIcon.textContent = getActiveFilterMode(this.options) === 'searchRow' && searchOperator ? getColumnSearchOperatorSymbol(searchOperator) : '';
       filterIcon.setAttribute('data-col', column._viewIndex);
       filterIcon.setAttribute('role', 'button');
       filterIcon.setAttribute('aria-label', this.getText('filter.openMenu', { column: headerText }));
@@ -6159,7 +6260,7 @@ function installFabGridView(FabGrid, context) {
       filterIcon.setAttribute('aria-expanded', this.filterMenuColumn === column && this.isFilterMenuOpen() ? 'true' : 'false');
       title.appendChild(filterIcon);
     }
-    if (this.options.allowFiltering !== false && this.options.showSearchRow === true) {
+    if (getActiveFilterMode(this.options) === 'searchRow') {
       searchEditorConfig = getColumnEditorConfig(column);
       searchIcons = getColumnSearchIconConfigs(column);
       search = document.createElement('span');
@@ -6757,6 +6858,10 @@ function installFabGridView(FabGrid, context) {
   };
 }
 
+function canSwitchFilterMode(options) {
+  return !!(options && Array.isArray(options.filterMode) && options.filterMode.length > 1);
+}
+
 function installFabGridFilterUi(FabGrid, context) {
   var applyMask = context.applyMask;
   var closest = context.closest;
@@ -6770,9 +6875,11 @@ function installFabGridFilterUi(FabGrid, context) {
   var getColumnSearchIconConfigs = context.getColumnSearchIconConfigs;
   var getColumnSearchKey = context.getColumnSearchKey;
   var getColumnSearchOperatorDefinitions = context.getColumnSearchOperatorDefinitions;
+  var getActiveFilterMode = context.getActiveFilterMode;
   var getComboboxTextByValue = context.getComboboxTextByValue;
   var getEditorMask = context.getEditorMask;
   var getExcelFilterValueKey = context.getExcelFilterValueKey;
+  var hasFilterMode = context.hasFilterMode;
   var getMaskCaretPosition = context.getMaskCaretPosition;
   var hasClass = context.hasClass;
   var isDateLikeEditorType = context.isDateLikeEditorType;
@@ -6851,11 +6958,12 @@ function installFabGridFilterUi(FabGrid, context) {
       }
     ];
     var items = [];
-    if (this.options.allowFiltering !== false) {
+    if (canSwitchFilterMode(this.options)) {
       items.push({
-        action: 'toggle-search-row',
+        action: 'toggle-filter-mode',
         iconClass: 'icon-search',
-        label: this.getText(this.options.showSearchRow === true ? 'topLeftMenu.hideSearchRow' : 'topLeftMenu.showSearchRow')
+        label: this.getText(getActiveFilterMode(this.options) === 'searchRow' ?
+          'topLeftMenu.useExcelFilter' : 'topLeftMenu.useSearchRow')
       });
     }
     items.push(
@@ -6995,8 +7103,8 @@ function installFabGridFilterUi(FabGrid, context) {
       this.handleTreeContextMenuAction(action)) {
       return;
     }
-    if (action === 'toggle-search-row') {
-      this.setShowSearchRow(this.options.showSearchRow !== true);
+    if (action === 'toggle-filter-mode') {
+      this._activateFilterMode(getActiveFilterMode(this.options) === 'searchRow' ? 'excel' : 'searchRow');
       return;
     }
     if (action === 'clear-filter') {
@@ -7081,7 +7189,7 @@ function installFabGridFilterUi(FabGrid, context) {
 
   FabGrid.prototype.showFilterMenu = function(colIndex, anchor) {
     var column = this.visibleColumns[colIndex];
-    if (this.options.allowFiltering === false || !column || !this.filterMenu) {
+    if (!getActiveFilterMode(this.options) || !column || !this.filterMenu) {
       return;
     }
     if (this.filterMenuColumn === column && this.isFilterMenuOpen()) {
@@ -7099,7 +7207,7 @@ function installFabGridFilterUi(FabGrid, context) {
   };
 
   FabGrid.prototype.renderFilterMenu = function(column) {
-    if (this.options.showSearchRow !== true) {
+    if (getActiveFilterMode(this.options) === 'excel') {
       this.renderExcelFilterMenu(column);
       return;
     }
@@ -7264,6 +7372,11 @@ function installFabGridFilterUi(FabGrid, context) {
     var seen = createDictionary();
     var result = [];
     var limit = maxValues === Infinity ? Infinity : Math.max(1, toNumber(maxValues, toNumber(this.options.excelFilterMaxValues, 1000)));
+    var cacheKey = getColumnSearchKey(column);
+    var cache = this.excelFilterValueCache && this.excelFilterValueCache[cacheKey];
+    var activeFilter = typeof this.getExcelFilter === 'function' ?
+      this.getExcelFilter(column) : (this.excelFilters || {})[cacheKey];
+    var merged;
     var value;
     var key;
     var label;
@@ -7288,7 +7401,43 @@ function installFabGridFilterUi(FabGrid, context) {
       });
     }
     result.truncated = truncated;
-    return result;
+    if (this.options.remote !== true) {
+      return result;
+    }
+    this.excelFilterValueCache = this.excelFilterValueCache || createDictionary();
+    if ((!activeFilter || activeFilter.type !== 'values') && !(this.remoteLoading && cache)) {
+      this.excelFilterValueCache[cacheKey] = result.slice();
+      this.excelFilterValueCache[cacheKey].truncated = result.truncated === true;
+      return result;
+    }
+    if (!cache) {
+      this.excelFilterValueCache[cacheKey] = result.slice();
+      this.excelFilterValueCache[cacheKey].truncated = result.truncated === true;
+      return result;
+    }
+    merged = [];
+    seen = createDictionary();
+    function append(items) {
+      var item;
+      var index;
+      for (index = 0; index < items.length; index += 1) {
+        item = items[index];
+        if (seen[item.key]) {
+          continue;
+        }
+        seen[item.key] = true;
+        if (merged.length >= limit) {
+          truncated = true;
+          return;
+        }
+        merged.push(item);
+      }
+    }
+    truncated = cache.truncated === true || result.truncated === true;
+    append(cache);
+    append(result);
+    merged.truncated = truncated;
+    return merged;
   };
 
   FabGrid.prototype.getExcelFilterRows = function() {
@@ -7937,8 +8086,6 @@ function installFabGridFilterUi(FabGrid, context) {
     this.normalizeHeaderSearchComboboxText(input, column);
     direction = event.shiftKey ? -1 : 1;
     nextCol = colIndex + direction;
-    this.cancelHeaderSearchTimer();
-    this.applyFilterChange(false, 'headerSearch');
     if (nextCol < 0 || nextCol >= this.visibleColumns.length) {
       this.focusHeaderSearchInput(colIndex);
     } else {
@@ -7955,8 +8102,7 @@ function installFabGridFilterUi(FabGrid, context) {
     if ((event.key !== 'ArrowDown' && event.key !== 'ArrowUp') ||
       event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
       !this.options ||
-      this.options.allowFiltering === false ||
-      this.options.showSearchRow !== true ||
+      getActiveFilterMode(this.options) !== 'searchRow' ||
       !this.view || !this.view.length) {
       return false;
     }
@@ -8130,12 +8276,18 @@ function installFabGridFilterUi(FabGrid, context) {
 
   FabGrid.prototype.moveHeaderSearchFocus = function(colIndex, direction) {
     var nextCol = colIndex + direction;
+    var nextInput;
     if (nextCol < 0 || nextCol >= this.visibleColumns.length) {
       return;
     }
     this.scrollHeaderSearchColumnIntoView(nextCol, direction);
     this.render();
-    this.requestHeaderSearchFocus(nextCol);
+    nextInput = this.header.querySelector('.fg-header-search-input[data-col="' + nextCol + '"]');
+    if (nextInput && nextInput.value) {
+      this.requestHeaderSearchFocus(nextCol, 0, nextInput.value.length);
+    } else {
+      this.requestHeaderSearchFocus(nextCol);
+    }
   };
 
   FabGrid.prototype.scrollHeaderSearchColumnIntoView = function(col, direction) {
@@ -8193,8 +8345,7 @@ function installFabGridFilterUi(FabGrid, context) {
   FabGrid.prototype.focusInitialHeaderSearchInput = function() {
     if (this.disposed ||
       !this.options ||
-      this.options.allowFiltering === false ||
-      this.options.showSearchRow !== true ||
+      getActiveFilterMode(this.options) !== 'searchRow' ||
       !this.visibleColumns ||
       !this.visibleColumns.length) {
       return false;
@@ -8281,6 +8432,7 @@ function installFabGridSelection(FabGrid, context) {
   var getByBinding = context.getByBinding;
   var getColumnEditorConfig = context.getColumnEditorConfig;
   var getExplicitEditorMask = context.getExplicitEditorMask;
+  var getActiveFilterMode = context.getActiveFilterMode;
   var getMaskCopyText = context.getMaskCopyText;
   var getMaskDataValue = context.getMaskDataValue;
   var getMaskOptions = context.getMaskOptions;
@@ -9216,7 +9368,7 @@ function installFabGridSelection(FabGrid, context) {
   FabGrid.prototype.handleTopLeftSearchDblClick = function(event) {
     var topCell;
     var rect;
-    if (this.options.allowFiltering === false || this.options.showSearchRow !== true) {
+    if (getActiveFilterMode(this.options) !== 'searchRow') {
       return false;
     }
     topCell = closest(event.target, 'fg-row-header-top') || closest(event.target, 'fg-selection-top');
@@ -9541,8 +9693,7 @@ function installFabGridSelection(FabGrid, context) {
       event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
       row !== 0 ||
       !this.options ||
-      this.options.allowFiltering === false ||
-      this.options.showSearchRow !== true ||
+      getActiveFilterMode(this.options) !== 'searchRow' ||
       typeof this.focusHeaderSearchInput !== 'function') {
       return false;
     }
@@ -10178,7 +10329,9 @@ function installFabGridSelection(FabGrid, context) {
     }
     if (col >= this.frozenColumns && col < this.scrollableColumnEnd) {
       scrollLeft = this.bodyScroll.scrollLeft;
-      if (colObj._left - this.frozenWidth < scrollLeft) {
+      if (colObj._width > scrollableViewportWidth) {
+        this.bodyScroll.scrollLeft = colObj._left - this.frozenWidth;
+      } else if (colObj._left - this.frozenWidth < scrollLeft) {
         this.bodyScroll.scrollLeft = colObj._left - this.frozenWidth;
       } else if (colObj._left + colObj._width - this.frozenWidth > scrollLeft + scrollableViewportWidth) {
         this.bodyScroll.scrollLeft = colObj._left + colObj._width - this.frozenWidth - scrollableViewportWidth;
@@ -15360,6 +15513,8 @@ function createFabGridFactory(editorDefinitions) {
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
     'black', 'mono', 'mono-red', 'mono-green'
   ];
+  var FILTER_MODE_EXCEL = 'excel';
+  var FILTER_MODE_SEARCH_ROW = 'searchRow';
 
   var DEFAULT_OPTIONS = {
     rowHeight: 32,
@@ -15389,10 +15544,10 @@ function createFabGridFactory(editorDefinitions) {
     allowPinning: false,
     headerDisplayMode: 'header',
     headerToggleKey: false,
-    showSearchRow: false,
+    filterMode: [FILTER_MODE_EXCEL, FILTER_MODE_SEARCH_ROW],
     filterRules: [],
     searchRowHeight: null,
-    searchDelay: 200,
+    searchDelay: 400,
     excelFilterMaxValues: 1000,
     alternatingRowStep: 1,
     autoClipboard: true,
@@ -15438,29 +15593,6 @@ function createFabGridFactory(editorDefinitions) {
     '#8c8c8c', '#0d0d0d', '#990f0f', '#99770f', '#99990f', '#56990f', '#0f994e', '#0f7499', '#0f6099', '#5e0f99'
   ];
 
-  function resolveStylesheetTheme(documentRef) {
-    var links;
-    var href;
-    var file;
-    var match;
-    var theme;
-    var i;
-    if (!documentRef || typeof documentRef.querySelectorAll !== 'function') {
-      return '';
-    }
-    links = documentRef.querySelectorAll('link[rel~="stylesheet"][href]');
-    for (i = 0; i < links.length; i += 1) {
-      href = String(links[i].getAttribute('href') || '').split(/[?#]/)[0].replace(/\\/g, '/');
-      file = href.slice(href.lastIndexOf('/') + 1);
-      match = /^fabui\.([a-z0-9-]+)(?:\.min)?\.css$/i.exec(file);
-      theme = match ? match[1].toLowerCase() : '';
-      if (FABGRID_THEMES.indexOf(theme) >= 0) {
-        return theme;
-      }
-    }
-    return '';
-  }
-
   function FabGrid(element, options) {
     var self = this;
     Control.call(this);
@@ -15470,7 +15602,7 @@ function createFabGridFactory(editorDefinitions) {
     }
 
     this.options = mergeOptions(DEFAULT_OPTIONS, options || {});
-    normalizeGridOptions(this.options);
+    normalizeGridOptions(this.options, options || {});
     this.applyPagerOptions();
     this.options.showRowHeaders = normalizeRowHeaderMode(this.options.showRowHeaders);
     this.setLocale(this.options.locale, this.options.messages, true);
@@ -15501,6 +15633,7 @@ function createFabGridFactory(editorDefinitions) {
     this.columnSearchOperators = {};
     this.hasColumnSearch = false;
     this.excelFilters = {};
+    this.excelFilterValueCache = createDictionary();
     this.sortState = null;
     this.sortStates = [];
     this.headerDisplayMode = normalizeHeaderDisplayMode(this.options.headerDisplayMode);
@@ -15642,7 +15775,7 @@ function createFabGridFactory(editorDefinitions) {
     this.applyInitialFilterRules(this.options.filterRules);
     this.setItemsSource(this.options.remote === true ? [] : (this.options.itemsSource || []), true);
     this.createWijmoEvents();
-    this.bindOptionEvent('updatedView');
+    this.bindOptionEvents();
     this.createDom();
     this.datePopup = new DatePopup({
       className: 'fui-grid-date-popup',
@@ -15920,6 +16053,7 @@ function createFabGridFactory(editorDefinitions) {
       'draggingColumn',
       'draggingRow',
       'filterChanged',
+      'filterModeChanged',
       'formatItem',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
@@ -15974,6 +16108,15 @@ function createFabGridFactory(editorDefinitions) {
     }
   };
 
+  FabGrid.prototype.bindOptionEvents = function() {
+    var name;
+    for (name in this.wijmoEvents) {
+      if (Object.prototype.hasOwnProperty.call(this.wijmoEvents, name)) {
+        this.bindOptionEvent(name);
+      }
+    }
+  };
+
   FabGrid.prototype.setLocale = function(locale, messages, silent) {
     this.options.locale = normalizeLocaleName(locale || this.options.locale || getDefaultLocaleName());
     this.options.messages = messages || this.options.messages || null;
@@ -16004,10 +16147,8 @@ function createFabGridFactory(editorDefinitions) {
 
   FabGrid.prototype.createDom = function() {
     var root = document.createElement('div');
-    var stylesheetTheme = resolveStylesheetTheme(document);
     root.className = 'fg-root' +
-      (this.useScrollLinkedHorizontal ? ' fg-scroll-linked-horizontal' : '') +
-      (stylesheetTheme ? ' fg-theme-' + stylesheetTheme : '');
+      (this.useScrollLinkedHorizontal ? ' fg-scroll-linked-horizontal' : '');
     root.tabIndex = 0;
     root.setAttribute('role', 'grid');
 
@@ -16269,6 +16410,7 @@ function createFabGridFactory(editorDefinitions) {
     var i;
     var col;
     this.columns = [];
+    this.excelFilterValueCache = createDictionary();
     for (i = 0; i < (columns || []).length; i += 1) {
       col = mergeOptions({
         binding: '',
@@ -16399,49 +16541,62 @@ function createFabGridFactory(editorDefinitions) {
   };
 
   FabGrid.prototype.setAllowFiltering = function(value) {
-    var enabled = value !== false;
-    var changed = this.options.allowFiltering !== enabled;
-    if (!changed) {
-      return;
-    }
-    this.options.allowFiltering = enabled;
-    if (!enabled) {
-      this.options.filterRules = [];
-      this.columnSearchValues = {};
-      this.columnSearchOperators = {};
-      this.hasColumnSearch = false;
-      this.excelFilters = {};
-    }
-    this.cancelHeaderSearchTimer();
-    this.hideFilterMenu();
-    this.applyFilterChange(true, 'allowFiltering');
+    return FabGrid.prototype.setFilterMode.call(
+      this,
+      value === false ? false : DEFAULT_OPTIONS.filterMode
+    );
   };
 
-  FabGrid.prototype.setShowSearchRow = function(value) {
-    var visible = value === true;
-    var changed = this.options.showSearchRow !== visible;
+  FabGrid.prototype.setFilterMode = function(value) {
+    var normalized = normalizeFilterMode(value);
+    var previousMode = getActiveFilterMode(this.options);
+    var nextMode = getActiveFilterMode({ filterMode: normalized });
+    var changed = !areFilterModesEqual(this.options.filterMode, normalized);
     var hadFilter;
     if (!changed) {
-      return;
+      return false;
     }
-    hadFilter = visible ? hasExcelFilterEntries(this.excelFilters) : this.hasColumnSearch === true;
-    if (visible) {
-      this.excelFilters = {};
-    } else {
+    hadFilter = false;
+    if (!hasFilterMode({ filterMode: normalized }, FILTER_MODE_SEARCH_ROW) ||
+        (previousMode === FILTER_MODE_SEARCH_ROW && nextMode !== FILTER_MODE_SEARCH_ROW)) {
+      hadFilter = hadFilter || this.hasColumnSearch === true;
       this.options.filterRules = [];
       this.columnSearchValues = {};
       this.columnSearchOperators = {};
       this.hasColumnSearch = false;
     }
-    this.options.showSearchRow = visible;
+    if (!hasFilterMode({ filterMode: normalized }, FILTER_MODE_EXCEL) ||
+        (previousMode === FILTER_MODE_EXCEL && nextMode !== FILTER_MODE_EXCEL)) {
+      hadFilter = hadFilter || hasExcelFilterEntries(this.excelFilters);
+      this.excelFilters = {};
+    }
+    this.options.filterMode = normalized;
+    this.options.allowFiltering = normalized !== false;
     this.cancelHeaderSearchTimer();
     this.hideFilterMenu();
-    this.applyFilterChange(true, 'searchRowVisibility');
-    this.emit('searchRowVisibilityChanged', {
-      visible: visible,
-      showSearchRow: visible,
-      clearedFilter: hadFilter
-    });
+    this.applyFilterChange(true, 'filterMode');
+    if (typeof this.emit === 'function') {
+      this.emit('filterModeChanged', {
+        filterMode: normalized === false ? false : normalized.slice(),
+        activeMode: nextMode,
+        clearedFilter: hadFilter
+      });
+    }
+    return true;
+  };
+
+  FabGrid.prototype.getFilterMode = function() {
+    return this.options.filterMode === false ? false : this.options.filterMode.slice();
+  };
+
+  FabGrid.prototype._activateFilterMode = function(mode) {
+    var modes = this.options.filterMode;
+    if (!hasFilterMode(this.options, mode) || getActiveFilterMode(this.options) === mode) {
+      return false;
+    }
+    return this.setFilterMode([mode].concat(modes.filter(function(item) {
+      return item !== mode;
+    })));
   };
 
   FabGrid.prototype.setEditMode = function(value) {
@@ -16736,7 +16891,7 @@ function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.getSearchRowHeight = function() {
     var fallback = toNumber(this.options.rowHeight, DEFAULT_OPTIONS.rowHeight);
     var height = this.options.searchRowHeight == null ? fallback : toNumber(this.options.searchRowHeight, fallback);
-    return this.options.allowFiltering !== false && this.options.showSearchRow === true ? Math.max(22, height) : 0;
+    return getActiveFilterMode(this.options) === FILTER_MODE_SEARCH_ROW ? Math.max(22, height) : 0;
   };
 
   FabGrid.prototype.syncHeaderLayout = function() {
@@ -17865,6 +18020,7 @@ function createFabGridFactory(editorDefinitions) {
       'draggingColumn',
       'draggingRow',
       'filterChanged',
+      'filterModeChanged',
       'formatItem',
       'groupCollapsedChanged',
       'groupCollapsedChanging',
@@ -18102,10 +18258,18 @@ function createFabGridFactory(editorDefinitions) {
       },
       allowFiltering: {
         get: function() {
-          return this.options.allowFiltering !== false;
+          return this.options.filterMode !== false;
         },
         set: function(value) {
           this.setAllowFiltering(value);
+        }
+      },
+      filterMode: {
+        get: function() {
+          return this.getFilterMode();
+        },
+        set: function(value) {
+          this.setFilterMode(value);
         }
       },
       allowResizing: {
@@ -18247,7 +18411,8 @@ function createFabGridFactory(editorDefinitions) {
     return Math.max(1, Math.floor(number));
   }
 
-  function normalizeGridOptions(options) {
+  function normalizeGridOptions(options, suppliedOptions) {
+    suppliedOptions = suppliedOptions || options || {};
     options.rowHeight = normalizePositiveNumber(options.rowHeight, DEFAULT_OPTIONS.rowHeight);
     options.columnMinWidth = normalizePositiveNumber(options.columnMinWidth, DEFAULT_OPTIONS.columnMinWidth);
     options.overscanRows = normalizeNonNegativeInteger(options.overscanRows, DEFAULT_OPTIONS.overscanRows);
@@ -18258,7 +18423,54 @@ function createFabGridFactory(editorDefinitions) {
     options.alternatingRowStep = normalizeAlternatingRowStep(options.alternatingRowStep);
     options.selectionMode = normalizeSelectionMode(options.selectionMode);
     options.highlightActiveRow = options.highlightActiveRow !== false;
+    options.filterMode = Object.prototype.hasOwnProperty.call(suppliedOptions, 'filterMode') ?
+      normalizeFilterMode(suppliedOptions.filterMode) :
+      suppliedOptions.allowFiltering === false ? false : normalizeFilterMode(DEFAULT_OPTIONS.filterMode);
+    options.allowFiltering = options.filterMode !== false;
+    delete options.showSearchRow;
     return options;
+  }
+
+  function normalizeFilterMode(value) {
+    var source;
+    var result = [];
+    if (value === false) {
+      return false;
+    }
+    source = Array.isArray(value) ? value : value === undefined ? DEFAULT_OPTIONS.filterMode : [];
+    source.forEach(function(item) {
+      var normalized = String(item || '').toLowerCase();
+      if (normalized === 'excel') {
+        normalized = FILTER_MODE_EXCEL;
+      } else if (normalized === 'searchrow' || normalized === 'search-row') {
+        normalized = FILTER_MODE_SEARCH_ROW;
+      } else {
+        return;
+      }
+      if (result.indexOf(normalized) < 0) {
+        result.push(normalized);
+      }
+    });
+    return result.length ? result : false;
+  }
+
+  function getActiveFilterMode(options) {
+    return options && Array.isArray(options.filterMode) && options.filterMode.length ?
+      options.filterMode[0] : null;
+  }
+
+  function hasFilterMode(options, mode) {
+    return !!(options && Array.isArray(options.filterMode) && options.filterMode.indexOf(mode) >= 0);
+  }
+
+  function areFilterModesEqual(left, right) {
+    if (left === false || right === false) {
+      return left === right;
+    }
+    return Array.isArray(left) && Array.isArray(right) &&
+      left.length === right.length && left.every(function(item, index) {
+        return item === right[index];
+      });
   }
 
   function normalizeSelectionMode(value) {
@@ -18634,6 +18846,9 @@ function createFabGridFactory(editorDefinitions) {
   }
 
   function getColumnSearchOperatorSymbol(operator) {
+    if (String(operator || '').toLowerCase() === 'in') {
+      return 'IN';
+    }
     operator = normalizeColumnSearchOperator(operator);
     if (operator === 'starts') {
       return '^';
@@ -18899,6 +19114,7 @@ function createFabGridFactory(editorDefinitions) {
     getColumnSearchIconConfigs: getColumnSearchIconConfigs,
     getColumnSearchKey: getColumnSearchKey,
     getColumnSearchOperatorSymbol: getColumnSearchOperatorSymbol,
+    getActiveFilterMode: getActiveFilterMode,
     getComboboxTextByValue: getComboboxTextByValue,
     getEditorMask: getEditorMask,
     getExplicitEditorMask: getExplicitEditorMask,
@@ -18935,9 +19151,11 @@ function createFabGridFactory(editorDefinitions) {
     getColumnSearchIconConfigs: getColumnSearchIconConfigs,
     getColumnSearchKey: getColumnSearchKey,
     getColumnSearchOperatorDefinitions: getColumnSearchOperatorDefinitions,
+    getActiveFilterMode: getActiveFilterMode,
     getComboboxTextByValue: getComboboxTextByValue,
     getEditorMask: getEditorMask,
     getExcelFilterValueKey: getExcelFilterValueKey,
+    hasFilterMode: hasFilterMode,
     getMaskCaretPosition: getMaskCaretPosition,
     hasClass: hasClass,
     isDateLikeEditorType: isDateLikeEditorType,
@@ -18957,6 +19175,7 @@ function createFabGridFactory(editorDefinitions) {
     getMaskCopyText: getMaskCopyText,
     getMaskDataValue: getMaskDataValue,
     getMaskOptions: getMaskOptions,
+    getActiveFilterMode: getActiveFilterMode,
     getNumberCopyText: getNumberCopyText,
     isHotKey: isHotKey,
     isSafeBinding: isSafeBinding,
@@ -19038,6 +19257,8 @@ function createFabGridFactory(editorDefinitions) {
     DEFAULT_OPTIONS: DEFAULT_OPTIONS,
     formatNumberDisplayText: formatNumberDisplayText,
     getColumnSearchKey: getColumnSearchKey,
+    getActiveFilterMode: getActiveFilterMode,
+    hasFilterMode: hasFilterMode,
     mergeOptions: mergeOptions,
     normalizeColumnSearchOperator: normalizeColumnSearchOperator,
     rowMatchesExcelFilters: rowMatchesExcelFilters,
@@ -19066,7 +19287,6 @@ function createFabGridFactory(editorDefinitions) {
 
   FabGrid.locales = getLocaleMap();
   FabGrid.themes = FABGRID_THEMES.slice();
-  FabGrid.resolveStylesheetTheme = resolveStylesheetTheme;
   FabGrid.normalizeLocale = normalizeLocaleName;
   FabGrid.editorDefinitions = editorDefinitions;
   FabGrid.defaultLocale = getDefaultLocaleName();
@@ -21219,7 +21439,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
     baseOptions.allowEditing = false;
     baseOptions.editOnSelect = false;
     baseOptions.allowFiltering = false;
-    baseOptions.showSearchRow = false;
+    baseOptions.filterMode = false;
     baseOptions.showColumnChooser = false;
     baseOptions.showRowHeaders = false;
     baseOptions.allowSorting = false;
@@ -22260,7 +22480,7 @@ function createPivotGridFactory(FabGrid, PivotEngine) {
       columns: columns,
       allowEditing: false,
       allowFiltering: true,
-      showSearchRow: false,
+      filterMode: ['excel'],
       showRowHeaders: true,
       selectionMode: 'CellRange',
       locale: this.locale,
@@ -25120,7 +25340,7 @@ function createPivotWorkspaceFactory(
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.21";
+global.fabui.version = "2026.7.22";
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.Control = Control;
 global.fabui.Chart = createChartFactory();
@@ -25284,8 +25504,8 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     },
     topLeftMenu: {
       ariaLabel: 'Grid menu',
-      showSearchRow: 'Show search row',
-      hideSearchRow: 'Hide search row',
+      useSearchRow: 'Use search row',
+      useExcelFilter: 'Use Excel-like filter',
       clearFilter: 'Clear filters',
       rowHeaders: 'Row headers',
       rowHeadersOff: 'Row headers: Off',
@@ -25508,8 +25728,8 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     },
     topLeftMenu: {
       ariaLabel: 'Grid 功能表',
-      showSearchRow: '顯示搜尋列',
-      hideSearchRow: '隱藏搜尋列',
+      useSearchRow: '使用搜尋列',
+      useExcelFilter: '使用 Excel-like 篩選',
       clearFilter: '清除篩選',
       rowHeaders: '列號',
       rowHeadersOff: '列號：關閉',
@@ -25732,8 +25952,8 @@ global.fabui.FabGridLocales = global.fabui.FabGrid.locales;
     },
     topLeftMenu: {
       ariaLabel: 'Grid 菜单',
-      showSearchRow: '显示搜索行',
-      hideSearchRow: '隐藏搜索行',
+      useSearchRow: '使用搜索行',
+      useExcelFilter: '使用 Excel-like 筛选',
       clearFilter: '清除筛选',
       rowHeaders: '行号',
       rowHeadersOff: '行号：关闭',

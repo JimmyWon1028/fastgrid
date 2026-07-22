@@ -1,4 +1,4 @@
-/* FabUI public style entry. Keep imports ordered from shared foundations to themes. */
+/* FabUI public style entry. Base styles include the Default theme only. */
 @import './button/button.css?v=20260718-button-v1';
 @import './accordion/accordion.css?v=20260720-accordion-v3';
 @import './calendar/calendar.css?v=20260718-calendar-v1';
@@ -9,7 +9,7 @@
 @import './radiogroup/radiogroup.css?v=20260719-radiogroup-v1';
 @import './chart/chart.css?v=20260719-i18n-theme-audit-v1';
 @import './diagram/diagram.css?v=20260721-diagram-focus-outline-v1';
-@import './grid/fabgrid.css?v=20260721-active-cell-border-v1';
+@import './grid/fabgrid.css?v=20260722-header-filter-overlap-v5';
 @import './pivot/pivot-chart.css?v=20260717-pivot-chart-v1';
 @import './pivot/pivot-grid.css?v=20260717-pivot-sort-icon-v1';
 @import './pivot/pivot-panel.css?v=20260718-drag-indicator-alpha-v1';
@@ -31,23 +31,3 @@
 @import './messager/messager.css?v=20260718-messager-v3';
 @import './fabui.icon.css?v=20260721-diagram-view-icons-v1';
 @import './theme/fabgrid.default.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.black.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.bootstrap.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.cupertino.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.dark-hive.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.material.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.material-blue.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.material-teal.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.metro.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.metro-blue.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.metro-gray.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.metro-green.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.metro-orange.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.metro-red.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.pepper-grinder.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.sunny.css?v=20260719-components-theme-v2';
-@import './theme/fabgrid.mono.css?v=20260721-mono-theme-v3';
-@import './theme/fabgrid.mono-red.css?v=20260721-mono-variants-v1';
-@import './theme/fabgrid.mono-green.css?v=20260721-mono-variants-v1';
-@import './theme/mono/default-alias.css?v=20260721-mono-variants-v1';
-@import './theme/mono/icons.css?v=20260721-mono-variants-v1';

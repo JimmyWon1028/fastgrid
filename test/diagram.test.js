@@ -1962,6 +1962,9 @@ test('Diagram demos reproduce the manufacturing process reference layout', funct
   assert.doesNotMatch(buildHtml, /centerInitialData/);
   assert.match(devHtml, /id="diagram-dock-mode"/);
   assert.match(buildHtml, /id="diagram-dock-mode"/);
+  assert.match(buildHtml, /dist\/fabui\.diagram\.css/);
+  assert.match(buildHtml, /dist\/fabui\.diagram\.min\.js/);
+  assert.doesNotMatch(buildHtml, /dist\/diagram(?:\.min)?\.(?:js|css)/);
   assert.doesNotMatch(demoScript, /function centerDiagramDataOnPaper/);
   assert.match(
     demoScript,
@@ -2021,9 +2024,17 @@ test('Diagram is wired into future browser and CSS builds', function() {
     diagramBuild,
     /global\.fabui\.Diagram = createDiagramFactory/
   );
-  assert.match(diagramBuild, /Load fabui\.js before diagram\.js\./);
+  assert.match(diagramBuild, /Load fabui\.js before fabui\.diagram\.js\./);
   assert.doesNotMatch(diagramBuild, /global\.fabui\.Window/);
-  assert.match(diagramBuild, /'diagram\.min\.css'/);
+  [
+    'fabui.diagram.js',
+    'fabui.diagram.min.js',
+    'fabui.diagram.css',
+    'fabui.diagram.min.css'
+  ].forEach(function(file) {
+    assert.match(diagramBuild, new RegExp("path\\.join\\(distDir, '" +
+      file.replace(/\./g, '\\.') + "'\\)"));
+  });
   assert.match(javascriptEntry, /Diagram: Diagram/);
   assert.match(cssEntry, /diagram\/diagram\.css/);
 });

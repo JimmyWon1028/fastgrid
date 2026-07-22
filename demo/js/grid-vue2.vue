@@ -57,7 +57,7 @@
             />
             <button
               class="demo-filter-mode"
-              :class="{ 'demo-filter-mode-and': filterMode === 'and' }"
+              :class="{ 'demo-filter-mode-and': quickFilterMode === 'and' }"
               type="button"
               :disabled="remote"
               :aria-label="filterModeLabel"
@@ -151,10 +151,10 @@
 </template>
 
 <script>
-import "./grid-toolbar.js?v=20260715-grid-names-v1";
+import "./grid-toolbar.js?v=20260722-filter-mode-v1";
 import "./grid-data.js?v=20260715-remove-currency-v1";
 import "./grid-locales.js?v=20260715-remove-currency-v1";
-import "./grid-query.js?v=20260715-grid-names-v1";
+import "./grid-query.js?v=20260722-remote-op-symbol-v1";
 
 var DEMO_QUERY = window.FabGridDemoQuery;
 var SETTINGS_KEY =
@@ -178,14 +178,14 @@ const app = new Vue({
       frozenColumns: 2,
       frozenRightColumns: 1,
       showRowHeaders: true,
-      showSearchRow: false,
+      columnFilterMode: ['excel', 'searchRow'],
       pagination: false,
       remote: false,
       multiSelectRows: false,
       editMode: false,
       rowGroupMode: "none",
       filterText: "",
-      filterMode: "or",
+      quickFilterMode: "or",
       exportBusy: false,
       fullscreenAvailable: false,
       fullscreenActive: false,
@@ -245,14 +245,14 @@ const app = new Vue({
         rowHeight: 32,
         headerHeight: 32,
         activeCellBorder: 2,
-        searchDelay: 200,
+        searchDelay: 400,
         overscanRows: 14,
         overscanColumns: 3,
         showFooter: true,
         footerHeight: 32,
         showRowHeaders: true,
         rowHeaderWidth: 50,
-        showSearchRow: false,
+        filterMode: ['excel', 'searchRow'],
         multiSelectRows: false,
         allowSorting: true,
         allowDragging: "Columns",
@@ -277,7 +277,7 @@ const app = new Vue({
   created: function () {
     this.restoreSettings();
     this.gridOptions.showRowHeaders = this.showRowHeaders;
-    this.gridOptions.showSearchRow = this.showSearchRow;
+    this.gridOptions.filterMode = this.columnFilterMode;
     this.gridOptions.multiSelectRows = this.multiSelectRows;
     this.gridOptions.allowEditing = this.editMode;
     this.gridOptions.editOnSelect = this.editMode;
@@ -314,7 +314,7 @@ const app = new Vue({
       return DEMO_LOCALES[this.locale] || DEMO_LOCALES["zh-TW"];
     },
     filterModeLabel: function () {
-      return this.filterMode === "and" ? "&" : "OR";
+      return this.quickFilterMode === "and" ? "&" : "OR";
     },
     lookupRangeText: function () {
       return formatText(this.text.lookupRange, {
@@ -331,7 +331,7 @@ const app = new Vue({
         frozenColumns: this.frozenColumns,
         frozenRightColumns: this.frozenRightColumns,
         showRowHeaders: this.showRowHeaders,
-        showSearchRow: this.showSearchRow,
+        filterMode: this.columnFilterMode,
         pagination: this.pagination,
         remote: this.remote,
         rowGroupMode: this.rowGroupMode,
@@ -370,8 +370,8 @@ const app = new Vue({
       if (this.grid) this.grid.setShowRowHeaders(value);
       this.saveSettings();
     },
-    showSearchRow: function (value) {
-      if (this.grid) this.grid.setShowSearchRow(value);
+    columnFilterMode: function (value) {
+      if (this.grid) this.grid.setFilterMode(value);
       this.saveSettings();
     },
     multiSelectRows: function (value) {
@@ -390,7 +390,7 @@ const app = new Vue({
       this.applyFilter();
       this.saveSettings();
     },
-    filterMode: function () {
+    quickFilterMode: function () {
       this.applyFilter();
       this.saveSettings();
     },
@@ -438,7 +438,7 @@ const app = new Vue({
           frozenColumns: state.frozenColumns,
           frozenRightColumns: state.frozenRightColumns,
           showRowHeaders: state.showRowHeaders,
-          showSearchRow: state.showSearchRow,
+          filterMode: state.filterMode,
           pagination: state.pagination,
           remote: state.remote,
           rowGroupMode: state.rowGroupMode,
@@ -463,7 +463,7 @@ const app = new Vue({
         this.showRowHeaders = normalizeRowHeaderSetting(target.value, true);
       else if (target.id === "groupRowsInput") this.rowGroupMode = target.value;
       else if (target.id === "searchRowInput")
-        this.showSearchRow = target.checked;
+        this.columnFilterMode = target.checked ? ['searchRow', 'excel'] : ['excel', 'searchRow'];
       else if (target.id === "paginationInput")
         this.pagination = target.checked;
       else if (target.id === "remoteInput") this.remote = target.checked;
@@ -529,9 +529,9 @@ const app = new Vue({
         settings.showRowHeaders,
         this.showRowHeaders
       );
-      this.showSearchRow = normalizeBoolean(
-        settings.showSearchRow,
-        this.showSearchRow
+      this.columnFilterMode = normalizeFilterMode(
+        settings.filterMode,
+        this.columnFilterMode
       );
       this.pagination = normalizeBoolean(settings.pagination, this.pagination);
       this.remote = normalizeBoolean(settings.remote, this.remote);
@@ -558,7 +558,7 @@ const app = new Vue({
         frozenColumns: this.frozenColumns,
         frozenRightColumns: this.frozenRightColumns,
         showRowHeaders: this.showRowHeaders,
-        showSearchRow: this.showSearchRow,
+        filterMode: this.columnFilterMode,
         pagination: this.pagination,
         remote: this.remote,
         multiSelectRows: this.multiSelectRows,
@@ -675,7 +675,7 @@ const app = new Vue({
     applyFilter: function () {
       var columns = this.columns;
       var terms;
-      var mode = this.filterMode;
+      var mode = this.quickFilterMode;
       if (!this.grid) return;
       if (this.remote) {
         this.grid.setSearch(this.filterText);
@@ -724,7 +724,7 @@ const app = new Vue({
       });
     },
     toggleFilterMode: function () {
-      this.filterMode = this.filterMode === "or" ? "and" : "or";
+      this.quickFilterMode = this.quickFilterMode === "or" ? "and" : "or";
     },
     refreshGridView: function () {
       if (!this.grid) return;
@@ -1151,6 +1151,17 @@ function normalizeInteger(value, fallback, min, max) {
 
 function normalizeBoolean(value, fallback) {
   return value === true || value === false ? value : fallback;
+}
+
+function normalizeFilterMode(value, fallback) {
+  var result = [];
+  if (value === false) return false;
+  (Array.isArray(value) ? value : fallback).forEach(function(mode) {
+    if ((mode === 'excel' || mode === 'searchRow') && result.indexOf(mode) < 0) {
+      result.push(mode);
+    }
+  });
+  return result.length ? result : false;
 }
 
 function normalizeRowGroupModeSetting(value, legacyValue, fallback) {

@@ -1,5 +1,5 @@
 /* Mono reuses Metro Gray control colors and applies the SVG icon layer separately. */
-.fg-theme-mono {
+:root {
   --fui-control-border: #abafb8;
   --fui-control-focus: #8f95a1;
   --fui-control-radius: 0;
@@ -25,4 +25,411 @@
   --fui-panel-text: #404040;
   --fui-calendar-week-bg: #f5f5f5;
   --fui-calendar-week-text: #404040;
+}
+
+/* Mono variants share Metro Gray defaults and override only their palette below. */
+.fui-accordion {
+  --fui-accordion-border: #abafb8;
+  --fui-accordion-bg: #fafafa;
+  --fui-accordion-header-bg: #c7ccd1;
+  --fui-accordion-selected-bg: #84909c;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-accordion .fui-accordion-expand {
+  background-image: url('./images/accordion-expand.svg');
+  background-position: center;
+}
+
+.fui-accordion .fui-accordion-collapse,
+.fui-accordion .fui-accordion-toggle-expanded {
+  background-image: url('./images/accordion-collapse.svg');
+  background-position: center;
+}
+
+.fui-datebox-panel,
+.fui-calendar {
+  --fui-control-border: #abafb8;
+  --fui-control-trigger-bg: #c7ccd1;
+  --fui-panel-bg: #fafafa;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #f5f5f5;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #e6e6e6;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #e6e6e6;
+  --fui-control-selected: #84909c;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #84909c;
+  --fui-datebox-footer-bg: #c7ccd1;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #555;
+  --fui-control-radius: 0;
+}
+
+.fui-layout {
+  --fui-layout-splitter: #fafafa;
+  --fui-layout-splitter-active: #84909c;
+  --fui-layout-expand-bg: #c7ccd1;
+  --fui-layout-expand-border: #abafb8;
+  --fui-layout-expand-text: #404040;
+  --fui-layout-font-size: 14px;
+}
+
+.fui-panel {
+  --fui-panel-border: #abafb8;
+  --fui-panel-header-bg: #c7ccd1;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fafafa;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #f5f5f5;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #e6e6e6;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
+}
+
+.fui-panel .fui-panel-tool-minimize,
+.fui-window .fui-window-tool-minimize {
+  background-image: url('./images/panel-minimize.svg');
+  background-position: center;
+}
+
+.fui-panel .fui-panel-tool-maximize,
+.fui-window .fui-window-tool-maximize {
+  background-image: url('./images/panel-maximize.svg');
+  background-position: center;
+}
+
+.fui-panel .fui-panel-tool-restore,
+.fui-window .fui-window-tool-restore {
+  background-image: url('./images/panel-restore.svg');
+  background-position: center;
+}
+
+.fui-panel .fui-panel-tool-close,
+.fui-window .fui-window-tool-close {
+  background-image: url('./images/panel-close.svg');
+  background-position: center;
+}
+
+.fui-panel .fui-panel-tool-collapse,
+.fui-window .fui-window-tool-collapse {
+  background-image: url('./images/panel-collapse.svg');
+  background-position: center;
+}
+
+.fui-panel .fui-panel-tool-expand,
+.fui-window .fui-window-tool-expand {
+  background-image: url('./images/panel-expand.svg');
+  background-position: center;
+}
+
+.fui-layout .fui-layout-button-up {
+  background-image: url('./images/layout-up.svg');
+  background-position: center;
+}
+
+.fui-layout .fui-layout-button-down {
+  background-image: url('./images/layout-down.svg');
+  background-position: center;
+}
+
+.fui-layout .fui-layout-button-left {
+  background-image: url('./images/layout-left.svg');
+  background-position: center;
+}
+
+.fui-layout .fui-layout-button-right {
+  background-image: url('./images/layout-right.svg');
+  background-position: center;
+}
+
+.fui-switchbutton {
+  --fui-switchbutton-border: #84909c;
+  --fui-switchbutton-on-bg: #84909c;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #fafafa;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fafafa;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 0;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-tree {
+  --fui-tree-loading: url('./images/loading.svg');
+  --fui-tree-hover-bg: #E6E6E6;
+  --fui-tree-hover-text: #404040;
+  --fui-tree-selected-bg: #84909c;
+  --fui-tree-selected-text: #ffffff;
+  --fui-tree-editor-border: #abafb8;
+}
+
+.fui-tree .fui-tree-expander-closed::before {
+  background-image: url('./images/tree-expand.svg');
+  background-position: center;
+}
+
+.fui-tree .fui-tree-expander-open::before {
+  background-image: url('./images/tree-collapse.svg');
+  background-position: center;
+}
+
+.fui-tree .fui-tree-checkbox-unchecked::before {
+  background-image: url('./images/tree-checkbox-unchecked.svg');
+  background-position: center;
+}
+
+.fui-tree .fui-tree-checkbox-checked::before {
+  background-image: url('./images/tree-checkbox-checked.svg');
+  background-position: center;
+}
+
+.fui-tree .fui-tree-checkbox-mixed::before {
+  background-image: url('./images/tree-checkbox-mixed.svg');
+  background-position: center;
+}
+
+.fui-tree .fui-tree-icon-folder::before {
+  background-image: url('./images/tree-folder.svg');
+  background-position: center;
+}
+
+.fui-tree .fui-tree-icon-folder-open::before {
+  background-image: url('./images/tree-folder-open.svg');
+  background-position: center;
+}
+
+.fui-tree .fui-tree-icon-file::before {
+  background-image: url('./images/tree-file.svg');
+  background-position: center;
+}
+
+.fui-tree.fui-tree-lines .fui-tree-indent-line::before {
+  background-image: url('./images/tree-line.svg');
+  background-position: center;
+}
+
+.fui-tree.fui-tree-lines .fui-tree-expander-open::before {
+  background-image: url('./images/tree-line-collapse.svg');
+  background-position: center;
+}
+
+.fui-tree.fui-tree-lines .fui-tree-expander-closed::before {
+  background-image: url('./images/tree-line-expand.svg');
+  background-position: center;
+}
+
+.fui-tree.fui-tree-lines .fui-tree-expander-empty::before {
+  background-image: url('./images/tree-line-empty.svg');
+  background-position: center;
+}
+
+.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-open::before {
+  background-image: url('./images/tree-line-last-collapse.svg');
+  background-position: center;
+}
+
+.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-closed::before {
+  background-image: url('./images/tree-line-last-expand.svg');
+  background-position: center;
+}
+
+.fui-tree.fui-tree-lines .fui-tree-item:last-child > .fui-tree-node > .fui-tree-expander-empty::before {
+  background-image: url('./images/tree-line-last-empty.svg');
+  background-position: center;
+}
+
+.fui-window-mask {
+  --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
+}
+
+.fui-window {
+  --fui-window-border: #abafb8;
+  --fui-window-frame: #c7ccd1;
+  --fui-window-header-bg: transparent;
+  --fui-window-header-text: #404040;
+  --fui-window-body-bg: #fafafa;
+  --fui-window-body-text: #404040;
+  --fui-window-footer-bg: #f5f5f5;
+  --fui-window-footer-text: #404040;
+  --fui-window-tool-hover: #e6e6e6;
+  --fui-window-tool-radius: 0;
+  --fui-window-border-radius: 0;
+  --fui-window-shadow-color: #fafafa;
+  --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
+}
+
+.pagination-first {
+  background-image: url('./images/pagination-first.svg');
+}
+
+.pagination-prev {
+  background-image: url('./images/pagination-prev.svg');
+}
+
+.pagination-next {
+  background-image: url('./images/pagination-next.svg');
+}
+
+.pagination-last {
+  background-image: url('./images/pagination-last.svg');
+}
+
+.pagination-load {
+  background-image: url('./images/pagination-load.svg');
+}
+
+.pagination-loading,
+.fui-tabs-loading {
+  background-image: url('./images/loading.svg');
+}
+
+.icon-datebox {
+  background-image: url('./images/datebox_arrow.svg');
+}
+
+.icon-refwin,
+.icon-window {
+  background-image: url('./images/refwin.svg');
+}
+
+.icon-export {
+  background-image: url('./images/export.svg');
+}
+
+.icon-import {
+  background-image: url('./images/import.svg');
+}
+
+.icon-excel {
+  background-image: url('./images/excel.svg');
+}
+
+.icon-add {
+  background-image: url('./images/edit_add.svg');
+}
+
+.icon-edit,
+.icon-pencil {
+  background-image: url('./images/pencil.svg');
+}
+
+.icon-remove {
+  background-image: url('./images/edit_remove.svg');
+}
+
+.icon-save {
+  background-image: url('./images/filesave.svg');
+}
+
+.icon-cut {
+  background-image: url('./images/cut.svg');
+}
+
+.icon-ok {
+  background-image: url('./images/ok.svg');
+}
+
+.icon-cancel {
+  background-image: url('./images/cancel.svg');
+}
+
+.icon-close {
+  background-image: url('./images/close.svg');
+}
+
+.icon-clear,
+.fg-filter-menu-clear .fg-filter-menu-funnel {
+  background-image: url('./images/clear.svg');
+}
+
+.icon-check {
+  background-image: url('./images/check.svg');
+}
+
+.icon-fullscreen {
+  background-image: url('./images/fullscreen.svg');
+}
+
+.icon-projector-screen {
+  background-image: url('./images/projector-screen.svg');
+}
+
+.icon-search {
+  background-image: url('./images/search.svg');
+}
+
+.icon-print {
+  background-image: url('./images/print.svg');
+}
+
+.icon-reload {
+  background-image: url('./images/reload.svg');
+}
+
+.icon-help {
+  background-image: url('./images/help.svg');
+}
+
+.icon-back {
+  background-image: url('./images/back.svg');
+}
+
+.icon-undo {
+  background-image: url('./images/undo.svg');
+}
+
+.icon-redo {
+  background-image: url('./images/redo.svg');
+}
+
+.icon-row-number {
+  background-image: url('./images/row-number.svg');
+}
+
+.icon-filter {
+  background-image: url('./images/filter.svg');
+}
+
+.icon-lock {
+  background-image: url('./images/lock.svg');
+}
+
+.icon-man {
+  background-image: url('./images/man.svg');
+}
+
+.icon-mini-add {
+  background-image: url('./images/mini_add.svg');
+}
+
+.icon-mini-edit {
+  background-image: url('./images/mini_edit.svg');
+}
+
+.icon-mini-refresh {
+  background-image: url('./images/mini_refresh.svg');
+}
+
+.icon-more {
+  background-image: url('./images/more.svg');
+}
+
+.icon-no {
+  background-image: url('./images/no.svg');
+}
+
+.icon-sum {
+  background-image: url('./images/sum.svg');
+}
+
+.icon-tip {
+  background-image: url('./images/tip.svg');
+}
+
+.icon-blank {
+  background-image: url('./images/blank.svg');
 }

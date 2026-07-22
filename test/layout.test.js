@@ -66,7 +66,7 @@ test('Layout exposes EasyUI-compatible region defaults', function() {
 });
 
 test('Layout theme styles match every EasyUI layout reference palette', function() {
-  var css = readFileSync(
+  var baseCss = readFileSync(
     new URL('../src/layout/layout.css', import.meta.url),
     'utf8'
   );
@@ -98,11 +98,14 @@ test('Layout theme styles match every EasyUI layout reference palette', function
   ];
 
   Object.keys(expected).forEach(function(theme) {
-    var match = css.match(new RegExp(
-      '\\.fui-layout\\.fg-theme-' +
-      theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      '\\s*\\{([\\s\\S]*?)\\}'
-    ));
+    var css = theme === 'default' ? baseCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
+    var match = Array.from(css.matchAll(/\.fui-layout\s*\{([^}]*)\}/g))
+      .find(function(entry) {
+        return entry[1].toLowerCase().includes(expected[theme][0].toLowerCase());
+      });
     assert.ok(match, theme);
     names.forEach(function(name, index) {
       assert.match(
@@ -113,9 +116,9 @@ test('Layout theme styles match every EasyUI layout reference palette', function
     });
   });
 
-  assert.match(css, /background:\s*var\(--fui-layout-splitter\)/);
-  assert.match(css, /background:\s*var\(--fui-layout-splitter-active\)/);
-  assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
+  assert.match(baseCss, /background:\s*var\(--fui-layout-splitter\)/);
+  assert.match(baseCss, /background:\s*var\(--fui-layout-splitter-active\)/);
+  assert.doesNotMatch(baseCss, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
 });
 
 test('Layout uses the matching EasyUI arrow sprite for every theme', function() {
@@ -143,6 +146,10 @@ test('Layout uses the matching EasyUI arrow sprite for every theme', function() 
   };
 
   Object.keys(expectedHashes).forEach(function(theme) {
+    var themeCss = theme === 'default' ? iconCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
     var png = readFileSync(
       new URL(
         '../src/theme/' + theme + '/images/layout_arrows.png',
@@ -152,12 +159,8 @@ test('Layout uses the matching EasyUI arrow sprite for every theme', function() 
     var hash = createHash('sha1').update(png).digest('hex');
     assert.equal(hash, expectedHashes[theme], theme);
     assert.match(
-      iconCss,
-      new RegExp(
-        "--fui-layout-arrows:\\s*url\\('theme/" +
-        theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-        "/images/layout_arrows\\.png'\\)"
-      ),
+      themeCss,
+      /--fui-layout-arrows:\s*url\('[^']*layout_arrows\.png'\)/,
       theme
     );
   });

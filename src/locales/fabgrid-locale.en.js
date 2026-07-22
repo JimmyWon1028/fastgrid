@@ -143,8 +143,8 @@
     },
     topLeftMenu: {
       ariaLabel: 'Grid menu',
-      showSearchRow: 'Show search row',
-      hideSearchRow: 'Hide search row',
+      useSearchRow: 'Use search row',
+      useExcelFilter: 'Use Excel-like filter',
       clearFilter: 'Clear filters',
       rowHeaders: 'Row headers',
       rowHeadersOff: 'Row headers: Off',

@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(testDir, '..');
 const distDir = path.join(root, 'dist');
+function getLiteOutputPath(extension) {
+  const regular = path.join(distDir, 'fabui.lite.' + extension);
+  return fs.existsSync(regular) ? regular : path.join(distDir, 'fabui.lite.min.' + extension);
+}
 const excludedApis = [
   'Accordion',
   'Button',
@@ -35,7 +39,7 @@ const excludedApis = [
 ];
 
 test('FabUI Lite browser bundle publishes FabGrid with TreeGrid, Pivot, Chart and shared dependencies', function() {
-  const source = fs.readFileSync(path.join(distDir, 'fabui.lite.js'), 'utf8');
+  const source = fs.readFileSync(getLiteOutputPath('js'), 'utf8');
   const context = {};
   vm.createContext(context);
   vm.runInContext(source, context);
@@ -55,7 +59,7 @@ test('FabUI Lite browser bundle publishes FabGrid with TreeGrid, Pivot, Chart an
 });
 
 test('FabUI Lite CSS excludes unrelated component styles', function() {
-  const css = fs.readFileSync(path.join(distDir, 'fabui.lite.css'), 'utf8');
+  const css = fs.readFileSync(getLiteOutputPath('css'), 'utf8');
 
   assert.match(css, /\.fg-root/);
   assert.match(css, /\.fg-pivot-workspace/);

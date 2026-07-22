@@ -1,8 +1,255 @@
 /*! FabGrid theme material | performance-first data grid */
-@import './material/tabs.css?v=20260718-tabs-drag-right-v1';
+.fui-tabs {
+  --fui-tabs-radius: 4px;
+  --fui-tabs-border: #dddddd;
+  --fui-tabs-header-bg: #f5f5f5;
+  --fui-tabs-header-text: #000000;
+  --fui-tabs-panel-bg: #ffffff;
+  --fui-tabs-panel-text: #000000;
+  --fui-tabs-tab-bg: #f5f5f5;
+  --fui-tabs-tab-text: #000000;
+  --fui-tabs-hover-bg: #eeeeee;
+  --fui-tabs-hover-text: #404040;
+  --fui-tabs-selected-bg: #ffffff;
+  --fui-tabs-selected-text: #000000;
+  --fui-tabs-selected-edge: #ffffff;
+  --fui-tabs-selected-top-bg: #ffffff;
+  --fui-tabs-selected-bottom-bg: #ffffff;
+  --fui-tabs-selected-left-bg: #ffffff;
+  --fui-tabs-selected-right-bg: #ffffff;
+  --fui-tabs-pill-bg: #00bbee;
+  --fui-tabs-pill-text: #ffffff;
+  --fui-tabs-drag-indicator: #ff4411;
+}
 
-.fg-root.fg-theme-material,
-.fui-tabs.fg-theme-material {
+.fui-tabs .fui-tabs-close,
+.fui-tabs .fui-tabs-scroll-prev,
+.fui-tabs .fui-tabs-scroll-next {
+  background-image: url("material/images/tabs_icons.png");
+}
+
+/* Values adapted from res/themes/material/{textbox,combo,combobox,calendar,datebox,linkbutton}.css. */
+:root {
+  --fui-control-border: #dddddd;
+  --fui-control-focus: #c4c4c4;
+  --fui-control-radius: 4px;
+  --fui-control-bg: #ffffff;
+  --fui-control-text: #000000;
+  --fui-control-placeholder: #aaaaaa;
+  --fui-control-icon: #555;
+  --fui-control-label-text: #000000;
+  --fui-control-disabled-bg: #f5f5f5;
+  --fui-control-trigger-bg: #f5f5f5;
+  --fui-control-button-bg: #fafafa;
+  --fui-control-button-text: #404040;
+  --fui-control-button-border: #d9d9d9;
+  --fui-control-button-hover-bg: #eeeeee;
+  --fui-control-button-hover-text: #404040;
+  --fui-datebox-footer-bg: #fafafa;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-hover: #eeeeee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #cccccc;
+  --fui-control-selected: #00bbee;
+  --fui-control-selected-text: #ffffff;
+  --fui-control-selected-border: #00bbee;
+  --fui-checkbox-accent: #00bbee;
+  --fui-propertygrid-border: #eeeeee;
+  --fui-propertygrid-group-bg: #f5f5f5;
+  --fui-propertygrid-header-text: #404040;
+  --fui-propertygrid-group-text: #404040;
+  --fui-panel-bg: #ffffff;
+  --fui-panel-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+}
+
+.fui-combobox-arrow {
+  background-image: url("material/images/combo_arrow.png");
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.fui-combobox-arrow::before,
+.fui-calendar-nav::before,
+.fui-calendar-nav::after {
+  display: none;
+}
+
+.fui-datebox-trigger {
+  background-image: url("material/images/datebox_arrow.png");
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.fui-calendar-nav {
+  background-image: url("material/images/calendar_arrows.png");
+  background-repeat: no-repeat;
+}
+
+.fui-calendar-prevyear { background-position: 0 0; }
+.fui-calendar-prevmonth { background-position: -16px 0; }
+.fui-calendar-nextmonth { background-position: -32px 0; }
+.fui-calendar-nextyear { background-position: -48px 0; }
+
+/* Component theme overrides. */
+.fui-accordion {
+  --fui-accordion-border: #ddd;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #f5f5f5;
+  --fui-accordion-selected-bg: #00bbee;
+  --fui-accordion-selected-text: #fff;
+}
+
+.fui-button {
+  --fui-button-bg-start: #fafafa;
+  --fui-button-bg-end: #fafafa;
+  --fui-button-bg-hover: #eee;
+  --fui-button-border: #bbb;
+  --fui-button-border-hover: #bbb;
+  border-radius: 4px;
+}
+
+.fui-button {
+  --fui-button-bg-selected: #00bbee;
+}
+
+.fui-datebox-panel,
+.fui-calendar {
+  --fui-control-border: #ddd;
+  --fui-control-trigger-bg: #f5f5f5;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #eee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #ccc;
+  --fui-control-selected: #00bbee;
+  --fui-control-selected-text: #fff;
+  --fui-control-selected-border: #00bbee;
+  --fui-datebox-footer-bg: #f5f5f5;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #666;
+}
+
+.fui-accordion {
+  --fui-accordion-arrows: url("material/images/accordion_arrows.png");
+}
+
+.fui-accordion .fui-accordion-toggle {
+  background-image: url("material/images/accordion_arrows.png");
+}
+
+.fui-panel,
+.fui-window {
+  --fui-panel-tools: url("material/images/panel_tools.png");
+}
+
+.fui-layout {
+  --fui-layout-arrows: url("material/images/layout_arrows.png");
+}
+
+.fui-layout {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-active: #ccc;
+  --fui-layout-expand-bg: #f5f5f5;
+  --fui-layout-expand-border: #ddd;
+  --fui-layout-expand-text: #000;
+  --fui-layout-font-size: 14px;
+}
+
+.fui-menu {
+  --fui-menu-bg: #ffffff;
+  --fui-menu-border: #dddddd;
+  --fui-menu-divider: #eeeeee;
+  --fui-menu-hover-bg: #eeeeee;
+  --fui-menu-hover-border: #dddddd;
+  --fui-menu-text: #404040;
+  border-radius: 4px;
+}
+
+.fui-panel {
+  --fui-panel-border: #ddd;
+  --fui-panel-header-bg: #f5f5f5;
+  --fui-panel-header-text: #000;
+  --fui-panel-body-bg: #fff;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #fafafa;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #eee;
+  --fui-panel-tool-radius: 2px;
+  --fui-panel-font-size: 14px;
+}
+
+.fui-switchbutton {
+  --fui-switchbutton-border: #d9d9d9;
+  --fui-switchbutton-on-bg: #00bbee;
+  --fui-switchbutton-on-text: #fff;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 4px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-tooltip {
+  --fui-tooltip-border: #ddd;
+  --fui-tooltip-text: #404040;
+  --fui-tooltip-radius: 4px;
+}
+
+.fui-tree {
+  --fui-tree-icons: url("material/images/tree_icons.png");
+  --fui-tree-loading: url("material/images/loading.gif");
+  --fui-tree-hover-bg: #eeeeee;
+  --fui-tree-hover-text: #404040;
+  --fui-tree-selected-bg: #00bbee;
+  --fui-tree-selected-text: #ffffff;
+  --fui-tree-editor-border: #dddddd;
+}
+
+.fui-window-mask {
+  --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
+}
+
+.fui-window {
+  --fui-window-border: #ddd;
+  --fui-window-frame: #f5f5f5;
+  --fui-window-header-bg: transparent;
+  --fui-window-header-text: #000;
+  --fui-window-body-bg: #fff;
+  --fui-window-body-text: #404040;
+  --fui-window-footer-bg: #fafafa;
+  --fui-window-footer-text: #404040;
+  --fui-window-tool-hover: #eee;
+  --fui-window-tool-radius: 2px;
+  --fui-window-border-radius: 4px;
+  --fui-window-shadow-color: #fafafa;
+  --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
+}
+
+.fui-gantt {
+  --fui-gantt-accent: #009688;
+  --fui-gantt-accent-dark: #00695c;
+}
+
+.fui-scheduler {
+  --fui-scheduler-border: #ddd;
+  --fui-scheduler-bg: #fff;
+  --fui-scheduler-text: #333;
+  --fui-scheduler-muted: #777;
+  --fui-scheduler-header-bg: #fff;
+  --fui-scheduler-subtle-bg: #fafafa;
+  --fui-scheduler-hover: #f0f0f0;
+  --fui-scheduler-selected: #e1f5fe;
+  --fui-scheduler-accent: #00bbee;
+}
+
+.fg-root,
+.fui-tabs {
   --fg-border: #ccc;
   --fg-border-strong: #ccc;
   --fg-frozen-divider: #b8b8b8;
@@ -22,99 +269,99 @@
   color: #404040;
 }
 
-.fg-root.fg-theme-material .fg-header,
-.fg-root.fg-theme-material .fg-header-frozen,
-.fg-root.fg-theme-material .fg-header-frozen-right,
-.fg-root.fg-theme-material .fg-footer,
-.fg-root.fg-theme-material .fg-footer-frozen,
-.fg-root.fg-theme-material .fg-footer-frozen-right {
+.fg-root .fg-header,
+.fg-root .fg-header-frozen,
+.fg-root .fg-header-frozen-right,
+.fg-root .fg-footer,
+.fg-root .fg-footer-frozen,
+.fg-root .fg-footer-frozen-right {
   background: #FAFAFA;
 }
 
-.fg-root.fg-theme-material .fg-row-header-top,
-.fg-root.fg-theme-material .fg-selection-top,
-.fg-root.fg-theme-material .fg-header-cell,
-.fg-root.fg-theme-material .fg-footer-row-header,
-.fg-root.fg-theme-material .fg-footer-selection,
-.fg-root.fg-theme-material .fg-footer-cell,
-.fg-root.fg-theme-material .fg-row-header-cell {
+.fg-root .fg-row-header-top,
+.fg-root .fg-selection-top,
+.fg-root .fg-header-cell,
+.fg-root .fg-footer-row-header,
+.fg-root .fg-footer-selection,
+.fg-root .fg-footer-cell,
+.fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root.fg-theme-material .fg-body,
-.fg-root.fg-theme-material .fg-frozen-pane,
-.fg-root.fg-theme-material .fg-frozen-pane-right,
-.fg-root.fg-theme-material .fg-selection-pane,
-.fg-root.fg-theme-material .fg-cell,
-.fg-root.fg-theme-material .fg-selection-cell {
+.fg-root .fg-body,
+.fg-root .fg-frozen-pane,
+.fg-root .fg-frozen-pane-right,
+.fg-root .fg-selection-pane,
+.fg-root .fg-cell,
+.fg-root .fg-selection-cell {
   background: #ffffff;
   color: #404040;
 }
 
-.fg-root.fg-theme-material .fg-cell.fg-row-even,
-.fg-root.fg-theme-material .fg-selection-cell.fg-row-even,
-.fg-root.fg-theme-material .fg-selection-cell.fg-row-alt,
-.fg-root.fg-theme-material .fg-cell.fg-row-alt {
+.fg-root .fg-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-alt,
+.fg-root .fg-cell.fg-row-alt {
   background-color: #f9f9f9;
   color: #404040;
 }
 
-.fg-root.fg-theme-material .fg-cell.fg-row-hovered,
-.fg-root.fg-theme-material .fg-selection-cell.fg-row-hovered,
-.fg-root.fg-theme-material .fg-cell:hover,
-.fg-root.fg-theme-material .fg-cell.fg-row-hovered:hover {
+.fg-root .fg-cell.fg-row-hovered,
+.fg-root .fg-selection-cell.fg-row-hovered,
+.fg-root .fg-cell:hover,
+.fg-root .fg-cell.fg-row-hovered:hover {
   background: #eee;
   color: #404040;
 }
 
-.fg-root.fg-theme-material .fg-cell.fg-row-selected,
-.fg-root.fg-theme-material .fg-selection-cell.fg-row-selected,
-.fg-root.fg-theme-material .fg-cell.fg-row-selected:hover,
-.fg-root.fg-theme-material .fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected,
+.fg-root .fg-selection-cell.fg-row-selected,
+.fg-root .fg-cell.fg-row-selected:hover,
+.fg-root .fg-row-selected.fg-selected {
   background: #00bbee;
   color: #ffffff;
 }
 
-.fg-root.fg-theme-material .fg-selected {
+.fg-root .fg-selected {
   background: #eee;
   color: #404040;
   outline-color: #de8f3a;
 }
 
-.fg-root.fg-theme-material .fg-cell.fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root.fg-theme-material .fg-sort-asc {
+.fg-root .fg-sort-asc {
   border-bottom-color: #333;
 }
 
-.fg-root.fg-theme-material .fg-sort-desc {
+.fg-root .fg-sort-desc {
   border-top-color: #333;
 }
 
-.fg-root.fg-theme-material .fg-editor {
+.fg-root .fg-editor {
   border-color: #cf8232;
 }
 
-.fg-root.fg-theme-material .pagination-first {
-  background: url('material/images/pagination_icons.png') no-repeat 0 center;
+.fg-root .pagination-first {
+  background: url("material/images/pagination_icons.png") no-repeat 0 center;
 }
 
-.fg-root.fg-theme-material .pagination-prev {
-  background: url('material/images/pagination_icons.png') no-repeat -16px center;
+.fg-root .pagination-prev {
+  background: url("material/images/pagination_icons.png") no-repeat -16px center;
 }
 
-.fg-root.fg-theme-material .pagination-next {
-  background: url('material/images/pagination_icons.png') no-repeat -32px center;
+.fg-root .pagination-next {
+  background: url("material/images/pagination_icons.png") no-repeat -32px center;
 }
 
-.fg-root.fg-theme-material .pagination-last {
-  background: url('material/images/pagination_icons.png') no-repeat -48px center;
+.fg-root .pagination-last {
+  background: url("material/images/pagination_icons.png") no-repeat -48px center;
 }
 
-.fg-root.fg-theme-material .pagination-load {
-  background: url('material/images/pagination_icons.png') no-repeat -64px center;
+.fg-root .pagination-load {
+  background: url("material/images/pagination_icons.png") no-repeat -64px center;
 }

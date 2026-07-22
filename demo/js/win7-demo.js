@@ -484,7 +484,7 @@ function mountWin7Demo(fabui) {
     ],
     locale: 'zh-TW',
     allowEditing: false,
-    allowFiltering: false,
+    filterMode: false,
     showColumnChooser: false,
     showRowHeaders: false,
     selectionMode: 'Cell'
@@ -500,7 +500,7 @@ function mountWin7Demo(fabui) {
     ],
     locale: 'zh-TW',
     allowEditing: false,
-    allowFiltering: false,
+    filterMode: false,
     showColumnChooser: false,
     showRowHeaders: false,
     selectionMode: 'Cell'

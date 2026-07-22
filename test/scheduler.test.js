@@ -96,25 +96,37 @@ test('Scheduler composes existing FabUI controls and scoped popup lifecycle', fu
   assert.match(source, /Scheduler\.prototype\.dispose/);
 });
 
-test('Scheduler styles contain all themes and stay independent of res assets', function() {
+test('Scheduler base keeps Default and external theme files provide fixed overrides', function() {
   var css = readFileSync(
     new URL('../src/scheduler/scheduler.css', import.meta.url),
     'utf8'
   );
+  assert.match(css, /\.fui-scheduler\s*\{/);
+  assert.doesNotMatch(css, /\.fg-theme-/);
   [
-    'default', 'bootstrap', 'cupertino', 'material', 'material-blue',
+    'bootstrap', 'cupertino', 'material', 'material-blue',
     'material-teal', 'metro', 'metro-blue', 'metro-gray', 'metro-green',
     'metro-orange', 'metro-red', 'sunny', 'pepper-grinder', 'dark-hive',
     'black', 'mono', 'mono-red', 'mono-green'
   ].forEach(function(theme) {
+    var inheritedTheme = {
+      mono: 'metro-gray',
+      'mono-red': 'metro-red',
+      'mono-green': 'metro-green'
+    }[theme];
+    var themeCss = (inheritedTheme ? readFileSync(
+      new URL('../src/theme/' + inheritedTheme + '/components.css', import.meta.url),
+      'utf8'
+    ) : '') + readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
     assert.match(
-      css,
-      new RegExp(
-        'fg-theme-' +
-        theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      ),
+      themeCss,
+      /\.fui-scheduler\s*\{/,
       theme
     );
+    assert.doesNotMatch(themeCss, /\.fg-theme-/);
   });
   assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
 });

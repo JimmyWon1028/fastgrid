@@ -136,7 +136,10 @@ server.listen(port, '127.0.0.1', async function() {
       !result.coreBundleOnlyWorks ||
       !result.filterHeaderTextVerticallyCenteredWorks ||
       !result.filterHeaderTextClearsIconWorks ||
-      !result.narrowFilterTextUsesIconSpaceWorks ||
+      !result.rightAlignedHeaderTextAnchorStableWorks ||
+      !result.rightAlignedHeaderAdaptiveInsetWorks ||
+      !result.narrowFilterTextOverlapsIconWorks ||
+      !result.narrowSortFilterGapWorks ||
       !result.excelFilterPopupDynamicHeightWorks ||
       !result.excelFilterPopupAlignsHeaderLeftWorks ||
       !result.excelFilterPopupBottomShadowWorks ||
@@ -430,7 +433,7 @@ server.listen(port, '127.0.0.1', async function() {
       'fabui.min.js',
       'theme'
     ];
-    const standaloneBundlePattern = /^(?:diagram|fabui\.(?:lite|gantt|scheduler))(?:\..+)?$/;
+    const standaloneBundlePattern = /^fabui\.(?:diagram|lite|gantt|scheduler)(?:\..+)?$/;
     const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).filter(function(file) {
       return file !== '.DS_Store';
     }).sort();

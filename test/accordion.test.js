@@ -80,7 +80,7 @@ test('Accordion composes Panel instead of duplicating its renderer', function() 
 });
 
 test('Accordion styles match all EasyUI reference palettes', function() {
-  var css = readFileSync(
+  var baseCss = readFileSync(
     new URL('../src/accordion/accordion.css', import.meta.url),
     'utf8'
   );
@@ -110,11 +110,14 @@ test('Accordion styles match all EasyUI reference palettes', function() {
   ];
 
   Object.keys(expected).forEach(function(theme) {
-    var match = css.match(new RegExp(
-      '\\.fui-accordion\\.fg-theme-' +
-      theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      '\\s*\\{([\\s\\S]*?)\\}'
-    ));
+    var css = theme === 'default' ? baseCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
+    var match = Array.from(css.matchAll(/\.fui-accordion\s*\{([^}]*)\}/g))
+      .find(function(entry) {
+        return entry[1].toLowerCase().includes(expected[theme][0].toLowerCase());
+      });
     assert.ok(match, theme);
     names.forEach(function(name, index) {
       assert.match(
@@ -133,7 +136,7 @@ test('Accordion styles match all EasyUI reference palettes', function() {
     });
   });
 
-  assert.doesNotMatch(css, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
+  assert.doesNotMatch(baseCss, /(?:^|[('"\s])\.\.\/\.\.\/res\//m);
 });
 
 test('Accordion uses each theme matching arrow sprite', function() {
@@ -161,6 +164,10 @@ test('Accordion uses each theme matching arrow sprite', function() {
   };
 
   Object.keys(expectedHashes).forEach(function(theme) {
+    var themeCss = theme === 'default' ? iconCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    );
     var png = readFileSync(
       new URL(
         '../src/theme/' + theme + '/images/accordion_arrows.png',
@@ -173,24 +180,13 @@ test('Accordion uses each theme matching arrow sprite', function() {
       theme
     );
     assert.match(
-      iconCss,
-      new RegExp(
-        "--fui-accordion-arrows:\\s*url\\('theme/" +
-        theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-        "/images/accordion_arrows\\.png'\\)"
-      ),
+      themeCss,
+      /--fui-accordion-arrows:\s*url\('[^']*accordion_arrows\.png'\)/,
       theme
     );
     assert.match(
-      iconCss,
-      new RegExp(
-        "\\.fui-accordion\\.fg-theme-" +
-        theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-        "\\s+\\.fui-accordion-toggle\\s*\\{[\\s\\S]*?" +
-        "background-image:\\s*url\\('theme/" +
-        theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-        "/images/accordion_arrows\\.png'\\)"
-      ),
+      themeCss,
+      /\.fui-accordion \.fui-accordion-toggle\s*\{[\s\S]*?background-image:\s*url\('[^']*accordion_arrows\.png'\)/,
       theme + ' rendered arrow'
     );
   });

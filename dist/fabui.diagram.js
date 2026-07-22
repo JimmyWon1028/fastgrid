@@ -7,7 +7,7 @@ if (!global.fabui || typeof global.fabui.Control !== "function" ||
     typeof global.fabui.EditBox !== "function" ||
     typeof global.fabui.Menu !== "function" ||
     typeof global.fabui.Tabs !== "function") {
-  throw new Error("Load fabui.js before diagram.js.");
+  throw new Error("Load fabui.js before fabui.diagram.js.");
 }
 var DIAGRAM_THEMES = [
   'default', 'bootstrap', 'cupertino', 'material', 'material-blue',

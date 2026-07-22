@@ -1,8 +1,8 @@
 /*! FabGrid theme bootstrap | performance-first data grid */
 @import './bootstrap/tabs.css?v=20260718-tabs-drag-right-v1';
 @import './bootstrap/components.css?v=20260719-components-theme-v2';
-.fg-root.fg-theme-bootstrap,
-.fui-tabs.fg-theme-bootstrap {
+.fg-root,
+.fui-tabs {
   --fg-border: #ccc;
   --fg-border-strong: #ddd;
   --fg-frozen-divider: #ccc;
@@ -22,99 +22,99 @@
   color: #333;
 }
 
-.fg-root.fg-theme-bootstrap .fg-header,
-.fg-root.fg-theme-bootstrap .fg-header-frozen,
-.fg-root.fg-theme-bootstrap .fg-header-frozen-right,
-.fg-root.fg-theme-bootstrap .fg-footer,
-.fg-root.fg-theme-bootstrap .fg-footer-frozen,
-.fg-root.fg-theme-bootstrap .fg-footer-frozen-right {
+.fg-root .fg-header,
+.fg-root .fg-header-frozen,
+.fg-root .fg-header-frozen-right,
+.fg-root .fg-footer,
+.fg-root .fg-footer-frozen,
+.fg-root .fg-footer-frozen-right {
   background: #efefef;
 }
 
-.fg-root.fg-theme-bootstrap .fg-row-header-top,
-.fg-root.fg-theme-bootstrap .fg-selection-top,
-.fg-root.fg-theme-bootstrap .fg-header-cell,
-.fg-root.fg-theme-bootstrap .fg-footer-row-header,
-.fg-root.fg-theme-bootstrap .fg-footer-selection,
-.fg-root.fg-theme-bootstrap .fg-footer-cell,
-.fg-root.fg-theme-bootstrap .fg-row-header-cell {
+.fg-root .fg-row-header-top,
+.fg-root .fg-selection-top,
+.fg-root .fg-header-cell,
+.fg-root .fg-footer-row-header,
+.fg-root .fg-footer-selection,
+.fg-root .fg-footer-cell,
+.fg-root .fg-row-header-cell {
   background-color: var(--fg-header-bg);
   color: gray;
 }
 
-.fg-root.fg-theme-bootstrap .fg-body,
-.fg-root.fg-theme-bootstrap .fg-frozen-pane,
-.fg-root.fg-theme-bootstrap .fg-frozen-pane-right,
-.fg-root.fg-theme-bootstrap .fg-selection-pane,
-.fg-root.fg-theme-bootstrap .fg-cell,
-.fg-root.fg-theme-bootstrap .fg-selection-cell {
+.fg-root .fg-body,
+.fg-root .fg-frozen-pane,
+.fg-root .fg-frozen-pane-right,
+.fg-root .fg-selection-pane,
+.fg-root .fg-cell,
+.fg-root .fg-selection-cell {
   background: #ffffff;
   color: #333;
 }
 
-.fg-root.fg-theme-bootstrap .fg-cell.fg-row-even,
-.fg-root.fg-theme-bootstrap .fg-selection-cell.fg-row-even,
-.fg-root.fg-theme-bootstrap .fg-selection-cell.fg-row-alt,
-.fg-root.fg-theme-bootstrap .fg-cell.fg-row-alt {
+.fg-root .fg-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-even,
+.fg-root .fg-selection-cell.fg-row-alt,
+.fg-root .fg-cell.fg-row-alt {
   background-color: #f5f5f5;
   color: #333;
 }
 
-.fg-root.fg-theme-bootstrap .fg-cell.fg-row-hovered,
-.fg-root.fg-theme-bootstrap .fg-selection-cell.fg-row-hovered,
-.fg-root.fg-theme-bootstrap .fg-cell:hover,
-.fg-root.fg-theme-bootstrap .fg-cell.fg-row-hovered:hover {
+.fg-root .fg-cell.fg-row-hovered,
+.fg-root .fg-selection-cell.fg-row-hovered,
+.fg-root .fg-cell:hover,
+.fg-root .fg-cell.fg-row-hovered:hover {
   background: #e6e6e6;
   color: #00438a;
 }
 
-.fg-root.fg-theme-bootstrap .fg-cell.fg-row-selected,
-.fg-root.fg-theme-bootstrap .fg-selection-cell.fg-row-selected,
-.fg-root.fg-theme-bootstrap .fg-cell.fg-row-selected:hover,
-.fg-root.fg-theme-bootstrap .fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected,
+.fg-root .fg-selection-cell.fg-row-selected,
+.fg-root .fg-cell.fg-row-selected:hover,
+.fg-root .fg-row-selected.fg-selected {
   background: #0081c2;
   color: #fff;
 }
 
-.fg-root.fg-theme-bootstrap .fg-selected {
+.fg-root .fg-selected {
   background: #e6e6e6;
   color: #00438a;
   outline-color: #c47046;
 }
 
-.fg-root.fg-theme-bootstrap .fg-cell.fg-row-selected.fg-selected {
+.fg-root .fg-cell.fg-row-selected.fg-selected {
   background: var(--fg-row-hover-bg);
   color: var(--fg-cell-text);
 }
 
-.fg-root.fg-theme-bootstrap .fg-sort-asc {
+.fg-root .fg-sort-asc {
   border-bottom-color: #00438a;
 }
 
-.fg-root.fg-theme-bootstrap .fg-sort-desc {
+.fg-root .fg-sort-desc {
   border-top-color: #00438a;
 }
 
-.fg-root.fg-theme-bootstrap .fg-editor {
+.fg-root .fg-editor {
   border-color: #c47046;
 }
 
-.fg-root.fg-theme-bootstrap .pagination-first {
+.fg-root .pagination-first {
   background: url('bootstrap/images/pagination_icons.png') no-repeat 0 center;
 }
 
-.fg-root.fg-theme-bootstrap .pagination-prev {
+.fg-root .pagination-prev {
   background: url('bootstrap/images/pagination_icons.png') no-repeat -16px center;
 }
 
-.fg-root.fg-theme-bootstrap .pagination-next {
+.fg-root .pagination-next {
   background: url('bootstrap/images/pagination_icons.png') no-repeat -32px center;
 }
 
-.fg-root.fg-theme-bootstrap .pagination-last {
+.fg-root .pagination-last {
   background: url('bootstrap/images/pagination_icons.png') no-repeat -48px center;
 }
 
-.fg-root.fg-theme-bootstrap .pagination-load {
+.fg-root .pagination-load {
   background: url('bootstrap/images/pagination_icons.png') no-repeat -64px center;
 }

@@ -31,7 +31,7 @@
     allowResizing: true,
     alternatingRowStep: 1,
     frozenColumns: 1,
-    showSearchRow: true,
+    filterMode: ['searchRow', 'excel'],
     locale: 'zh-TW'
   });
   function getBindingValue(item, binding) {
@@ -108,9 +108,9 @@
     updateStats('已清除所有搜尋條件');
   });
 
-  grid.on('searchRowVisibilityChanged', function(event) {
+  grid.on('filterModeChanged', function(event) {
     if (searchRowToggle) {
-      searchRowToggle.checked = event.visible === true;
+      searchRowToggle.checked = Array.isArray(event.filterMode) && event.filterMode[0] === 'searchRow';
     }
   });
 
@@ -145,7 +145,7 @@
       if (!event.target.checked) {
         grid.clearColumnSearch();
       }
-      grid.setShowSearchRow(event.target.checked);
+      grid.setFilterMode(event.target.checked ? ['searchRow', 'excel'] : ['excel', 'searchRow']);
       updateStats(event.target.checked ? '已顯示搜尋列' : '已隱藏搜尋列');
     });
   }

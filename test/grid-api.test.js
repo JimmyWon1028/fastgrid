@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFabGridFactory } from '../src/grid/fabgrid.js';
 import { createEditorDefinitions } from '../src/editbox/editbox-definitions.js?v=20260721-grid-number-spinner-v1';
-import { applyHeaderCellStyle } from '../src/grid/fabgrid-view.js?v=20260720-initial-search-focus-v1';
+import {
+  applyHeaderCellStyle,
+  getSizeLayerWidth
+} from '../src/grid/fabgrid-view.js?v=20260722-horizontal-overflow-v1';
+import { canSwitchFilterMode } from '../src/grid/fabgrid-filter-ui.js?v=20260722-filter-mode-switch-v1';
 import { Control } from '../src/core/control.js?v=20260716-control-events-v3';
 import { CellType, GroupRow, Row, createGridPanel } from '../src/grid/fabgrid-types.js?v=20260716-row-types-v1';
 
@@ -27,6 +31,11 @@ function createFakeElement(classNames, attributes, rect) {
     }
   };
 }
+
+test('size layer width follows columns instead of a stale pre-scrollbar viewport', function() {
+  assert.equal(getSizeLayerWidth(40, 0, 300, 0), 340);
+  assert.equal(getSizeLayerWidth(40, 100, 240, 60), 440);
+});
 
 test('empty pagination render keeps using its internal DOM after pager alias is overwritten', function() {
   var FabGrid = createFabGridFactory({});
@@ -116,6 +125,113 @@ test('host resize observer invalidates an empty grid after its layout becomes vi
   }
 });
 
+test('search row debounce defaults to four hundred milliseconds', function() {
+  var FabGrid = createFabGridFactory({});
+  var originalWindow = globalThis.window;
+  var scheduledDelay = null;
+  var grid = {
+    options: {},
+    headerSearchTimer: 0,
+    cancelHeaderSearchTimer: FabGrid.prototype.cancelHeaderSearchTimer,
+    applyHeaderSearch: function() {}
+  };
+
+  globalThis.window = {
+    clearTimeout: function() {},
+    setTimeout: function(callback, delay) {
+      scheduledDelay = delay;
+      return 1;
+    }
+  };
+  try {
+    FabGrid.prototype.scheduleHeaderSearch.call(grid, 0, 0, 0);
+    assert.equal(scheduledDelay, 400);
+  } finally {
+    globalThis.window = originalWindow;
+  }
+});
+
+test('search row Enter and Tab navigation preserve debounce without applying immediately', function() {
+  var FabGrid = createFabGridFactory({});
+  [
+    { key: 'Enter', shiftKey: false, direction: 1 },
+    { key: 'Enter', shiftKey: true, direction: -1 },
+    { key: 'Tab', shiftKey: false, direction: 1 },
+    { key: 'Tab', shiftKey: true, direction: -1 }
+  ].forEach(function(testCase) {
+    var applied = 0;
+    var cancelled = 0;
+    var moved = [];
+    var prevented = 0;
+    var stopped = 0;
+    var grid = Object.create(FabGrid.prototype);
+    var input = {
+      getAttribute: function(name) {
+        return name === 'data-col' ? '1' : null;
+      }
+    };
+
+    grid.visibleColumns = [
+      { binding: 'code' },
+      { binding: 'amount' },
+      { binding: 'status' }
+    ];
+    grid.headerSearchTimer = 7;
+    grid.handleMaskedHeaderSearchDelete = function() { return false; };
+    grid.handleDateboxKeyDown = function() { return false; };
+    grid.handleHeaderSearchComboboxKeyDown = function() { return false; };
+    grid.handleHeaderSearchColorKeyDown = function() { return false; };
+    grid.handleHeaderSearchRowNavigation = function() { return false; };
+    grid.cancelHeaderSearchTimer = function() { cancelled += 1; };
+    grid.applyFilterChange = function() { applied += 1; };
+    grid.normalizeHeaderSearchComboboxText = function() {};
+    grid.focusHeaderSearchInput = function() {};
+    grid.moveHeaderSearchFocus = function(colIndex, direction) {
+      moved.push([colIndex, direction]);
+    };
+
+    assert.equal(grid.handleHeaderSearchKeyDown({
+      key: testCase.key,
+      shiftKey: testCase.shiftKey,
+      preventDefault: function() { prevented += 1; },
+      stopPropagation: function() { stopped += 1; }
+    }, input), true);
+    assert.equal(prevented, 1);
+    assert.equal(stopped, 1);
+    assert.equal(cancelled, 0);
+    assert.equal(applied, 0);
+    assert.equal(grid.headerSearchTimer, 7);
+    assert.deepEqual(moved, [[1, testCase.direction]]);
+  });
+});
+
+test('moving search row focus selects all text only when the target has a value', function() {
+  var FabGrid = createFabGridFactory({});
+  var targetInput = { value: '200000' };
+  var requests = [];
+  var grid = Object.create(FabGrid.prototype);
+
+  grid.visibleColumns = [{ binding: 'code' }, { binding: 'amount' }];
+  grid.header = {
+    querySelector: function() {
+      return targetInput;
+    }
+  };
+  grid.scrollHeaderSearchColumnIntoView = function() {};
+  grid.render = function() {};
+  grid.requestHeaderSearchFocus = function(colIndex, selectionStart, selectionEnd) {
+    requests.push([colIndex, selectionStart, selectionEnd]);
+  };
+
+  grid.moveHeaderSearchFocus(0, 1);
+  assert.deepEqual(requests, [[1, 0, 6]]);
+
+  targetInput.value = '';
+  requests.length = 0;
+  grid.moveHeaderSearchFocus(0, 1);
+  assert.deepEqual(requests, [[1, undefined, undefined]]);
+});
+
 test('initial search row focuses the first visible column input', function() {
   var FabGrid = createFabGridFactory({});
   var focusedColumn = null;
@@ -123,7 +239,7 @@ test('initial search row focuses the first visible column input', function() {
     disposed: false,
     options: {
       allowFiltering: true,
-      showSearchRow: true
+      filterMode: ['searchRow', 'excel']
     },
     visibleColumns: [
       { _viewIndex: 0, binding: 'name' },
@@ -138,7 +254,7 @@ test('initial search row focuses the first visible column input', function() {
   assert.equal(FabGrid.prototype.focusInitialHeaderSearchInput.call(grid), true);
   assert.equal(focusedColumn, 0);
 
-  grid.options.showSearchRow = false;
+  grid.options.filterMode = ['excel', 'searchRow'];
   focusedColumn = null;
   assert.equal(FabGrid.prototype.focusInitialHeaderSearchInput.call(grid), false);
   assert.equal(focusedColumn, null);
@@ -179,7 +295,7 @@ test('search row down arrow focuses the same-row active cell before grid navigat
   var grid = {
     options: {
       allowFiltering: true,
-      showSearchRow: true,
+      filterMode: ['searchRow', 'excel'],
       multiSelectRows: false,
       editOnSelect: true
     },
@@ -225,7 +341,7 @@ test('search row down arrow focuses the same-row active cell before grid navigat
   assert.equal(stopped, 2);
   assert.equal(rootFocuses, 2);
 
-  grid.options.showSearchRow = false;
+  grid.options.filterMode = ['excel', 'searchRow'];
   assert.equal(FabGrid.prototype.handleHeaderSearchRowNavigation.call(grid, downEvent, 0), false);
   assert.deepEqual(selectedRows, [[0, 0]]);
   assert.deepEqual(scrolledRows, [[0, 0, 0], [2, 0, 0]]);
@@ -242,7 +358,7 @@ test('first-row up arrow focuses the same-column search input only while search 
   var grid = {
     options: {
       allowFiltering: true,
-      showSearchRow: true
+      filterMode: ['searchRow', 'excel']
     },
     focusHeaderSearchInput: function(col) {
       focusedColumns.push(col);
@@ -264,11 +380,11 @@ test('first-row up arrow focuses the same-column search input only while search 
   assert.equal(prevented, 1);
   assert.equal(stopped, 1);
 
-  grid.options.showSearchRow = false;
+  grid.options.filterMode = ['excel', 'searchRow'];
   assert.equal(FabGrid.prototype.handleFirstRowSearchFocus.call(grid, upEvent, 0, 1), false);
   assert.deepEqual(focusedColumns, [1]);
 
-  grid.options.showSearchRow = true;
+  grid.options.filterMode = ['searchRow', 'excel'];
   assert.equal(FabGrid.prototype.handleFirstRowSearchFocus.call(grid, upEvent, 1, 1), false);
   assert.deepEqual(focusedColumns, [1]);
 });
@@ -309,25 +425,6 @@ test('hostElement exposes the FabGrid host', function() {
   grid.host = host;
 
   assert.equal(grid.hostElement, host);
-});
-
-test('theme stylesheet filename defines the default FabGrid theme', function() {
-  var FabGrid = createFabGridFactory({});
-  var documentRef = {
-    querySelectorAll: function() {
-      return [
-        { getAttribute: function() { return '/assets/fabui/fabui.lite.min.css'; } },
-        { getAttribute: function() { return '/assets/fabui/fabui.mono-red.min.css?v=20260721'; } }
-      ];
-    }
-  };
-
-  assert.equal(FabGrid.resolveStylesheetTheme(documentRef), 'mono-red');
-  assert.equal(FabGrid.resolveStylesheetTheme({
-    querySelectorAll: function() {
-      return [{ getAttribute: function() { return '/assets/fabui/fabui.unknown.min.css'; } }];
-    }
-  }), '');
 });
 
 test('FabGrid inherits managed DOM event listener methods from Control', function() {
@@ -407,7 +504,7 @@ test('hitTest reports the Search Row as a ColumnHeader panel cell', function() {
   input.parentElement = search;
   grid.host = host;
   grid.root = root;
-  grid.options = { rowHeight: 32, headerHeight: 32, showSearchRow: true, allowFiltering: true };
+  grid.options = { rowHeight: 32, headerHeight: 32, filterMode: ['searchRow', 'excel'], allowFiltering: true };
   grid.cells = createGridPanel(grid, CellType.Cell);
   grid.columnHeaders = createGridPanel(grid, CellType.ColumnHeader);
   grid.rowHeaders = createGridPanel(grid, CellType.RowHeader);
@@ -614,6 +711,44 @@ test('truncated Excel filter values preserve unseen selections', function() {
   });
 
   assert.deepEqual(applied, { type: 'values', values: ['B', 'C'] });
+});
+
+test('remote Excel filter keeps all cached candidates when reopened after apply', function() {
+  var FabGrid = createFabGridFactory({});
+  var column = { binding: 'customer' };
+  var grid = {
+    options: { remote: true, excelFilterMaxValues: 1000 },
+    source: [
+      { customer: 'WQ001' },
+      { customer: 'AV001' },
+      { customer: 'XZ001' },
+      { customer: 'ZU001' }
+    ],
+    excelFilters: {},
+    excelFilterValueCache: {},
+    remoteLoading: false,
+    isTreeGrid: function() { return false; },
+    getCellDisplayText: function(item, targetColumn, value) { return String(value); },
+    getText: function() { return '(blank)'; },
+    getExcelFilter: FabGrid.prototype.getExcelFilter,
+    getExcelFilterRows: FabGrid.prototype.getExcelFilterRows
+  };
+  var initial = FabGrid.prototype.getExcelFilterValueItems.call(grid, column);
+
+  assert.deepEqual(initial.map(function(item) { return item.value; }), ['WQ001', 'AV001', 'XZ001', 'ZU001']);
+
+  grid.excelFilters['binding:customer'] = {
+    type: 'values',
+    values: ['WQ001', 'AV001']
+  };
+  grid.source = [
+    { customer: 'WQ001' },
+    { customer: 'AV001' }
+  ];
+
+  var reopened = FabGrid.prototype.getExcelFilterValueItems.call(grid, column);
+
+  assert.deepEqual(reopened.map(function(item) { return item.value; }), ['WQ001', 'AV001', 'XZ001', 'ZU001']);
 });
 
 test('observed array mutations are batched into one refresh', async function() {
@@ -868,6 +1003,39 @@ test('scrollIntoView start alignment clamps at the final viewport', function() {
   FabGrid.prototype.scrollIntoView.call(grid, 9, 0, { alignY: 'start' });
   assert.equal(grid.bodyScroll.scrollTop, 224);
   assert.equal(renderCount, 2);
+});
+
+test('scrollIntoView keeps an oversized scrollable column aligned beside frozen columns', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = {
+    options: { rowHeight: 32 },
+    bodyScroll: {
+      clientHeight: 96,
+      clientWidth: 260,
+      scrollHeight: 320,
+      scrollLeft: 0,
+      scrollTop: 0
+    },
+    visibleColumns: [
+      { _left: 0, _width: 120 },
+      { _left: 120, _width: 180 }
+    ],
+    frozenColumns: 1,
+    frozenWidth: 120,
+    frozenRightWidth: 0,
+    scrollableColumnEnd: 2,
+    getScrollableContentHeight: function() {
+      return 96;
+    },
+    getFixedLeftWidth: function() {
+      return 0;
+    },
+    render: function() {}
+  };
+
+  FabGrid.prototype.scrollIntoView.call(grid, 0, 1);
+
+  assert.equal(grid.bodyScroll.scrollLeft, 0);
 });
 
 test('unselectRow clears a checked row without toggling an unchecked row on', function() {
@@ -1822,8 +1990,7 @@ test('constructor filter rules initialize Search Row values and operators', func
   var grid = {
     options: {
       remote: false,
-      allowFiltering: false,
-      showSearchRow: false,
+      filterMode: ['excel', 'searchRow'],
       filterRules: JSON.stringify([
         { field: 'status', op: 'eq', value: '草稿' },
         { field: 'amount', op: 'gte', value: 1000 },
@@ -1848,8 +2015,7 @@ test('constructor filter rules initialize Search Row values and operators', func
     { field: 'status', op: 'eq', value: '草稿' },
     { field: 'amount', op: 'gte', value: '1000' }
   ]);
-  assert.equal(grid.options.showSearchRow, true);
-  assert.equal(grid.options.allowFiltering, true);
+  assert.deepEqual(grid.options.filterMode, ['searchRow', 'excel']);
   assert.equal(grid.hasColumnSearch, true);
   assert.deepEqual(grid.columnSearchValues, {
     'binding:status': '草稿',
@@ -1889,8 +2055,7 @@ test('remote constructor filter rules preserve custom operators', function() {
   var grid = {
     options: {
       remote: true,
-      allowFiltering: false,
-      showSearchRow: false,
+      filterMode: ['excel', 'searchRow'],
       filterRules: [
         { field: 'ignored', op: '%..%', value: '' },
         { field: 'contains', op: '%..%', value: 'A' },
@@ -1924,8 +2089,7 @@ test('remote constructor filter rules preserve custom operators', function() {
     { field: 'notStarts', op: '!..%', value: 'E' },
     { field: 'notEnds', op: '!%..', value: 'F' }
   ]);
-  assert.equal(grid.options.allowFiltering, true);
-  assert.equal(grid.options.showSearchRow, true);
+  assert.deepEqual(grid.options.filterMode, ['searchRow', 'excel']);
   assert.deepEqual(grid.columnSearchValues, {
     'binding:contains': 'A',
     'binding:starts': 'B',
@@ -1956,6 +2120,200 @@ test('remote constructor filter rules preserve custom operators', function() {
   });
 });
 
+test('remote comparison symbols map to Search Row operators without changing request operators', function() {
+  var FabGrid = createFabGridFactory({});
+  var columns = [
+    { binding: 'gte', dataType: 'number' },
+    { binding: 'gt', dataType: 'number' },
+    { binding: 'lte', dataType: 'number' },
+    { binding: 'lt', dataType: 'number' },
+    { binding: 'ne', dataType: 'number' },
+    { binding: 'eq', dataType: 'number' }
+  ];
+  var filterRules = [
+    { field: 'gte', op: '>=', value: 60 },
+    { field: 'gt', op: '>', value: 50 },
+    { field: 'lte', op: '<=', value: 40 },
+    { field: 'lt', op: '<', value: 30 },
+    { field: 'ne', op: '<>', value: 20 },
+    { field: 'eq', op: '=', value: 10 }
+  ];
+  var grid = {
+    options: {
+      remote: true,
+      filterMode: ['excel', 'searchRow'],
+      filterRules: filterRules
+    },
+    columns: columns,
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false,
+    searchText: '',
+    getColumn: function(value) {
+      return columns.find(function(column) {
+        return column.binding === value;
+      }) || null;
+    }
+  };
+
+  FabGrid.prototype.applyInitialFilterRules.call(grid, grid.options.filterRules);
+
+  assert.deepEqual(grid.columnSearchOperators, {
+    'binding:gte': 'gte',
+    'binding:gt': 'gt',
+    'binding:lte': 'lte',
+    'binding:lt': 'lt',
+    'binding:ne': 'ne',
+    'binding:eq': 'eq'
+  });
+  assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
+    q: undefined,
+    filterRules: JSON.stringify(filterRules.map(function(rule) {
+      return {
+        field: rule.field,
+        op: rule.op,
+        value: String(rule.value)
+      };
+    }))
+  });
+});
+
+test('remote requests serialize standard operator names as compatibility symbols', function() {
+  var FabGrid = createFabGridFactory({});
+  var definitions = [
+    ['starts', '..%'],
+    ['contains', '%..%'],
+    ['ends', '%..'],
+    ['not-starts', '!..%'],
+    ['not-contains', '!%..%'],
+    ['not-ends', '!%..'],
+    ['gte', '>='],
+    ['gt', '>'],
+    ['lte', '<='],
+    ['lt', '<'],
+    ['ne', '<>'],
+    ['eq', '=']
+  ];
+  var columns = definitions.map(function(definition, index) {
+    return {
+      binding: 'field' + index,
+      dataType: index >= 6 ? 'number' : 'string'
+    };
+  });
+  var configuredRules = definitions.map(function(definition, index) {
+    return {
+      field: 'field' + index,
+      op: definition[0],
+      value: String(index + 1)
+    };
+  });
+  var expectedRules = definitions.map(function(definition, index) {
+    return {
+      field: 'field' + index,
+      op: definition[1],
+      value: String(index + 1)
+    };
+  });
+  var grid = {
+    options: {
+      remote: true,
+      filterMode: ['searchRow', 'excel'],
+      filterRules: configuredRules
+    },
+    columns: columns,
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false,
+    searchText: '',
+    getColumn: function(value) {
+      return columns.find(function(column) {
+        return column.binding === value;
+      }) || null;
+    }
+  };
+  grid.getRemoteFilterParams = FabGrid.prototype.getRemoteFilterParams;
+
+  FabGrid.prototype.applyInitialFilterRules.call(grid, grid.options.filterRules);
+  assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
+    q: undefined,
+    filterRules: JSON.stringify(expectedRules)
+  });
+  assert.deepEqual(FabGrid.prototype.getFilterRules.call(grid), expectedRules);
+
+  grid.options.filterRules = [];
+  assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
+    q: undefined,
+    filterRules: JSON.stringify(expectedRules)
+  });
+});
+
+test('remote empty numeric filter rules keep operators visible without filtering', function() {
+  var FabGrid = createFabGridFactory({});
+  var columns = [
+    { binding: 'orgamt', dataType: 'number' },
+    { binding: 'orgtax', dataType: 'number' }
+  ];
+  var grid = {
+    options: {
+      remote: true,
+      filterMode: ['excel', 'searchRow'],
+      filterRules: [
+        { field: 'orgamt', op: '>=', value: '' },
+        { field: 'orgtax', op: '>', value: '' }
+      ]
+    },
+    columns: columns,
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false,
+    searchText: '',
+    getColumn: function(value) {
+      return columns.find(function(column) {
+        return column.binding === value;
+      }) || null;
+    }
+  };
+
+  var applied = FabGrid.prototype.applyInitialFilterRules.call(grid, grid.options.filterRules);
+
+  assert.deepEqual(applied, []);
+  assert.deepEqual(grid.options.filterMode, ['searchRow', 'excel']);
+  assert.equal(grid.hasColumnSearch, false);
+  assert.deepEqual(grid.columnSearchValues, {});
+  assert.deepEqual(grid.columnSearchOperators, {
+    'binding:orgamt': 'gte',
+    'binding:orgtax': 'gt'
+  });
+  assert.deepEqual(grid.options.filterRules, [
+    { field: 'orgamt', op: '>=', value: '' },
+    { field: 'orgtax', op: '>', value: '' }
+  ]);
+  assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
+    q: undefined,
+    filterRules: undefined
+  });
+
+  grid.columnSearchValues['binding:orgamt'] = '   ';
+  assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
+    q: undefined,
+    filterRules: undefined
+  });
+
+  grid.columnSearchValues['binding:orgamt'] = '100';
+  grid.hasColumnSearch = true;
+  assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
+    q: undefined,
+    filterRules: '[{"field":"orgamt","op":">=","value":"100"}]'
+  });
+
+  delete grid.columnSearchValues['binding:orgamt'];
+  grid.columnSearchValues['binding:orgtax'] = '20';
+  assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
+    q: undefined,
+    filterRules: '[{"field":"orgtax","op":">","value":"20"}]'
+  });
+});
+
 test('remote in filter rules serialize array values as comma-separated text', function() {
   var FabGrid = createFabGridFactory({});
   var columns = [
@@ -1964,10 +2322,9 @@ test('remote in filter rules serialize array values as comma-separated text', fu
   var grid = {
     options: {
       remote: true,
-      allowFiltering: true,
-      showSearchRow: false,
+      filterMode: ['excel', 'searchRow'],
       filterRules: [
-        { field: 'facno', op: 'in', value: ['ZU001', 'AV001'] }
+        { field: 'facno', op: 'iN', value: ['ZU001', 'AV001'] }
       ]
     },
     columns: columns,
@@ -1985,17 +2342,20 @@ test('remote in filter rules serialize array values as comma-separated text', fu
 
   FabGrid.prototype.applyInitialFilterRules.call(grid, grid.options.filterRules);
   assert.deepEqual(grid.options.filterRules, [
-    { field: 'facno', op: 'in', value: 'ZU001,AV001' }
+    { field: 'facno', op: 'iN', value: 'ZU001,AV001' }
   ]);
   assert.deepEqual(grid.columnSearchValues, {
     'binding:facno': 'ZU001,AV001'
   });
+  assert.deepEqual(grid.columnSearchOperators, {
+    'binding:facno': 'in'
+  });
   assert.deepEqual(FabGrid.prototype.getRemoteFilterParams.call(grid), {
     q: undefined,
-    filterRules: '[{"field":"facno","op":"in","value":"ZU001,AV001"}]'
+    filterRules: '[{"field":"facno","op":"iN","value":"ZU001,AV001"}]'
   });
 
-  grid.options.showSearchRow = false;
+  grid.options.filterMode = ['excel', 'searchRow'];
   grid.options.filterRules = [];
   grid.columnSearchValues = {};
   grid.excelFilters = {
@@ -2016,8 +2376,7 @@ test('setFilterRules replaces runtime rules and updates Search Row state once', 
   var grid = {
     options: {
       remote: true,
-      allowFiltering: true,
-      showSearchRow: true,
+      filterMode: ['searchRow', 'excel'],
       filterRules: [{ field: 'old', op: 'eq', value: 'old' }]
     },
     columns: columns,
@@ -2102,12 +2461,36 @@ test('updated view can be bound from constructor options', function() {
   assert.deepEqual(received, { totalRows: 3 });
 });
 
-test('search row mode changes clear the other column filter mode', function() {
+test('selection changed can be bound from constructor options', function() {
+  var FabGrid = createFabGridFactory({});
+  var sender;
+  var received;
+  var grid = {
+    events: {},
+    wijmoEvents: {},
+    options: {
+      selectionChanged: function(value, args) {
+        sender = value;
+        received = args;
+      }
+    },
+    bindOptionEvent: FabGrid.prototype.bindOptionEvent
+  };
+
+  FabGrid.prototype.createWijmoEvents.call(grid);
+  FabGrid.prototype.bindOptionEvents.call(grid);
+  FabGrid.prototype.emit.call(grid, 'selectionChanged', { row: 2, col: 1 });
+
+  assert.equal(sender, grid);
+  assert.deepEqual(received, { row: 2, col: 1 });
+});
+
+test('filter mode changes clear the previous column filter mode', function() {
   var FabGrid = createFabGridFactory({});
   var events = [];
   var applies = [];
   var grid = {
-    options: { showSearchRow: false },
+    options: { filterMode: ['excel', 'searchRow'], allowFiltering: true },
     searchText: 'quick',
     excelFilters: { country: { type: 'values', values: ['TW'] } },
     columnSearchValues: {},
@@ -2123,7 +2506,7 @@ test('search row mode changes clear the other column filter mode', function() {
     }
   };
 
-  FabGrid.prototype.setShowSearchRow.call(grid, true);
+  FabGrid.prototype.setFilterMode.call(grid, ['searchRow', 'excel']);
   assert.deepEqual(grid.excelFilters, {});
   assert.equal(grid.searchText, 'quick');
   assert.equal(events[0].args.clearedFilter, true);
@@ -2131,16 +2514,116 @@ test('search row mode changes clear the other column filter mode', function() {
   grid.columnSearchValues = { country: 'T' };
   grid.columnSearchOperators = { country: 'starts' };
   grid.hasColumnSearch = true;
-  FabGrid.prototype.setShowSearchRow.call(grid, false);
+  FabGrid.prototype.setFilterMode.call(grid, ['excel', 'searchRow']);
 
   assert.deepEqual(grid.columnSearchValues, {});
   assert.deepEqual(grid.columnSearchOperators, {});
   assert.equal(grid.hasColumnSearch, false);
   assert.equal(grid.searchText, 'quick');
   assert.deepEqual(applies, [
-    { reset: true, source: 'searchRowVisibility' },
-    { reset: true, source: 'searchRowVisibility' }
+    { reset: true, source: 'filterMode' },
+    { reset: true, source: 'filterMode' }
   ]);
+});
+
+test('filter mode normalizes values and exposes only the new API', function() {
+  var FabGrid = createFabGridFactory({});
+  var applies = [];
+  var grid = {
+    options: { allowFiltering: false, filterMode: false },
+    excelFilters: {},
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false,
+    cancelHeaderSearchTimer: function() {},
+    hideFilterMenu: function() {},
+    applyFilterChange: function(reset, source) {
+      applies.push({ reset: reset, source: source });
+    }
+  };
+
+  assert.equal(FabGrid.prototype.setShowSearchRow, undefined);
+  assert.equal(FabGrid.prototype.setFilterMode.call(grid, [
+    'search-row',
+    'searchRow',
+    'EXCEL',
+    'unknown'
+  ]), true);
+  assert.deepEqual(grid.options.filterMode, ['searchRow', 'excel']);
+  assert.equal(grid.options.allowFiltering, true);
+
+  var current = FabGrid.prototype.getFilterMode.call(grid);
+  current.reverse();
+  assert.deepEqual(grid.options.filterMode, ['searchRow', 'excel']);
+
+  assert.equal(FabGrid.prototype.setFilterMode.call(grid, []), true);
+  assert.equal(grid.options.filterMode, false);
+  assert.equal(grid.options.allowFiltering, false);
+  assert.deepEqual(applies, [
+    { reset: true, source: 'filterMode' },
+    { reset: true, source: 'filterMode' }
+  ]);
+});
+
+test('filter mode uses the first entry by default and only allows switching with multiple modes', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = {
+    options: { filterMode: ['searchRow', 'excel'] }
+  };
+
+  assert.deepEqual(FabGrid.prototype.getFilterMode.call(grid), ['searchRow', 'excel']);
+  assert.equal(canSwitchFilterMode(grid.options), true);
+  assert.equal(canSwitchFilterMode({ filterMode: ['searchRow'] }), false);
+  assert.equal(canSwitchFilterMode({ filterMode: ['excel'] }), false);
+  assert.equal(canSwitchFilterMode({ filterMode: false }), false);
+});
+
+test('runtime layout normalization preserves the active filter mode', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = {
+    options: {
+      filterMode: ['searchRow', 'excel'],
+      frozenColumns: 0,
+      frozenRightColumns: 0
+    },
+    columns: [],
+    emit: function() {}
+  };
+
+  FabGrid.prototype.updateLayout.call(grid);
+
+  assert.deepEqual(grid.options.filterMode, ['searchRow', 'excel']);
+  assert.equal(grid.options.allowFiltering, true);
+
+  grid.options.filterMode = false;
+  FabGrid.prototype.updateLayout.call(grid);
+
+  assert.equal(grid.options.filterMode, false);
+  assert.equal(grid.options.allowFiltering, false);
+});
+
+test('filter rules are ignored when search row is not an available mode', function() {
+  var FabGrid = createFabGridFactory({});
+  var grid = {
+    options: {
+      remote: true,
+      filterMode: ['excel'],
+      filterRules: [{ field: 'amount', op: '>=', value: '10' }]
+    },
+    columns: [{ binding: 'amount', dataType: 'number' }],
+    columnSearchValues: {},
+    columnSearchOperators: {},
+    hasColumnSearch: false
+  };
+
+  assert.deepEqual(
+    FabGrid.prototype.applyInitialFilterRules.call(grid, grid.options.filterRules),
+    []
+  );
+  assert.deepEqual(grid.options.filterRules, []);
+  assert.deepEqual(grid.options.filterMode, ['excel']);
+  assert.deepEqual(grid.columnSearchValues, {});
+  assert.deepEqual(grid.columnSearchOperators, {});
 });
 
 test('allow filtering false clears both column filter modes and keeps quick search', function() {
@@ -2148,7 +2631,7 @@ test('allow filtering false clears both column filter modes and keeps quick sear
   var applies = [];
   var quickFilter = function(item) { return item.country === 'TW'; };
   var grid = {
-    options: { allowFiltering: true, showSearchRow: true },
+    options: { allowFiltering: true, filterMode: ['searchRow', 'excel'] },
     searchText: 'quick',
     filterPredicate: quickFilter,
     columnSearchValues: { country: 'T' },
@@ -2165,14 +2648,14 @@ test('allow filtering false clears both column filter modes and keeps quick sear
   FabGrid.prototype.setAllowFiltering.call(grid, false);
 
   assert.equal(grid.options.allowFiltering, false);
-  assert.equal(grid.options.showSearchRow, true);
+  assert.equal(grid.options.filterMode, false);
   assert.equal(grid.searchText, 'quick');
   assert.equal(grid.filterPredicate, quickFilter);
   assert.deepEqual(grid.columnSearchValues, {});
   assert.deepEqual(grid.columnSearchOperators, {});
   assert.equal(grid.hasColumnSearch, false);
   assert.deepEqual(grid.excelFilters, {});
-  assert.deepEqual(applies, [{ reset: true, source: 'allowFiltering' }]);
+  assert.deepEqual(applies, [{ reset: true, source: 'filterMode' }]);
 });
 
 test('excel value filters are applied only while search row is hidden', function() {
@@ -2183,7 +2666,7 @@ test('excel value filters are applied only while search row is hidden', function
   ];
   var grid = {
     options: {
-      showSearchRow: false,
+      filterMode: ['excel', 'searchRow'],
       remote: false,
       pagination: false,
       rowGroups: []
@@ -2213,7 +2696,7 @@ test('excel value filters are applied only while search row is hidden', function
   FabGrid.prototype.applyView.call(grid);
   assert.deepEqual(grid.view.map(function(item) { return item.country; }), ['Taiwan', 'Japan']);
 
-  grid.options.showSearchRow = true;
+  grid.options.filterMode = ['searchRow', 'excel'];
   FabGrid.prototype.applyView.call(grid);
   assert.equal(grid.view.length, 3);
 });
@@ -2223,7 +2706,7 @@ test('time search row compares formatted time values', function() {
   var column = { binding: 'startedAt', dataType: 'time', visible: true, editor: 'time' };
   var grid = {
     options: {
-      showSearchRow: true,
+      filterMode: ['searchRow', 'excel'],
       remote: false,
       pagination: false,
       rowGroups: []

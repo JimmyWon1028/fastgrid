@@ -103,8 +103,8 @@
       setShowRowHeaders: function (value) {
         return $host.fabgrid("setShowRowHeaders", value);
       },
-      setShowSearchRow: function (value) {
-        return $host.fabgrid("setShowSearchRow", value);
+      setFilterMode: function (value) {
+        return $host.fabgrid("setFilterMode", value);
       },
     };
 

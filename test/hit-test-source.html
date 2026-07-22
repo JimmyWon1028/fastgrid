@@ -29,7 +29,7 @@
       { id: 2, name: 'Beta', amount: 1800 }
     ];
     const grid = new fabui.FabGrid('#grid', {
-      showSearchRow: true,
+      filterMode: ['searchRow', 'excel'],
       isReadOnly: true,
       selectionMode: 'CellRange',
       itemsSource: rows,

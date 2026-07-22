@@ -126,16 +126,19 @@ test('SwitchButton preserves the native checkbox and form lifecycle', function()
 });
 
 test('SwitchButton maps every theme to its local res switchbutton palette', function() {
-  var css = readFileSync(
+  var baseCss = readFileSync(
     new URL('../src/switchbutton/switchbutton.css', import.meta.url),
     'utf8'
   ).toLowerCase();
   Object.keys(themePalettes).forEach(function(theme) {
-    var pattern = new RegExp(
-      '\\.fui-switchbutton\\.fg-theme-' + theme.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      '\\s*\\{([\\s\\S]*?)\\n\\}'
-    );
-    var match = css.match(pattern);
+    var css = theme === 'default' ? baseCss : readFileSync(
+      new URL('../src/theme/' + theme + '/components.css', import.meta.url),
+      'utf8'
+    ).toLowerCase();
+    var match = Array.from(css.matchAll(/\.fui-switchbutton\s*\{([^}]*)\}/g))
+      .find(function(entry) {
+        return entry[1].includes(themePalettes[theme][0]);
+      });
     assert.ok(match, theme);
     themePalettes[theme].forEach(function(value) {
       assert.ok(match[1].includes(value), theme + ' ' + value);

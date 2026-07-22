@@ -45,7 +45,7 @@ test('Vue wrapper gives columns prop precedence over declared columns', function
     gridOptions: { rowHeight: 31 },
     getDeclaredColumns: function() { return [{ binding: 'name' }]; }
   };
-  ['allowEditing', 'allowFiltering', 'allowSorting', 'allowResizing', 'alternatingRowStep', 'frozenColumns', 'frozenRightColumns', 'isReadOnly', 'locale', 'pagination', 'pager', 'remote', 'url', 'method', 'loader'].forEach(function(name) {
+  ['allowEditing', 'allowFiltering', 'allowSorting', 'allowResizing', 'alternatingRowStep', 'filterMode', 'frozenColumns', 'frozenRightColumns', 'isReadOnly', 'locale', 'pagination', 'pager', 'remote', 'url', 'method', 'loader'].forEach(function(name) {
     vm[name] = undefined;
   });
   assert.deepEqual(createGridOptions(vm), {
@@ -69,7 +69,7 @@ test('Vue wrapper forwards cell selection options', function() {
   assert.equal(createGridOptions(vm).highlightActiveRow, false);
 });
 
-test('Vue wrapper routes allowFiltering grid options through the core setter', function() {
+test('Vue wrapper routes filter options through the core setters', function() {
   var Vue = { component: function() {} };
   var plugin = createFabGridVue(Vue, { FabGrid: function() {} });
   var calls = [];
@@ -77,16 +77,18 @@ test('Vue wrapper routes allowFiltering grid options through the core setter', f
     control: {
       options: {},
       setAllowFiltering: function(value) { calls.push(value); },
+      setFilterMode: function(value) { calls.push(value); },
       invalidate: function() {}
     }
   };
 
   plugin.FabGrid.methods.applyGridOptions.call(vm, {
     allowFiltering: false,
+    filterMode: ['searchRow', 'excel'],
     rowHeight: 36
   });
 
-  assert.deepEqual(calls, [false]);
+  assert.deepEqual(calls, [false, ['searchRow', 'excel']]);
   assert.equal(vm.control.options.rowHeight, 36);
 });
 

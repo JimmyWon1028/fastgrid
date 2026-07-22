@@ -1,5 +1,5 @@
 /* Values adapted from res/themes/material-blue/{textbox,combo,combobox,calendar,datebox,linkbutton}.css. */
-.fg-theme-material-blue {
+:root {
   --fui-control-border: #dfdfdf;
   --fui-control-focus: #c6c6c6;
   --fui-control-radius: 2px;
@@ -34,30 +34,195 @@
   --fui-calendar-week-text: #8d8d8d;
 }
 
-.fg-theme-material-blue .fui-combobox-arrow {
+.fui-combobox-arrow {
   background-image: url('images/combo_arrow.png');
   background-position: center;
   background-repeat: no-repeat;
 }
 
-.fg-theme-material-blue .fui-combobox-arrow::before,
-.fg-theme-material-blue .fui-calendar-nav::before,
-.fg-theme-material-blue .fui-calendar-nav::after {
+.fui-combobox-arrow::before,
+.fui-calendar-nav::before,
+.fui-calendar-nav::after {
   display: none;
 }
 
-.fg-theme-material-blue .fui-datebox-trigger {
+.fui-datebox-trigger {
   background-image: url('images/datebox_arrow.png');
   background-position: center;
   background-repeat: no-repeat;
 }
 
-.fg-theme-material-blue .fui-calendar-nav {
+.fui-calendar-nav {
   background-image: url('images/calendar_arrows.png');
   background-repeat: no-repeat;
 }
 
-.fg-theme-material-blue .fui-calendar-prevyear { background-position: 0 0; }
-.fg-theme-material-blue .fui-calendar-prevmonth { background-position: -16px 0; }
-.fg-theme-material-blue .fui-calendar-nextmonth { background-position: -32px 0; }
-.fg-theme-material-blue .fui-calendar-nextyear { background-position: -48px 0; }
+.fui-calendar-prevyear { background-position: 0 0; }
+.fui-calendar-prevmonth { background-position: -16px 0; }
+.fui-calendar-nextmonth { background-position: -32px 0; }
+.fui-calendar-nextyear { background-position: -48px 0; }
+
+/* Component theme overrides. */
+.fui-accordion {
+  --fui-accordion-border: #dfdfdf;
+  --fui-accordion-bg: #fff;
+  --fui-accordion-header-bg: #f5f5f5;
+  --fui-accordion-selected-bg: #eee;
+  --fui-accordion-selected-text: #2196f3;
+}
+
+.fui-button {
+  --fui-button-bg-start: #fafafa;
+  --fui-button-bg-end: #fafafa;
+  --fui-button-bg-hover: #eee;
+  --fui-button-border: #bbb;
+  --fui-button-border-hover: #bbb;
+  border-radius: 4px;
+}
+
+.fui-button {
+  --fui-button-bg-selected: #00bbee;
+}
+
+.fui-datebox-panel,
+.fui-calendar {
+  --fui-control-border: #dfdfdf;
+  --fui-control-trigger-bg: #f5f5f5;
+  --fui-panel-bg: #fff;
+  --fui-panel-text: #404040;
+  --fui-calendar-header-text: #404040;
+  --fui-calendar-week-bg: #fafafa;
+  --fui-calendar-week-text: #8d8d8d;
+  --fui-control-hover: #eee;
+  --fui-control-hover-text: #404040;
+  --fui-control-hover-border: #ccc;
+  --fui-control-selected: #eee;
+  --fui-control-selected-text: #2196f3;
+  --fui-control-selected-border: #2196f3;
+  --fui-datebox-footer-bg: #f5f5f5;
+  --fui-datebox-footer-text: #404040;
+  --fui-control-icon: #666;
+}
+
+.fui-accordion {
+  --fui-accordion-arrows: url('./images/accordion_arrows.png');
+}
+
+.fui-accordion .fui-accordion-toggle {
+  background-image: url('./images/accordion_arrows.png');
+}
+
+.fui-panel,
+.fui-window {
+  --fui-panel-tools: url('./images/panel_tools.png');
+}
+
+.fui-layout {
+  --fui-layout-arrows: url('./images/layout_arrows.png');
+}
+
+.fui-layout {
+  --fui-layout-splitter: #fff;
+  --fui-layout-splitter-active: #ccc;
+  --fui-layout-expand-bg: #f5f5f5;
+  --fui-layout-expand-border: #dfdfdf;
+  --fui-layout-expand-text: #404040;
+  --fui-layout-font-size: 14px;
+}
+
+.fui-menu {
+  --fui-menu-bg: #ffffff;
+  --fui-menu-border: #dddddd;
+  --fui-menu-divider: #eeeeee;
+  --fui-menu-hover-bg: #eeeeee;
+  --fui-menu-hover-border: #dddddd;
+  --fui-menu-text: #404040;
+  border-radius: 4px;
+}
+
+.fui-menu {
+  --fui-menu-hover-bg: #e1f5fe;
+  --fui-menu-hover-border: #00bbee;
+}
+
+.fui-panel {
+  --fui-panel-border: #dfdfdf;
+  --fui-panel-header-bg: #f5f5f5;
+  --fui-panel-header-text: #404040;
+  --fui-panel-body-bg: #fff;
+  --fui-panel-body-text: #404040;
+  --fui-panel-footer-bg: #fafafa;
+  --fui-panel-footer-text: #404040;
+  --fui-panel-tool-hover: #eee;
+  --fui-panel-tool-radius: 0;
+  --fui-panel-font-size: 14px;
+}
+
+.fui-switchbutton {
+  --fui-switchbutton-border: #2196f3;
+  --fui-switchbutton-on-bg: #eee;
+  --fui-switchbutton-on-text: #2196f3;
+  --fui-switchbutton-off-bg: #fff;
+  --fui-switchbutton-off-text: #404040;
+  --fui-switchbutton-handle-bg: #fff;
+  --fui-switchbutton-handle-text: #404040;
+  --fui-switchbutton-radius: 2px;
+  --fui-switchbutton-font-size: 14px;
+}
+
+.fui-tooltip {
+  --fui-tooltip-border: #dfdfdf;
+  --fui-tooltip-text: #404040;
+  --fui-tooltip-radius: 2px;
+}
+
+.fui-tree {
+  --fui-tree-icons: url('./images/tree_icons.png');
+  --fui-tree-loading: url('./images/loading.gif');
+  --fui-tree-hover-bg: #eeeeee;
+  --fui-tree-hover-text: #404040;
+  --fui-tree-selected-bg: #eeeeee;
+  --fui-tree-selected-text: #2196f3;
+  --fui-tree-editor-border: #dfdfdf;
+}
+
+.fui-window-mask {
+  --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
+}
+
+.fui-window {
+  --fui-window-border: #dfdfdf;
+  --fui-window-frame: #f5f5f5;
+  --fui-window-header-bg: transparent;
+  --fui-window-header-text: #404040;
+  --fui-window-body-bg: #fff;
+  --fui-window-body-text: #404040;
+  --fui-window-footer-bg: #fafafa;
+  --fui-window-footer-text: #404040;
+  --fui-window-tool-hover: #eee;
+  --fui-window-tool-radius: 0;
+  --fui-window-border-radius: 2px;
+  --fui-window-shadow-color: #ccc;
+  --fui-window-mask-bg: rgba(238, 238, 238, 0.4);
+}
+
+.fui-gantt {
+  --fui-gantt-accent: #2196f3;
+  --fui-gantt-accent-dark: #1565c0;
+}
+
+.fui-scheduler {
+  --fui-scheduler-border: #ddd;
+  --fui-scheduler-bg: #fff;
+  --fui-scheduler-text: #333;
+  --fui-scheduler-muted: #777;
+  --fui-scheduler-header-bg: #fff;
+  --fui-scheduler-subtle-bg: #fafafa;
+  --fui-scheduler-hover: #f0f0f0;
+  --fui-scheduler-selected: #e1f5fe;
+  --fui-scheduler-accent: #00bbee;
+}
+
+.fui-scheduler {
+  --fui-scheduler-accent: #2196f3;
+}

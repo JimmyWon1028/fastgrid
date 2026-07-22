@@ -143,8 +143,8 @@
     },
     topLeftMenu: {
       ariaLabel: 'Grid 功能表',
-      showSearchRow: '顯示搜尋列',
-      hideSearchRow: '隱藏搜尋列',
+      useSearchRow: '使用搜尋列',
+      useExcelFilter: '使用 Excel-like 篩選',
       clearFilter: '清除篩選',
       rowHeaders: '列號',
       rowHeadersOff: '列號：關閉',
