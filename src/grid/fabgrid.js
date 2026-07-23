@@ -7,11 +7,12 @@ import {
   isSafeBinding,
   normalizePagination,
   normalizeRemoteData,
+  normalizeRemoteCredentials,
   setByBinding
-} from './fabgrid-data.js?v=20260722-filter-mode-v1';
+} from './fabgrid-data.js?v=20260723-grid-performance-v1';
 import { installFabGridExport } from './fabgrid-export.js?v=20260717-pivot-excel-hidden-rows-v1';
 import { installFabGridDrag } from './fabgrid-drag.js?v=20260718-row-drop-width-v1';
-import { installFabGridTree } from './fabgrid-tree.js?v=20260717-tree-context-menu-v1';
+import { installFabGridTree } from './fabgrid-tree.js?v=20260723-grid-performance-v1';
 import {
   applyMask,
   countMaskCharactersBeforeCaret,
@@ -25,9 +26,9 @@ import {
   isMaskValueIncludingLiterals
 } from './fabgrid-editor.js';
 import { isPromiseLike, normalizeValidationResult } from './fabgrid-editor.js';
-import { installFabGridView } from './fabgrid-view.js?v=20260722-horizontal-overflow-v1';
-import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260722-search-nav-select-all-v1';
-import { installFabGridSelection } from './fabgrid-selection.js?v=20260722-frozen-wide-column-scroll-v1';
+import { installFabGridView } from './fabgrid-view.js?v=20260723-grid-performance-v1';
+import { installFabGridFilterUi } from './fabgrid-filter-ui.js?v=20260723-popup-listeners-v1';
+import { installFabGridSelection } from './fabgrid-selection.js?v=20260723-cell-range-video-v1';
 import { installFabGridEditorRuntime } from './fabgrid-editor-runtime.js?v=20260721-grid-time-editor-v1';
 import { CellType, GroupRow, Row, createGridPanel } from './fabgrid-types.js?v=20260716-row-types-v1';
 import { Control, registerControl, unregisterControl } from '../core/control.js?v=20260716-control-events-v3';
@@ -36,7 +37,16 @@ import { ColorPopup } from '../editbox/color-popup.js?v=20260719-i18n-theme-audi
 import { ComboPopup } from '../editbox/combo-popup.js?v=20260719-i18n-theme-audit-v1';
 import { normalizeEditorIconDescriptors } from '../editbox/editor-icons.js?v=20260718-editor-icons-v1';
 
-export function createFabGridFactory(editorDefinitions) {
+export function resolveFabGridRequestCredentials(credentials, getGlobalConfig) {
+  var config;
+  if (credentials !== undefined) {
+    return normalizeRemoteCredentials(credentials);
+  }
+  config = typeof getGlobalConfig === 'function' ? getGlobalConfig() : null;
+  return normalizeRemoteCredentials(config && config.request ? config.request.credentials : null);
+}
+
+export function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   'use strict';
 
   editorDefinitions = editorDefinitions || {};
@@ -66,6 +76,8 @@ export function createFabGridFactory(editorDefinitions) {
     rowHeaderWidth: 60,
     rowHeaderHeader: '',
     showRowHeaders: true,
+    showRowHeaderMenu: false,
+    showFullscreenMenu: false,
     showColumnChooser: true,
     showFooter: false,
     footerHeight: 32,
@@ -73,6 +85,7 @@ export function createFabGridFactory(editorDefinitions) {
     multiSelectRows: false,
     selectionCheckboxWidth: 44,
     allowSorting: true,
+    allowMultiSorting: true,
     allowFiltering: true,
     allowEditing: true,
     editOnSelect: false,
@@ -108,6 +121,7 @@ export function createFabGridFactory(editorDefinitions) {
     remote: false,
     url: null,
     method: 'get',
+    credentials: 'same-origin',
     loader: null,
     loadMsg: null,
     pagination: false,
@@ -133,14 +147,19 @@ export function createFabGridFactory(editorDefinitions) {
 
   function FabGrid(element, options) {
     var self = this;
+    var suppliedOptions = options || {};
     Control.call(this);
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
     if (!this.host) {
       throw new Error('FabGrid host element was not found.');
     }
 
-    this.options = mergeOptions(DEFAULT_OPTIONS, options || {});
-    normalizeGridOptions(this.options, options || {});
+    this.options = mergeOptions(DEFAULT_OPTIONS, suppliedOptions);
+    this.options.credentials = resolveFabGridRequestCredentials(
+      suppliedOptions.credentials,
+      getGlobalConfig
+    );
+    normalizeGridOptions(this.options, suppliedOptions);
     this.applyPagerOptions();
     this.options.showRowHeaders = normalizeRowHeaderMode(this.options.showRowHeaders);
     this.setLocale(this.options.locale, this.options.messages, true);
@@ -157,8 +176,10 @@ export function createFabGridFactory(editorDefinitions) {
     this.paginationTotal = 0;
     this.remoteLoading = false;
     this._remoteLoadSeq = 0;
+    this._remoteLoadController = null;
     this.rowGroupState = createDictionary();
     this._treeCollapsedItems = [];
+    this._treeCollapsedSet = typeof WeakSet === 'function' ? new WeakSet() : null;
     this._treeRowInfos = [];
     this._treeInfoItems = [];
     this._treeInfoValues = [];
@@ -204,6 +225,7 @@ export function createFabGridFactory(editorDefinitions) {
     this.suppressCellRangeClick = false;
     this.suppressCellRangeClickEvent = false;
     this.rowSelection = null;
+    this._rowSelectionCleared = false;
     this.selectedRowMap = {};
     this.selectedItemRefs = [];
     this._selectedItemSet = typeof WeakSet === 'function' ? new WeakSet() : null;
@@ -228,6 +250,7 @@ export function createFabGridFactory(editorDefinitions) {
     this.excelFilterDraft = null;
     this.columnChooserAnchor = null;
     this.topLeftMenuMode = null;
+    this.popupDocumentEventsBound = false;
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
@@ -620,6 +643,7 @@ export function createFabGridFactory(editorDefinitions) {
       'rowEditStarted',
       'rowEditStarting',
       'scrollPositionChanged',
+      'selectedRowChanged',
       'selectionChanged',
       'selectionChanging',
       'sortedColumn',
@@ -641,6 +665,9 @@ export function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.bindOptionEvent = function(name) {
     var event = this.wijmoEvents ? this.wijmoEvents[name] : null;
     var handler = this.options ? this.options[name] : null;
+    if (name === 'sortingColumn') {
+      return;
+    }
     if (event && typeof event.addHandler === 'function' && typeof handler === 'function') {
       event.addHandler(handler, this);
     }
@@ -892,14 +919,12 @@ export function createFabGridFactory(editorDefinitions) {
     this._paginationElement.addEventListener('click', this._boundPaginationClick);
     this._paginationElement.addEventListener('change', this._boundPaginationChange);
     this._paginationElement.addEventListener('keydown', this._boundPaginationKeyDown);
-    document.addEventListener('pointerdown', this._boundFilterMenuClick, true);
-    document.addEventListener('mousedown', this._boundFilterMenuClick, true);
-    document.addEventListener('click', this._boundFilterMenuClick, true);
-    document.addEventListener('mousedown', this._boundDocumentMouseDown);
     document.addEventListener('fullscreenchange', this._boundFullscreenChange);
     document.addEventListener('webkitfullscreenchange', this._boundFullscreenChange);
     this.editor.addEventListener('beforeinput', this._boundEditorBeforeInput);
-    window.addEventListener('resize', this._boundResize);
+    if (typeof ResizeObserver !== 'function') {
+      window.addEventListener('resize', this._boundResize);
+    }
     this.bindResizeObserver();
   };
 
@@ -968,7 +993,8 @@ export function createFabGridFactory(editorDefinitions) {
         mask: '',
         autoUnmask: null,
         maskValueIncludesLiterals: null,
-        readOnly: false
+        readOnly: false,
+        allowSorting: true
       }, columns[i]);
       defineColumnCellTemplate(this, col, col.cellTemplate);
       col.editor = normalizeEditorConfig(col.editor, col);
@@ -1154,6 +1180,7 @@ export function createFabGridFactory(editorDefinitions) {
       this.resetSelectedItemSelection([]);
       if (this.rowSelection == null && this.view.length) {
         this.rowSelection = this.selection.row;
+        this._rowSelectionCleared = false;
       }
     }
     this.updateLayout();
@@ -1451,6 +1478,8 @@ export function createFabGridFactory(editorDefinitions) {
       return;
     }
     this.disposed = true;
+    this._remoteLoadSeq += 1;
+    this.cancelRemoteLoad();
     unregisterControl(this.host, this);
     if (this.raf) {
       cancelAnimationFrame(this.raf);
@@ -1478,6 +1507,7 @@ export function createFabGridFactory(editorDefinitions) {
     this.unbindVerticalScrollbarDragEvents();
     this.unbindHorizontalScrollbarDragEvents();
     this.unbindRowDragEvents();
+    this.unbindPopupDocumentEvents();
     this.removeEventListener();
     this.bodyScroll.removeEventListener('scroll', this._boundScroll);
     this.verticalScrollbar.removeEventListener('pointerdown', this._boundVerticalScrollbarPointerDown);
@@ -1515,10 +1545,6 @@ export function createFabGridFactory(editorDefinitions) {
     this._paginationElement.removeEventListener('click', this._boundPaginationClick);
     this._paginationElement.removeEventListener('change', this._boundPaginationChange);
     this._paginationElement.removeEventListener('keydown', this._boundPaginationKeyDown);
-    document.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
-    document.removeEventListener('mousedown', this._boundFilterMenuClick, true);
-    document.removeEventListener('click', this._boundFilterMenuClick, true);
-    document.removeEventListener('mousedown', this._boundDocumentMouseDown);
     document.removeEventListener('fullscreenchange', this._boundFullscreenChange);
     document.removeEventListener('webkitfullscreenchange', this._boundFullscreenChange);
     this.editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
@@ -2587,6 +2613,7 @@ export function createFabGridFactory(editorDefinitions) {
       'rowEditStarted',
       'rowEditStarting',
       'scrollPositionChanged',
+      'selectedRowChanged',
       'selectionChanged',
       'selectionChanging',
       'sortedColumn',
@@ -2685,13 +2712,13 @@ export function createFabGridFactory(editorDefinitions) {
             }
             return rows;
           }
-          item = this.view[this.selection.row];
+          item = this.rowSelection == null ? null : this.view[this.rowSelection];
           return item ? [item] : [];
         }
       },
       selectedRows: {
         get: function() {
-          var row = this.rowSelection != null ? this.rowSelection : this.selection.row;
+          var row = this.rowSelection;
           var item = this.view[row];
           var rowCollection = this.rows;
           var rows;
@@ -2705,7 +2732,7 @@ export function createFabGridFactory(editorDefinitions) {
             }
             return rows;
           }
-          return item ? [rowCollection[row]] : [];
+          return row != null && item ? [rowCollection[row]] : [];
         }
       },
       selectedRanges: {

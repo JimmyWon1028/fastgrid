@@ -607,23 +607,52 @@ function createGanttFactory(fabui, registerControl, unregisterControl) {
     });
   };
 
+  Gantt.prototype._bindDocumentInteraction = function(move, end, cancel) {
+    this._clearDocumentInteraction(true);
+    this._interaction = {
+      move: move,
+      end: end,
+      cancel: cancel
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
+  };
+
+  Gantt.prototype._clearDocumentInteraction = function(cancelled) {
+    var interaction = this._interaction;
+    if (!interaction) return;
+    this._interaction = null;
+    document.removeEventListener('pointermove', interaction.move);
+    document.removeEventListener('pointerup', interaction.end);
+    document.removeEventListener('pointercancel', interaction.end);
+    if (cancelled && typeof interaction.cancel === 'function') {
+      interaction.cancel();
+    }
+  };
+
   Gantt.prototype._startSplitterResize = function(event) {
     var self = this;
     var startX = event.clientX;
     var startWidth = this.options.listWidth;
+    var pointerId = event.pointerId;
     function move(moveEvent) {
+      if (pointerId != null && moveEvent.pointerId !== pointerId) return;
       self.setListWidth(startWidth + moveEvent.clientX - startX, true);
     }
-    function finish() {
-      document.removeEventListener('pointermove', move);
-      document.removeEventListener('pointerup', finish);
-      document.removeEventListener('pointercancel', finish);
+    function finish(finishEvent) {
+      if (pointerId != null && finishEvent.pointerId !== pointerId) return;
+      if (finishEvent.type === 'pointercancel') {
+        self._clearDocumentInteraction(true);
+        return;
+      }
+      self._clearDocumentInteraction(false);
       self._fire('Resize', { listWidth: self.options.listWidth });
     }
     event.preventDefault();
-    document.addEventListener('pointermove', move);
-    document.addEventListener('pointerup', finish);
-    document.addEventListener('pointercancel', finish);
+    this._bindDocumentInteraction(move, finish, function() {
+      self.setListWidth(startWidth, true);
+    });
   };
 
   Gantt.prototype._onKeyDown = function(event) {
@@ -924,10 +953,15 @@ function createGanttFactory(fabui, registerControl, unregisterControl) {
     var originalEnd = task.end.getTime();
     var originalProgress = task.percentComplete;
     var previewDelta = 0;
+    var pointerId = event.pointerId;
     function move(moveEvent) {
-      var delta = moveEvent.clientX - startX;
-      var startDate = self._scale.dateAt(Math.max(0, self._scale.x(originalStart) + delta));
-      var endDate = self._scale.dateAt(Math.max(0, self._scale.x(originalEnd) + delta));
+      var delta;
+      var startDate;
+      var endDate;
+      if (pointerId != null && moveEvent.pointerId !== pointerId) return;
+      delta = moveEvent.clientX - startX;
+      startDate = self._scale.dateAt(Math.max(0, self._scale.x(originalStart) + delta));
+      endDate = self._scale.dateAt(Math.max(0, self._scale.x(originalEnd) + delta));
       previewDelta = delta;
       if (action === 'move') bar.style.transform = 'translateX(' + delta + 'px)';
       if (action === 'start') {
@@ -947,13 +981,12 @@ function createGanttFactory(fabui, registerControl, unregisterControl) {
       var delta = finishEvent.type === 'pointercancel' ? 0 : previewDelta;
       var startDate;
       var endDate;
-      document.removeEventListener('pointermove', move);
-      document.removeEventListener('pointerup', finish);
-      document.removeEventListener('pointercancel', finish);
+      if (pointerId != null && finishEvent.pointerId !== pointerId) return;
       if (finishEvent.type === 'pointercancel') {
-        self.refresh();
+        self._clearDocumentInteraction(true);
         return;
       }
+      self._clearDocumentInteraction(false);
       startDate = self._scale.dateAt(Math.max(0, self._scale.x(originalStart) + delta));
       endDate = self._scale.dateAt(Math.max(0, self._scale.x(originalEnd) + delta));
       if (action === 'move') {
@@ -972,9 +1005,9 @@ function createGanttFactory(fabui, registerControl, unregisterControl) {
     event.preventDefault();
     event.stopPropagation();
     this.select(task.id);
-    document.addEventListener('pointermove', move);
-    document.addEventListener('pointerup', finish);
-    document.addEventListener('pointercancel', finish);
+    this._bindDocumentInteraction(move, finish, function() {
+      self.refresh();
+    });
   };
 
   Gantt.prototype.refresh = function() {
@@ -1345,6 +1378,7 @@ function createGanttFactory(fabui, registerControl, unregisterControl) {
 
   Gantt.prototype.dispose = function() {
     var host = this.hostElement;
+    this._clearDocumentInteraction(true);
     this._destroyEditor();
     this._buttonControls.forEach(function(control) { control.dispose(); });
     this._buttonControls = [];

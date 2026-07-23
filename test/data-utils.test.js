@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  comparePreparedValues,
   compareValues,
   createDictionary,
   getByBinding,
   isSafeBinding,
+  prepareSortValue,
   setByBinding
 } from '../src/grid/fabgrid-data.js';
 
@@ -37,4 +39,13 @@ test('value comparison follows column data types', function() {
   assert.ok(compareValues(true, false, 'boolean') > 0);
   assert.ok(compareValues('Beta', 'alpha', 'string') > 0);
   assert.ok(compareValues(null, 'value', 'string') < 0);
+});
+
+test('prepared sort values preserve comparison semantics without repeated conversion', function() {
+  assert.equal(prepareSortValue('10', 'number'), 10);
+  assert.equal(prepareSortValue('2026-07-12', 'date'), new Date('2026-07-12').getTime());
+  assert.equal(prepareSortValue(true, 'boolean'), 1);
+  assert.equal(prepareSortValue('Beta', 'string'), 'beta');
+  assert.ok(comparePreparedValues(10, 2) > 0);
+  assert.ok(comparePreparedValues(null, 'value') < 0);
 });

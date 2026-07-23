@@ -433,7 +433,7 @@ server.listen(port, '127.0.0.1', async function() {
       'fabui.min.js',
       'theme'
     ];
-    const standaloneBundlePattern = /^fabui\.(?:diagram|lite|gantt|scheduler)(?:\..+)?$/;
+    const standaloneBundlePattern = /^fabui\.(?:diagram|lite|gantt|scheduler|htmleditor)(?:\..+)?$/;
     const actualDistFiles = fs.readdirSync(path.join(root, 'dist')).filter(function(file) {
       return file !== '.DS_Store';
     }).sort();

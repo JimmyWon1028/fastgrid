@@ -40,6 +40,21 @@ export function installFabGridSelection(FabGrid, context) {
     return createCellRange(anchor.row, anchor.col, this.selection.row, this.selection.col);
   };
 
+  FabGrid.prototype.selectCellRangeRows = function(anchorRow, activeRow) {
+    var lastCol = this.visibleColumns.length - 1;
+    if (!this.view.length || lastCol < 0) {
+      return false;
+    }
+    anchorRow = clamp(anchorRow, 0, this.view.length - 1);
+    activeRow = clamp(activeRow, 0, this.view.length - 1);
+    return this.applyCellSelection(anchorRow, lastCol, activeRow, 0);
+  };
+
+  FabGrid.prototype.extendCellRangeRowSelection = function(row) {
+    var anchor = this.selectionAnchor || this.selection;
+    return this.selectCellRangeRows(anchor.row, row);
+  };
+
   FabGrid.prototype.getSelectionEventArgs = function(row, col, anchorRow, anchorCol) {
     var range = createCellRange(anchorRow, anchorCol, row, col);
     return {
@@ -55,6 +70,49 @@ export function installFabGridSelection(FabGrid, context) {
     };
   };
 
+  FabGrid.prototype.captureSelectedRowChangeState = function() {
+    var rowIndex = this.rowSelection;
+    var hasRow = rowIndex != null && rowIndex >= 0 && rowIndex < this.view.length;
+    if (hasRow && this.options.multiSelectRows === true) {
+      hasRow = this.isRowSelected(rowIndex);
+    }
+    return {
+      rowIndex: hasRow ? rowIndex : -1,
+      dataItem: hasRow ? this.view[rowIndex] : null
+    };
+  };
+
+  FabGrid.prototype.raiseSelectedRowChanged = function(reason, previousState, force) {
+    var currentState = this.captureSelectedRowChangeState();
+    var previous = previousState || this._selectedRowSnapshot || currentState;
+    var changed = previous.rowIndex !== currentState.rowIndex || previous.dataItem !== currentState.dataItem;
+    var row = null;
+    this._selectedRowSnapshot = currentState;
+    if (previous.rowIndex < 0 && currentState.rowIndex < 0) {
+      return false;
+    }
+    if (!force && !changed) {
+      return false;
+    }
+    if (currentState.rowIndex >= 0) {
+      row = this.rows[currentState.rowIndex] || null;
+    }
+    this.emit('selectedRowChanged', {
+      reason: reason,
+      row: row,
+      rowIndex: currentState.rowIndex,
+      dataItem: currentState.dataItem,
+      previousRowIndex: previous.rowIndex,
+      previousDataItem: previous.dataItem
+    });
+    return true;
+  };
+
+  FabGrid.prototype.raiseRowSelectionChanged = function(args) {
+    this.emit('rowSelectionChanged', args);
+    this.raiseSelectedRowChanged('selection');
+  };
+
   FabGrid.prototype.isCellInSelectionRange = function(row, col) {
     var range;
     if (!this.isCellRangeSelectionMode() || this.isRowGroup(this.view[row]) || this.isRowGroupFooter(this.view[row])) {
@@ -68,7 +126,10 @@ export function installFabGridSelection(FabGrid, context) {
     if (this.options.multiSelectRows === true && this.isRowSelected(row)) {
       return true;
     }
-    return this.options.highlightActiveRow !== false && this.selection.row === row;
+    if (this.isCellRangeSelectionMode()) {
+      return false;
+    }
+    return this.options.highlightActiveRow !== false && this.rowSelection === row;
   };
 
   FabGrid.prototype.handleClick = function(event) {
@@ -173,6 +234,24 @@ export function installFabGridSelection(FabGrid, context) {
     if (rowHeader) {
       rowIndex = toNumber(rowHeader.getAttribute('data-row'), 0);
       if (this.isRowGroup(this.view[rowIndex]) || this.isRowGroupFooter(this.view[rowIndex])) {
+        this.root.focus();
+        return;
+      }
+      if (this.isCellRangeSelectionMode()) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (this.suppressCellRangeClick) {
+          this.suppressCellRangeClick = false;
+          this.suppressCellRangeClickEvent = false;
+          this.root.focus();
+          return;
+        }
+        if (event.shiftKey === true) {
+          this.extendCellRangeRowSelection(rowIndex);
+        } else {
+          this.selectCellRangeRows(rowIndex, rowIndex);
+        }
+        this.scrollIntoView(rowIndex, 0);
         this.root.focus();
         return;
       }
@@ -587,6 +666,7 @@ export function installFabGridSelection(FabGrid, context) {
   FabGrid.prototype.handlePointerDown = function(event) {
     var resize = closest(event.target, 'fg-resize');
     var header = closest(event.target, 'fg-header-cell');
+    var rowHeader = closest(event.target, 'fg-row-header-cell');
     var cell = closest(event.target, 'fg-cell');
     var colIndex;
     if (this.busy) {
@@ -600,6 +680,11 @@ export function installFabGridSelection(FabGrid, context) {
     if (resize && this.options.allowResizing !== false) {
       this.startResize(event, toNumber(resize.getAttribute('data-resize-col'), 0));
       return;
+    }
+    if (rowHeader && this.isCellRangeSelectionMode() && !this.canDragRows()) {
+      if (this.startCellRangeRowDrag(event, rowHeader)) {
+        return;
+      }
     }
     if (cell && this.isCellRangeSelectionMode() && !this.canDragRows() &&
         !closest(event.target, 'fg-tree-expander') && !closest(event.target, 'fg-row-group-expander')) {
@@ -633,6 +718,20 @@ export function installFabGridSelection(FabGrid, context) {
     return { row: row, col: col };
   };
 
+  FabGrid.prototype.getCellRangeRowTargetAtPoint = function(clientX, clientY) {
+    var target = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(clientX, clientY) : null;
+    var rowTarget = closest(target, 'fg-row-header-cell') || closest(target, 'fg-cell');
+    var row;
+    if (!rowTarget || !this.root.contains(rowTarget)) {
+      return null;
+    }
+    row = toNumber(rowTarget.getAttribute('data-row'), -1);
+    if (row < 0 || !this.view[row] || this.isRowGroup(this.view[row]) || this.isRowGroupFooter(this.view[row])) {
+      return null;
+    }
+    return { row: row };
+  };
+
   FabGrid.prototype.startCellRangeDrag = function(event, cell) {
     var row = toNumber(cell.getAttribute('data-row'), -1);
     var col = toNumber(cell.getAttribute('data-col'), -1);
@@ -653,9 +752,39 @@ export function installFabGridSelection(FabGrid, context) {
       pointerId: event.pointerId,
       startRow: row,
       startCol: col,
+      wholeRow: false,
       clientX: event.clientX,
       clientY: event.clientY,
       isDoubleClick: isDoubleClick,
+      didMove: false
+    };
+    this.bindPointerInteractionEvents();
+    event.preventDefault();
+    this.root.focus();
+    return true;
+  };
+
+  FabGrid.prototype.startCellRangeRowDrag = function(event, rowHeader) {
+    var row = toNumber(rowHeader.getAttribute('data-row'), -1);
+    if (row < 0 || !this.view[row] || !this.visibleColumns.length ||
+        this.isRowGroup(this.view[row]) || this.isRowGroupFooter(this.view[row])) {
+      return false;
+    }
+    this.suppressCellRangeClick = false;
+    this.suppressCellRangeClickEvent = false;
+    if (event.shiftKey === true) {
+      this.extendCellRangeRowSelection(row);
+    } else {
+      this.selectCellRangeRows(row, row);
+    }
+    this.cellRangeDragState = {
+      pointerId: event.pointerId,
+      startRow: row,
+      startCol: 0,
+      wholeRow: true,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      isDoubleClick: false,
       didMove: false
     };
     this.bindPointerInteractionEvents();
@@ -719,10 +848,20 @@ export function installFabGridSelection(FabGrid, context) {
     var rect = this.bodyScroll.getBoundingClientRect();
     var x = clamp(clientX, rect.left + 1, rect.right - 1);
     var y = clamp(clientY, rect.top + 1, rect.bottom - 1);
-    var target = this.getCellRangeTargetAtPoint(x, y);
     var state = this.cellRangeDragState;
+    var target = state && state.wholeRow ?
+      this.getCellRangeRowTargetAtPoint(x, y) :
+      this.getCellRangeTargetAtPoint(x, y);
     if (!target || !state) {
       return false;
+    }
+    if (state.wholeRow) {
+      if (target.row === this.selection.row && this.selection.col === 0) {
+        return false;
+      }
+      state.didMove = state.didMove || target.row !== state.startRow;
+      this.extendCellRangeRowSelection(target.row);
+      return true;
     }
     if (target.row === this.selection.row && target.col === this.selection.col) {
       return false;
@@ -741,6 +880,9 @@ export function installFabGridSelection(FabGrid, context) {
       return false;
     }
     delta = this.getCellRangeAutoScrollDelta(state.clientX, state.clientY);
+    if (state.wholeRow) {
+      delta.x = 0;
+    }
     if (!delta.x && !delta.y) {
       return false;
     }
@@ -1474,11 +1616,14 @@ export function installFabGridSelection(FabGrid, context) {
       return false;
     }
     this.rowSelection = nextRowSelection;
+    if (this.options.multiSelectRows !== true) {
+      this._rowSelectionCleared = false;
+    }
     this.selectionAnchor = { row: anchorRow, col: anchorCol };
     this.selection = { row: row, col: col };
     this.emit('selectionChanged', args);
     if (rowSelectionChanged && this.options.multiSelectRows !== true) {
-      this.emit('rowSelectionChanged', { row: nextRowSelection });
+      this.raiseRowSelectionChanged({ row: nextRowSelection });
     }
     this.render();
     return true;
@@ -1493,6 +1638,7 @@ export function installFabGridSelection(FabGrid, context) {
       return;
     }
     this.rowSelection = row;
+    this._rowSelectionCleared = false;
     if (this.options.multiSelectRows === true) {
       this.selectedRowMap[row] = true;
       item = this.view[row];
@@ -1506,7 +1652,7 @@ export function installFabGridSelection(FabGrid, context) {
     };
     this.selectionAnchor = { row: row, col: col };
     this.emit('selectionChanged', this.getSelectionEventArgs(row, col, row, col));
-    this.emit('rowSelectionChanged', { row: row });
+    this.raiseRowSelectionChanged({ row: row });
     this.render();
   };
 
@@ -1532,14 +1678,40 @@ export function installFabGridSelection(FabGrid, context) {
     this.selection = { row: row, col: col };
     this.selectionAnchor = { row: row, col: col };
     this.emit('selectionChanged', this.getSelectionEventArgs(row, col, row, col));
-    this.emit('rowSelectionChanged', { row: row });
+    this.raiseRowSelectionChanged({ row: row });
     this.render();
   };
 
   FabGrid.prototype.unselectRow = function(row) {
     var item;
     var groupState;
-    if (this.options.multiSelectRows !== true || !this.view.length) {
+    var previousRow;
+    var args;
+    if (!this.view.length) {
+      return false;
+    }
+    if (this.options.multiSelectRows !== true) {
+      previousRow = this.rowSelection;
+      if (previousRow == null) {
+        return false;
+      }
+      row = row == null ? previousRow : clamp(row, 0, this.view.length - 1);
+      if (row !== previousRow) {
+        return false;
+      }
+      args = { row: null, previousRow: previousRow, selected: false };
+      if (this.emit('rowSelectionChanging', args) === false) {
+        return false;
+      }
+      this.rowSelection = null;
+      this._rowSelectionCleared = true;
+      this.emit('selectionChanged', { row: previousRow, selected: false });
+      this.raiseRowSelectionChanged(args);
+      this.render();
+      return true;
+    }
+    row = row == null ? this.rowSelection : row;
+    if (row == null) {
       return false;
     }
     row = clamp(row, 0, this.view.length - 1);
@@ -1558,7 +1730,7 @@ export function installFabGridSelection(FabGrid, context) {
     }
     this.rebuildSelectedRowMap();
     this.emit('selectionChanged', { row: row, selected: false });
-    this.emit('rowSelectionChanged', { row: row, selected: false });
+    this.raiseRowSelectionChanged({ row: row, selected: false });
     this.render();
     return true;
   };
@@ -1862,7 +2034,8 @@ export function installFabGridSelection(FabGrid, context) {
       this.selectionAnchor.row = this.selection.row;
       this.selectionAnchor.col = this.selection.col;
     }
-    if (this.options.multiSelectRows !== true && this.rowSelection == null && this.view.length) {
+    if (this.options.multiSelectRows !== true && this.rowSelection == null &&
+        this._rowSelectionCleared !== true && this.view.length) {
       this.rowSelection = this.selection.row;
     }
     if (this.rowSelection != null && this.rowSelection >= this.view.length) {
@@ -2129,9 +2302,11 @@ export function installFabGridSelection(FabGrid, context) {
 
   FabGrid.prototype.selectAll = function() {
     this.rowSelection = null;
+    this._rowSelectionCleared = true;
     this.selection = { row: 0, col: 0 };
     this.selectionAnchor = { row: 0, col: 0 };
     this.emit('selectionChanged', Object.assign(this.getSelectionEventArgs(0, 0, 0, 0), { all: true }));
+    this.raiseSelectedRowChanged('selection');
     this.render();
   };
 }

@@ -24,6 +24,7 @@
 | API | API |
 | --- | --- |
 | [EditBox](./editbox-api.md) | [FileBox](./filebox-api.md) |
+| [HtmlEditor](./htmleditor-api.md) |  |
 | [Form](./form-api.md) | [Calendar](./calendar-api.md) |
 | [CheckBox](./checkbox-api.md) | [CheckGroup](./checkgroup-api.md) |
 | [RadioButton](./radiobutton-api.md) | [RadioGroup](./radiogroup-api.md) |
@@ -50,6 +51,7 @@
 | [Diagram](./diagram-api.md) | `fabui.Diagram` |
 | [Gantt](./gantt-api.md) | `fabui.Gantt` |
 | [Scheduler](./scheduler-api.md) | `fabui.Scheduler` |
+| [HtmlEditor](./htmleditor-api.md) | `fabui.HtmlEditor` |
 
 ## Wrapper（暫緩）
 

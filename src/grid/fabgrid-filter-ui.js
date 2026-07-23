@@ -28,6 +28,30 @@ export function installFabGridFilterUi(FabGrid, context) {
   var toNumber = context.toNumber;
   var trimText = context.trimText;
 
+  FabGrid.prototype.bindPopupDocumentEvents = function() {
+    if (this.popupDocumentEventsBound || this.disposed) {
+      return;
+    }
+    this.popupDocumentEventsBound = true;
+    document.addEventListener('pointerdown', this._boundFilterMenuClick, true);
+  };
+
+  FabGrid.prototype.unbindPopupDocumentEvents = function() {
+    if (!this.popupDocumentEventsBound) {
+      return;
+    }
+    this.popupDocumentEventsBound = false;
+    document.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
+  };
+
+  FabGrid.prototype.syncPopupDocumentEvents = function() {
+    if (this.isTopLeftMenuOpen() || this.isFilterMenuOpen() || this.isColumnChooserOpen()) {
+      this.bindPopupDocumentEvents();
+    } else {
+      this.unbindPopupDocumentEvents();
+    }
+  };
+
   FabGrid.prototype.handleContextMenu = function(event) {
     var headerTitle = closest(event.target, 'fg-header-title');
     if (!headerTitle) {
@@ -67,6 +91,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     this.topLeftMenu.style.left = left + 'px';
     this.topLeftMenu.style.top = top + 'px';
     this.topLeftMenu.style.visibility = '';
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.renderActiveTopLeftMenu = function() {
@@ -106,27 +131,33 @@ export function installFabGridFilterUi(FabGrid, context) {
           'topLeftMenu.useExcelFilter' : 'topLeftMenu.useSearchRow')
       });
     }
-    items.push(
-      {
+    if (getActiveFilterMode(this.options)) {
+      items.push({
         action: 'clear-filter',
         iconClass: 'icon-clear',
         label: this.getText('topLeftMenu.clearFilter')
-      },
-      {
+      });
+    }
+    if (this.options.showRowHeaderMenu === true) {
+      items.push({
         action: 'row-headers-menu',
         iconClass: 'icon-row-number',
         label: this.getText('topLeftMenu.rowHeaders'),
         children: rowHeaderItems
-      },
+      });
+    }
+    items.push(
       { action: 'export-excel', iconClass: 'icon-excel', label: this.getText('topLeftMenu.exportExcel') },
-      { action: 'export-csv', iconClass: 'icon-export', label: this.getText('topLeftMenu.exportCsv') },
-      {
+      { action: 'export-csv', iconClass: 'icon-export', label: this.getText('topLeftMenu.exportCsv') }
+    );
+    if (this.options.showFullscreenMenu === true) {
+      items.push({
         action: 'fullscreen',
         iconClass: 'icon-fullscreen',
         label: this.getText(this.isFullscreen() ? 'topLeftMenu.exitFullscreen' : 'topLeftMenu.fullscreen'),
         disabled: !this.isFullscreenAvailable()
-      }
-    );
+      });
+    }
     var fragment = document.createDocumentFragment();
     var item;
     var icon;
@@ -211,6 +242,7 @@ export function installFabGridFilterUi(FabGrid, context) {
       this.topLeftMenu.style.display = 'none';
     }
     this.topLeftMenuMode = null;
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.isTopLeftMenuOpen = function() {
@@ -344,6 +376,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (anchor) {
       anchor.setAttribute('aria-expanded', 'true');
     }
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.renderFilterMenu = function(column) {
@@ -752,6 +785,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     this.filterMenuColumn = null;
     this.filterMenuAnchor = null;
     this.excelFilterDraft = null;
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.isFilterMenuOpen = function() {
@@ -776,6 +810,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     this.columnChooser.style.display = 'grid';
     this.positionColumnChooser(anchor);
     this.renderColumnChooserTrigger();
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.renderColumnChooser = function() {
@@ -847,6 +882,7 @@ export function installFabGridFilterUi(FabGrid, context) {
     if (trigger) {
       trigger.setAttribute('aria-expanded', 'false');
     }
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.isColumnChooserOpen = function() {

@@ -41,6 +41,10 @@ var devGridHtml = readFileSync(
   new URL('../demo/dev-grid.html', import.meta.url),
   'utf8'
 );
+var buildGridHtml = readFileSync(
+  new URL('../demo/grid.html', import.meta.url),
+  'utf8'
+);
 var diagramHtml = readFileSync(
   new URL('../demo/dev-diagram.html', import.meta.url),
   'utf8'
@@ -298,6 +302,29 @@ test('The Grid Demo bridges live Number EditBox input to source controls', funct
   assert.equal(bridgeNumberEditBoxInput(source, numberControl, 'change'), false);
 });
 
+test('The Grid demos enable both frozen column EditBox spinners', function() {
+  assert.match(
+    grid2Script,
+    /createEditBox\(\s*"frozenInput",\s*\{[\s\S]*?editor:\s*"number",[\s\S]*?spinner:\s*true/
+  );
+  assert.match(
+    grid2Script,
+    /createEditBox\(\s*"frozenRightInput",\s*\{[\s\S]*?editor:\s*"number",[\s\S]*?spinner:\s*true/
+  );
+  assert.ok(
+    devGridHtml.indexOf('createGrid2FabuiDemo(fabui)') <
+      devGridHtml.indexOf('await import(')
+  );
+  assert.match(
+    devGridHtml,
+    /grid2-components\.js\?v=20260723-frozen-spinner-v1/
+  );
+  assert.match(
+    buildGridHtml,
+    /grid2-components\.js\?v=20260723-frozen-spinner-v1/
+  );
+});
+
 test('The Dev Grid bottom filter uses a FabUI text EditBox', function() {
   assert.match(devGridHtml, /id="demoFilterInput"/);
   assert.match(
@@ -317,6 +344,47 @@ test('The Dev Grid filtering switch follows the filterMode API', function() {
     gridToolbarScript,
     /Array\.isArray\(values\.filterMode\) \|\| values\.allowFiltering === true/
   );
+});
+
+test('The Grid demos expose the same range selection switch', function() {
+  assert.match(
+    devGridHtml,
+    /data-selection-range-toggle="true"/
+  );
+  assert.match(
+    buildGridHtml,
+    /data-selection-range-toggle="true"/
+  );
+  assert.match(
+    gridToolbarScript,
+    /id="selectionRangeInput" type="checkbox"/
+  );
+  assert.match(
+    gridToolbarScript,
+    /multiSelectControl\.parentElement\.insertAdjacentHTML\(\s*"afterend",\s*SELECTION_RANGE_MARKUP/
+  );
+  assert.match(
+    gridScript,
+    /selectionMode:\s*controls\.selectionRange[\s\S]*?\?\s*settings\.selectionMode/
+  );
+  assert.match(
+    gridScript,
+    /grid\.selectionMode = event\.target\.checked \? "CellRange" : "Cell"/
+  );
+  assert.match(
+    grid2Script,
+    /createCheckBox\("selectionRangeInput", "selectionRangeLabel"\)/
+  );
+  [
+    /grid-toolbar\.js\?v=20260723-selection-range-v1/,
+    /grid-data\.js\?v=20260721-initial-filter-rules-v1/,
+    /grid-locales\.js\?v=20260723-selection-range-v1/,
+    /grid2-components\.js\?v=20260723-frozen-spinner-v1/,
+    /grid\.js\?v=20260723-selection-range-v1/
+  ].forEach(function(pattern) {
+    assert.match(devGridHtml, pattern);
+    assert.match(buildGridHtml, pattern);
+  });
 });
 
 test('The Windows 7 Demo remembers only supported themes', function() {
@@ -589,6 +657,7 @@ test('Demo indexes expose source-mode and build-mode pages separately', function
       'PivotWorkspace',
       'Pivot 大資料與進階計算',
       'Windows 7 Desktop',
+      'fabui.HtmlEditor',
       'fabui.Diagram',
       'fabui.Gantt',
       'fabui.Scheduler',
@@ -605,25 +674,11 @@ test('Demo indexes expose source-mode and build-mode pages separately', function
 test('Every build-mode Demo mirrors its source-mode showcase', function() {
   var pairs = readShowcasePairs();
 
-  assert.equal(pairs.length, 34);
+  assert.equal(pairs.length, 35);
   pairs.forEach(function(pair) {
     var devHtml = readFileSync(new URL(pair.dev, demoDirectory), 'utf8');
     var buildHtml = readFileSync(new URL(pair.build, demoDirectory), 'utf8');
     var devSignature = readShowcaseSignature(devHtml);
-    var devOnlyIds = pair.dev === 'dev-editbox.html' ? [
-      'edit-spinner-true',
-      'edit-spinner-right',
-      'edit-spinner-left',
-      'edit-time',
-      'edit-time-seconds'
-    ] : [];
-
-    devSignature.ids = devSignature.ids.filter(function(id) {
-      return devOnlyIds.indexOf(id) < 0;
-    });
-    devSignature.inputs = devSignature.inputs.filter(function(input) {
-      return devOnlyIds.indexOf(input.id) < 0;
-    });
 
     assert.deepEqual(
       readShowcaseSignature(buildHtml),
@@ -631,6 +686,37 @@ test('Every build-mode Demo mirrors its source-mode showcase', function() {
       pair.label + ': ' + pair.dev + ' <=> ' + pair.build
     );
   });
+});
+
+test('Both EditBox Demos expose custom button examples', function() {
+  var devHtml = readFileSync(
+    new URL('../demo/dev-editbox.html', import.meta.url),
+    'utf8'
+  );
+  var buildHtml = readFileSync(
+    new URL('../demo/editbox.html', import.meta.url),
+    'utf8'
+  );
+  var script = readFileSync(
+    new URL('../demo/js/editbox-demo.js', import.meta.url),
+    'utf8'
+  );
+
+  [devHtml, buildHtml].forEach(function(html) {
+    assert.match(html, /id="edit-two-buttons"/);
+    assert.match(html, /id="edit-left-button"/);
+    assert.match(html, /id="edit-spinner-true"/);
+    assert.match(html, /id="edit-time-seconds"/);
+    assert.match(html, /editbox-demo\.js\?v=20260723-custom-buttons-v1/);
+  });
+  assert.match(
+    script,
+    /boxes\.twoButtons = new fabui\.EditBox\('#edit-two-buttons',[\s\S]*?icons:\s*\[\{[\s\S]*?\},\s*\{[\s\S]*?\}\]/
+  );
+  assert.match(
+    script,
+    /boxes\.leftButton = new fabui\.EditBox\('#edit-left-button',[\s\S]*?align:\s*'left'/
+  );
 });
 
 test('Source-mode Demo styles do not repaint FabUI button hosts', function() {

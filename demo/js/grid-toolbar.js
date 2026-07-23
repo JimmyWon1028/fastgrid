@@ -68,13 +68,29 @@
     '<a id="exportExcelButton" class="toolbar-icon-button icon-excel" data-icon-cls="icon-excel" href="javascript:void(0)"></a>',
     '<a id="fullscreenButton" class="toolbar-icon-button icon-fullscreen" data-icon-cls="icon-fullscreen" href="javascript:void(0)" aria-pressed="false"></a>',
   ].join("");
+  var SELECTION_RANGE_MARKUP = [
+    '<label class="toggle">',
+    '  <input id="selectionRangeInput" type="checkbox">',
+    '  <span id="selectionRangeLabel">選範圍</span>',
+    "</label>",
+  ].join("");
 
   function render(host) {
+    var multiSelectControl;
     if (!host || host.getAttribute("data-demo-toolbar-ready") === "true")
       return host;
     host.classList.add("toolbar");
     host.setAttribute("aria-label", "FabGrid controls");
     host.innerHTML = TOOLBAR_MARKUP;
+    if (host.getAttribute("data-selection-range-toggle") === "true") {
+      multiSelectControl = host.querySelector("#multiSelectInput");
+      if (multiSelectControl && multiSelectControl.parentElement) {
+        multiSelectControl.parentElement.insertAdjacentHTML(
+          "afterend",
+          SELECTION_RANGE_MARKUP
+        );
+      }
+    }
     setText(host, "demoToolbarTitle", host.getAttribute("data-toolbar-title"));
     setText(
       host,
@@ -116,6 +132,7 @@
     setText(host, "remoteLabel", text.remote);
     setText(host, "multiSelectLabel", text.multiSelect);
     setText(host, "editModeLabel", text.editMode);
+    setText(host, "selectionRangeLabel", text.selectionRange);
     setOptionText(host, "rowHeadersInput", "false", text.off);
     setOptionText(host, "rowHeadersInput", "true", text.rowNumber);
     setOptionText(host, "rowHeadersInput", "cell", text.cellOnly);
@@ -147,6 +164,11 @@
     setChecked(host, "remoteInput", values.remote);
     setChecked(host, "multiSelectInput", values.multiSelectRows);
     setChecked(host, "editModeInput", values.editMode);
+    setChecked(
+      host,
+      "selectionRangeInput",
+      values.selectionMode === "CellRange"
+    );
 
     controls = host.querySelectorAll("input, select, button");
     for (index = 0; index < controls.length; index += 1) {

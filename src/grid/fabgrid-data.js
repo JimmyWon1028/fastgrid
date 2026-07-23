@@ -2,29 +2,52 @@ export function createDictionary() {
   return Object.create(null);
 }
 
-export function isSafeBinding(binding) {
+var bindingPathCache = createDictionary();
+var bindingPathCacheSize = 0;
+var BINDING_PATH_CACHE_LIMIT = 1024;
+
+function getBindingPath(binding) {
+  var key;
   var parts;
   var i;
   if (binding == null || binding === '') {
-    return false;
+    return null;
   }
-  parts = String(binding).split('.');
+  key = String(binding);
+  if (Object.prototype.hasOwnProperty.call(bindingPathCache, key)) {
+    return bindingPathCache[key];
+  }
+  parts = key.split('.');
   for (i = 0; i < parts.length; i += 1) {
     if (!parts[i] || parts[i] === '__proto__' || parts[i] === 'prototype' || parts[i] === 'constructor') {
-      return false;
+      parts = null;
+      break;
     }
   }
-  return true;
+  if (bindingPathCacheSize >= BINDING_PATH_CACHE_LIMIT) {
+    bindingPathCache = createDictionary();
+    bindingPathCacheSize = 0;
+  }
+  bindingPathCache[key] = parts;
+  bindingPathCacheSize += 1;
+  return parts;
+}
+
+export function isSafeBinding(binding) {
+  return getBindingPath(binding) !== null;
 }
 
 export function getByBinding(item, binding) {
   var parts;
   var i;
   var value = item;
-  if (!item || !isSafeBinding(binding)) {
+  if (!item) {
     return undefined;
   }
-  parts = String(binding).split('.');
+  parts = getBindingPath(binding);
+  if (!parts) {
+    return undefined;
+  }
   for (i = 0; i < parts.length; i += 1) {
     if (value == null) {
       return undefined;
@@ -35,10 +58,10 @@ export function getByBinding(item, binding) {
 }
 
 export function setByBinding(item, binding, value) {
-  var parts = String(binding).split('.');
+  var parts = getBindingPath(binding);
   var target = item;
   var i;
-  if (!item || !isSafeBinding(binding)) {
+  if (!item || !parts) {
     return false;
   }
   for (i = 0; i < parts.length - 1; i += 1) {
@@ -54,7 +77,23 @@ export function setByBinding(item, binding, value) {
   return true;
 }
 
-export function compareValues(a, b, type) {
+export function prepareSortValue(value, type) {
+  if (value == null) {
+    return null;
+  }
+  if (type === 'number') {
+    return Number(value);
+  }
+  if (type === 'date') {
+    return new Date(value).getTime();
+  }
+  if (type === 'boolean') {
+    return value ? 1 : 0;
+  }
+  return String(value).toLowerCase();
+}
+
+export function comparePreparedValues(a, b) {
   if (a == null && b == null) {
     return 0;
   }
@@ -64,17 +103,6 @@ export function compareValues(a, b, type) {
   if (b == null) {
     return 1;
   }
-  if (type === 'number') {
-    return Number(a) - Number(b);
-  }
-  if (type === 'date') {
-    return new Date(a).getTime() - new Date(b).getTime();
-  }
-  if (type === 'boolean') {
-    return (a ? 1 : 0) - (b ? 1 : 0);
-  }
-  a = String(a).toLowerCase();
-  b = String(b).toLowerCase();
   if (a < b) {
     return -1;
   }
@@ -82,6 +110,27 @@ export function compareValues(a, b, type) {
     return 1;
   }
   return 0;
+}
+
+export function compareValues(a, b, type) {
+  return comparePreparedValues(
+    prepareSortValue(a, type),
+    prepareSortValue(b, type)
+  );
+}
+
+function createPreparedSortValues(item, sortStates) {
+  var values = new Array(sortStates.length);
+  var sortState;
+  var i;
+  for (i = 0; i < sortStates.length; i += 1) {
+    sortState = sortStates[i];
+    values[i] = prepareSortValue(
+      getByBinding(item, sortState.column.binding),
+      sortState.column.dataType
+    );
+  }
+  return values;
 }
 
 export function normalizePagination(pageNumber, pageSize, total, defaultPageSize) {
@@ -111,7 +160,12 @@ export function normalizeRemoteData(data) {
   return { rows: rows, total: Math.max(0, toFiniteNumber(data && data.total, rows.length)) };
 }
 
-export function createRemoteRequest(url, method, params) {
+export function normalizeRemoteCredentials(value) {
+  var credentials = String(value || '').toLowerCase();
+  return credentials === 'include' || credentials === 'omit' ? credentials : 'same-origin';
+}
+
+export function createRemoteRequest(url, method, params, credentials) {
   var normalizedMethod = String(method || 'get').toUpperCase();
   var requestUrl = String(url || '');
   var headers = { Accept: 'application/json' };
@@ -130,6 +184,7 @@ export function createRemoteRequest(url, method, params) {
     url: requestUrl,
     options: {
       method: normalizedMethod,
+      credentials: normalizeRemoteCredentials(credentials),
       headers: headers,
       body: normalizedMethod === 'POST' ? body.toString() : undefined
     }
@@ -601,6 +656,7 @@ export function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.setItemsSource = function(rows, silent) {
+    var previousSelectedRow = this.captureSelectedRowChangeState();
     if (!silent && this.emit('itemsSourceChanging', { rows: rows || [] }) === false) {
       return;
     }
@@ -614,6 +670,7 @@ export function installFabGridData(FabGrid, context) {
     this.applyView();
     if (!silent) {
       this.emit('itemsSourceChanged', { rows: this.source });
+      this.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
       this.emit('loadedRows', { rows: this.view });
       this.refresh();
     }
@@ -622,6 +679,7 @@ export function installFabGridData(FabGrid, context) {
   FabGrid.prototype.load = function(params) {
     var self = this;
     var loader = this.options.loader;
+    var controller = null;
     var request;
     var seq;
     var result;
@@ -642,11 +700,16 @@ export function installFabGridData(FabGrid, context) {
     }
     this._remoteLoadSeq += 1;
     seq = this._remoteLoadSeq;
+    this.cancelRemoteLoad();
     this.setRemoteLoading(true);
     try {
-      result = typeof loader === 'function'
-        ? loader.call(this, request)
-        : this.requestRemoteData(request);
+      if (typeof loader === 'function') {
+        result = loader.call(this, request);
+      } else {
+        controller = typeof AbortController === 'function' ? new AbortController() : null;
+        this._remoteLoadController = controller;
+        result = this.requestRemoteData(request, controller ? controller.signal : null);
+      }
     } catch (error) {
       result = Promise.reject(error);
     }
@@ -666,16 +729,31 @@ export function installFabGridData(FabGrid, context) {
       if (!self.disposed && seq === self._remoteLoadSeq) {
         self.setRemoteLoading(false);
       }
+      if (self._remoteLoadController === controller) {
+        self._remoteLoadController = null;
+      }
       return success;
     });
   };
 
-  FabGrid.prototype.requestRemoteData = function(params) {
+  FabGrid.prototype.cancelRemoteLoad = function() {
+    if (!this._remoteLoadController) {
+      return false;
+    }
+    this._remoteLoadController.abort();
+    this._remoteLoadController = null;
+    return true;
+  };
+
+  FabGrid.prototype.requestRemoteData = function(params, signal) {
     var request;
     try {
-      request = createRemoteRequest(this.options.url, this.options.method, params);
+      request = createRemoteRequest(this.options.url, this.options.method, params, this.options.credentials);
     } catch (error) {
       return Promise.reject(new Error('Remote method must be GET or POST.'));
+    }
+    if (signal) {
+      request.options.signal = signal;
     }
     return fetch(request.url, request.options).then(function(response) {
       if (!response.ok) {
@@ -814,12 +892,15 @@ export function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.loadRemoteData = function(data) {
     var normalized = normalizeRemoteData(data);
+    var previousSelectedRow = this.captureSelectedRowChangeState();
     if (typeof this.resetTreeState === 'function') {
       this.resetTreeState();
     }
     this.source = this.createObservedItemsSource(normalized.rows);
     this.paginationTotal = normalized.total;
     this.applyView();
+    this.emit('itemsSourceChanged', { rows: this.source, remote: true });
+    this.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
     this.resetVerticalScroll();
     this.refresh();
   };
@@ -926,6 +1007,7 @@ export function installFabGridData(FabGrid, context) {
       Promise.resolve().then(callback);
     };
     enqueue(function() {
+      var previousSelectedRow = grid._selectedRowSnapshot || grid.captureSelectedRowChangeState();
       grid._observedItemsChangeQueued = false;
       if (grid.disposed || grid._suppressObservedItemChange || grid._handlingObservedItemChange) {
         return;
@@ -933,6 +1015,7 @@ export function installFabGridData(FabGrid, context) {
       grid._handlingObservedItemChange = true;
       try {
         grid.applyView();
+        grid.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
         grid.refresh();
       } finally {
         grid._handlingObservedItemChange = false;
@@ -1251,10 +1334,12 @@ export function installFabGridData(FabGrid, context) {
     var sortStates = this.getSortStates();
     var selectionState = this.captureSelectionState();
     var indexedRows;
+    var treeSortValueCache;
     var treeOptions;
     var filtering;
 
     if (typeof this.isTreeGrid === 'function' && this.isTreeGrid()) {
+      treeSortValueCache = sortStates.length && typeof WeakMap === 'function' ? new WeakMap() : null;
       filtering = this.options.remote !== true && Boolean(filterPredicate || searchText || columnSearchValues || excelFilters);
       treeOptions = {
         filtering: filtering,
@@ -1274,16 +1359,32 @@ export function installFabGridData(FabGrid, context) {
             (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
         },
         compare: sortStates.length && this.options.remote !== true ? function(a, b) {
+          var aValues;
+          var bValues;
           var comparison;
           var sortState;
           var i;
+          if (treeSortValueCache && a && (typeof a === 'object' || typeof a === 'function')) {
+            aValues = treeSortValueCache.get(a);
+            if (!aValues) {
+              aValues = createPreparedSortValues(a, sortStates);
+              treeSortValueCache.set(a, aValues);
+            }
+          } else {
+            aValues = createPreparedSortValues(a, sortStates);
+          }
+          if (treeSortValueCache && b && (typeof b === 'object' || typeof b === 'function')) {
+            bValues = treeSortValueCache.get(b);
+            if (!bValues) {
+              bValues = createPreparedSortValues(b, sortStates);
+              treeSortValueCache.set(b, bValues);
+            }
+          } else {
+            bValues = createPreparedSortValues(b, sortStates);
+          }
           for (i = 0; i < sortStates.length; i += 1) {
             sortState = sortStates[i];
-            comparison = compareValues(
-              getByBinding(a, sortState.column.binding),
-              getByBinding(b, sortState.column.binding),
-              sortState.column.dataType
-            ) * sortState.direction;
+            comparison = comparePreparedValues(aValues[i], bValues[i]) * sortState.direction;
             if (comparison) {
               return comparison;
             }
@@ -1322,7 +1423,11 @@ export function installFabGridData(FabGrid, context) {
 
       if (sortStates.length && this.options.remote !== true) {
         indexedRows = rows.map(function(item, index) {
-          return { item: item, index: index };
+          return {
+            item: item,
+            index: index,
+            sortValues: createPreparedSortValues(item, sortStates)
+          };
         });
         indexedRows.sort(function(a, b) {
           var comparison;
@@ -1330,11 +1435,7 @@ export function installFabGridData(FabGrid, context) {
           var i;
           for (i = 0; i < sortStates.length; i += 1) {
             sortState = sortStates[i];
-            comparison = compareValues(
-              getByBinding(a.item, sortState.column.binding),
-              getByBinding(b.item, sortState.column.binding),
-              sortState.column.dataType
-            ) * sortState.direction;
+            comparison = comparePreparedValues(a.sortValues[i], b.sortValues[i]) * sortState.direction;
             if (comparison) {
               return comparison;
             }
@@ -1364,6 +1465,9 @@ export function installFabGridData(FabGrid, context) {
     this.restoreSelectionState(selectionState);
     this.clampSelection();
     this.syncEditingWithView();
+    if (typeof this.captureSelectedRowChangeState === 'function') {
+      this._selectedRowSnapshot = this.captureSelectedRowChangeState();
+    }
   };
 
   FabGrid.prototype.normalizePaginationOptions = function() {
@@ -1378,14 +1482,18 @@ export function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.toggleSort = function(colIndex, multiSort) {
     var column = this.visibleColumns[colIndex];
-    var sortStates = this.getSortStates();
+    var sortStates;
     var sortIndex;
     var currentState;
     var nextSortStates;
+    var sortingArgs;
+    var sortingHandler;
     var direction = 1;
-    if (!column) {
-      return;
+    if (!column || column.allowSorting === false) {
+      return false;
     }
+    multiSort = multiSort === true && this.options.allowMultiSorting !== false;
+    sortStates = this.getSortStates();
     sortIndex = this.getSortIndex(column);
     currentState = sortIndex >= 0 ? sortStates[sortIndex] : null;
     if (currentState) {
@@ -1395,13 +1503,18 @@ export function installFabGridData(FabGrid, context) {
         direction = 0;
       }
     }
-    if (this.emit('sortingColumn', {
+    sortingArgs = {
       column: column,
       direction: direction,
       multiSort: multiSort === true,
       sortIndex: sortIndex
-    }) === false) {
-      return;
+    };
+    sortingHandler = this.options && this.options.sortingColumn;
+    if (typeof sortingHandler === 'function' && sortingHandler.call(this, this, sortingArgs) === false) {
+      sortingArgs.cancel = true;
+    }
+    if (this.emit('sortingColumn', sortingArgs) === false) {
+      return false;
     }
     nextSortStates = multiSort === true ? sortStates.slice() : [];
     if (direction) {

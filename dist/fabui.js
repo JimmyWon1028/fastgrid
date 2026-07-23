@@ -1,5 +1,33 @@
 /*! FabUI browser global | Pure JavaScript UI bundle */
 (function(global) {
+var FABUI_CONFIG = {
+  request: {
+    credentials: 'same-origin'
+  }
+};
+
+function normalizeGlobalRequestCredentials(value) {
+  var credentials = String(value || '').toLowerCase();
+  return credentials === 'include' || credentials === 'omit' ? credentials : 'same-origin';
+}
+
+function getConfig() {
+  return {
+    request: {
+      credentials: FABUI_CONFIG.request.credentials
+    }
+  };
+}
+
+function setConfig(options) {
+  var request = options && typeof options === 'object' ? options.request : null;
+  if (request && typeof request === 'object' &&
+      Object.prototype.hasOwnProperty.call(request, 'credentials')) {
+    FABUI_CONFIG.request.credentials = normalizeGlobalRequestCredentials(request.credentials);
+  }
+  return getConfig();
+}
+
 var controlRegistry = new WeakMap();
 
 function resolveControlElement(element) {
@@ -4799,6 +4827,9 @@ function findChartTheme(element) {
 
 function createChartFactory() {
   var SVG_NS = 'http://www.w3.org/2000/svg';
+  var bindingPathCache = Object.create(null);
+  var bindingPathCacheSize = 0;
+  var BINDING_PATH_CACHE_LIMIT = 256;
   var DEFAULT_COLORS = [
     'rgba(136, 189, 230, .72)',
     'rgba(251, 178, 88, .72)',
@@ -4883,6 +4914,10 @@ function createChartFactory() {
   Chart.prototype.setType = function(type) { this.options.chartType = type; this.options.type = type; this.refresh(); return this; };
   Chart.prototype.setItemsSource = function(itemsSource) { this.options.itemsSource = Array.isArray(itemsSource) ? itemsSource : []; this.refresh(); return this; };
   Chart.prototype.setOptions = function(options) {
+    var observerChanged = options && (
+      Object.prototype.hasOwnProperty.call(options, 'observeData') ||
+      Object.prototype.hasOwnProperty.call(options, 'dataRefreshInterval')
+    );
     this.options = mergeOptions(this.options, options || {});
     this.options.locale = resolveChartLocale(this.options.locale);
     if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) {
@@ -4891,6 +4926,7 @@ function createChartFactory() {
     if (Object.prototype.hasOwnProperty.call(options || {}, 'theme')) {
       this.setTheme(this.options.theme);
     }
+    if (observerChanged) this.startDataObserver();
     this.refresh();
     return this;
   };
@@ -4966,16 +5002,24 @@ function createChartFactory() {
 
   Chart.prototype.startDataObserver = function() {
     var self = this;
+    this.stopDataObserver();
     this.dataSignature = getDataSignature(this.options);
+    if (this.disposed || this.options.observeData === false) return;
     this.dataObserver = setInterval(function() {
       var signature;
-      if (self.disposed || self.options.observeData === false) return;
+      if (self.disposed) return;
       signature = getDataSignature(self.options);
       if (signature !== self.dataSignature) {
         self.dataSignature = signature;
         self.refresh();
       }
     }, Math.max(50, Number(this.options.dataRefreshInterval) || 120));
+  };
+
+  Chart.prototype.stopDataObserver = function() {
+    if (!this.dataObserver) return;
+    clearInterval(this.dataObserver);
+    this.dataObserver = 0;
   };
 
   Chart.prototype.render = function() {
@@ -5238,7 +5282,7 @@ function createChartFactory() {
     this.disposed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
     if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
-    if (this.dataObserver) clearInterval(this.dataObserver);
+    this.stopDataObserver();
     if (this.resizeObserver) this.resizeObserver.disconnect();
     this.unbindSelectionSource();
     this.svg.removeEventListener('pointermove', this._boundPointerMove);
@@ -5249,7 +5293,24 @@ function createChartFactory() {
   };
 
   function svgElement(name, attrs) { var element = document.createElementNS(SVG_NS, name); Object.keys(attrs || {}).forEach(function(key) { element.setAttribute(key, attrs[key]); }); return element; }
-  function defineOptionProperties(chart, names) { names.forEach(function(name) { Object.defineProperty(chart, name, { configurable: true, enumerable: true, get: function() { return chart.options[name]; }, set: function(value) { chart.options[name] = value; chart.invalidate(); } }); }); }
+  function defineOptionProperties(chart, names) {
+    names.forEach(function(name) {
+      Object.defineProperty(chart, name, {
+        configurable: true,
+        enumerable: true,
+        get: function() {
+          return chart.options[name];
+        },
+        set: function(value) {
+          chart.options[name] = value;
+          if (name === 'observeData' || name === 'dataRefreshInterval') {
+            chart.startDataObserver();
+          }
+          chart.invalidate();
+        }
+      });
+    });
+  }
   function mergeOptions(base, override) { var result = {}; Object.keys(base || {}).forEach(function(key) { result[key] = base[key]; }); Object.keys(override || {}).forEach(function(key) { result[key] = override[key]; }); return result; }
   function hasData(series) { return Array.isArray(series) && series.some(function(item) { return Array.isArray(item.data) && item.data.length; }); }
   function getMaxDataLength(series) { return series.reduce(function(max, item) { return Math.max(max, item.data && item.data.length || 0); }, 0); }
@@ -5297,7 +5358,29 @@ function createChartFactory() {
     value = String(value || 'en').trim().replace(/_/g, '-');
     return DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
   }
-  function getBoundValue(item, binding) { if (!binding) return item; return String(binding).split('.').reduce(function(value, key) { return value == null ? value : value[key]; }, item); }
+  function getBoundValue(item, binding) {
+    var key;
+    var parts;
+    var value = item;
+    var i;
+    if (!binding) return item;
+    key = String(binding);
+    parts = bindingPathCache[key];
+    if (!parts) {
+      parts = key.split('.');
+      if (bindingPathCacheSize >= BINDING_PATH_CACHE_LIMIT) {
+        bindingPathCache = Object.create(null);
+        bindingPathCacheSize = 0;
+      }
+      bindingPathCache[key] = parts;
+      bindingPathCacheSize += 1;
+    }
+    for (i = 0; i < parts.length; i += 1) {
+      if (value == null) return value;
+      value = value[parts[i]];
+    }
+    return value;
+  }
   function getLegendPosition(legend) { if (legend === false || legend && String(legend.position).toLowerCase() === 'none') return 'None'; return legend && legend.position ? String(legend.position) : 'Bottom'; }
   function formatTemplate(template, data) { return template.replace(/\{(seriesName|series|x|category|y|value|name|percent)\}/g, function(_, key) { var map = { seriesName: 'series', x: 'category', y: 'value', name: 'category' }; var value = data[map[key] || key]; return value == null ? '' : value; }); }
   function formatDataLabel(template, data) { return String(template).replace(/\{(name|value|percent)\}/g, function(_, key) { return key === 'percent' ? String(Math.round(data.percent * 10) / 10) : String(data[key] == null ? '' : data[key]); }); }
@@ -5415,29 +5498,52 @@ function createDictionary() {
   return Object.create(null);
 }
 
-function isSafeBinding(binding) {
+var bindingPathCache = createDictionary();
+var bindingPathCacheSize = 0;
+var BINDING_PATH_CACHE_LIMIT = 1024;
+
+function getBindingPath(binding) {
+  var key;
   var parts;
   var i;
   if (binding == null || binding === '') {
-    return false;
+    return null;
   }
-  parts = String(binding).split('.');
+  key = String(binding);
+  if (Object.prototype.hasOwnProperty.call(bindingPathCache, key)) {
+    return bindingPathCache[key];
+  }
+  parts = key.split('.');
   for (i = 0; i < parts.length; i += 1) {
     if (!parts[i] || parts[i] === '__proto__' || parts[i] === 'prototype' || parts[i] === 'constructor') {
-      return false;
+      parts = null;
+      break;
     }
   }
-  return true;
+  if (bindingPathCacheSize >= BINDING_PATH_CACHE_LIMIT) {
+    bindingPathCache = createDictionary();
+    bindingPathCacheSize = 0;
+  }
+  bindingPathCache[key] = parts;
+  bindingPathCacheSize += 1;
+  return parts;
+}
+
+function isSafeBinding(binding) {
+  return getBindingPath(binding) !== null;
 }
 
 function getByBinding(item, binding) {
   var parts;
   var i;
   var value = item;
-  if (!item || !isSafeBinding(binding)) {
+  if (!item) {
     return undefined;
   }
-  parts = String(binding).split('.');
+  parts = getBindingPath(binding);
+  if (!parts) {
+    return undefined;
+  }
   for (i = 0; i < parts.length; i += 1) {
     if (value == null) {
       return undefined;
@@ -5448,10 +5554,10 @@ function getByBinding(item, binding) {
 }
 
 function setByBinding(item, binding, value) {
-  var parts = String(binding).split('.');
+  var parts = getBindingPath(binding);
   var target = item;
   var i;
-  if (!item || !isSafeBinding(binding)) {
+  if (!item || !parts) {
     return false;
   }
   for (i = 0; i < parts.length - 1; i += 1) {
@@ -5467,7 +5573,23 @@ function setByBinding(item, binding, value) {
   return true;
 }
 
-function compareValues(a, b, type) {
+function prepareSortValue(value, type) {
+  if (value == null) {
+    return null;
+  }
+  if (type === 'number') {
+    return Number(value);
+  }
+  if (type === 'date') {
+    return new Date(value).getTime();
+  }
+  if (type === 'boolean') {
+    return value ? 1 : 0;
+  }
+  return String(value).toLowerCase();
+}
+
+function comparePreparedValues(a, b) {
   if (a == null && b == null) {
     return 0;
   }
@@ -5477,17 +5599,6 @@ function compareValues(a, b, type) {
   if (b == null) {
     return 1;
   }
-  if (type === 'number') {
-    return Number(a) - Number(b);
-  }
-  if (type === 'date') {
-    return new Date(a).getTime() - new Date(b).getTime();
-  }
-  if (type === 'boolean') {
-    return (a ? 1 : 0) - (b ? 1 : 0);
-  }
-  a = String(a).toLowerCase();
-  b = String(b).toLowerCase();
   if (a < b) {
     return -1;
   }
@@ -5495,6 +5606,27 @@ function compareValues(a, b, type) {
     return 1;
   }
   return 0;
+}
+
+function compareValues(a, b, type) {
+  return comparePreparedValues(
+    prepareSortValue(a, type),
+    prepareSortValue(b, type)
+  );
+}
+
+function createPreparedSortValues(item, sortStates) {
+  var values = new Array(sortStates.length);
+  var sortState;
+  var i;
+  for (i = 0; i < sortStates.length; i += 1) {
+    sortState = sortStates[i];
+    values[i] = prepareSortValue(
+      getByBinding(item, sortState.column.binding),
+      sortState.column.dataType
+    );
+  }
+  return values;
 }
 
 function normalizePagination(pageNumber, pageSize, total, defaultPageSize) {
@@ -5524,7 +5656,12 @@ function normalizeRemoteData(data) {
   return { rows: rows, total: Math.max(0, toFiniteNumber(data && data.total, rows.length)) };
 }
 
-function createRemoteRequest(url, method, params) {
+function normalizeRemoteCredentials(value) {
+  var credentials = String(value || '').toLowerCase();
+  return credentials === 'include' || credentials === 'omit' ? credentials : 'same-origin';
+}
+
+function createRemoteRequest(url, method, params, credentials) {
   var normalizedMethod = String(method || 'get').toUpperCase();
   var requestUrl = String(url || '');
   var headers = { Accept: 'application/json' };
@@ -5543,6 +5680,7 @@ function createRemoteRequest(url, method, params) {
     url: requestUrl,
     options: {
       method: normalizedMethod,
+      credentials: normalizeRemoteCredentials(credentials),
       headers: headers,
       body: normalizedMethod === 'POST' ? body.toString() : undefined
     }
@@ -6014,6 +6152,7 @@ function installFabGridData(FabGrid, context) {
   };
 
   FabGrid.prototype.setItemsSource = function(rows, silent) {
+    var previousSelectedRow = this.captureSelectedRowChangeState();
     if (!silent && this.emit('itemsSourceChanging', { rows: rows || [] }) === false) {
       return;
     }
@@ -6027,6 +6166,7 @@ function installFabGridData(FabGrid, context) {
     this.applyView();
     if (!silent) {
       this.emit('itemsSourceChanged', { rows: this.source });
+      this.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
       this.emit('loadedRows', { rows: this.view });
       this.refresh();
     }
@@ -6035,6 +6175,7 @@ function installFabGridData(FabGrid, context) {
   FabGrid.prototype.load = function(params) {
     var self = this;
     var loader = this.options.loader;
+    var controller = null;
     var request;
     var seq;
     var result;
@@ -6055,11 +6196,16 @@ function installFabGridData(FabGrid, context) {
     }
     this._remoteLoadSeq += 1;
     seq = this._remoteLoadSeq;
+    this.cancelRemoteLoad();
     this.setRemoteLoading(true);
     try {
-      result = typeof loader === 'function'
-        ? loader.call(this, request)
-        : this.requestRemoteData(request);
+      if (typeof loader === 'function') {
+        result = loader.call(this, request);
+      } else {
+        controller = typeof AbortController === 'function' ? new AbortController() : null;
+        this._remoteLoadController = controller;
+        result = this.requestRemoteData(request, controller ? controller.signal : null);
+      }
     } catch (error) {
       result = Promise.reject(error);
     }
@@ -6079,16 +6225,31 @@ function installFabGridData(FabGrid, context) {
       if (!self.disposed && seq === self._remoteLoadSeq) {
         self.setRemoteLoading(false);
       }
+      if (self._remoteLoadController === controller) {
+        self._remoteLoadController = null;
+      }
       return success;
     });
   };
 
-  FabGrid.prototype.requestRemoteData = function(params) {
+  FabGrid.prototype.cancelRemoteLoad = function() {
+    if (!this._remoteLoadController) {
+      return false;
+    }
+    this._remoteLoadController.abort();
+    this._remoteLoadController = null;
+    return true;
+  };
+
+  FabGrid.prototype.requestRemoteData = function(params, signal) {
     var request;
     try {
-      request = createRemoteRequest(this.options.url, this.options.method, params);
+      request = createRemoteRequest(this.options.url, this.options.method, params, this.options.credentials);
     } catch (error) {
       return Promise.reject(new Error('Remote method must be GET or POST.'));
+    }
+    if (signal) {
+      request.options.signal = signal;
     }
     return fetch(request.url, request.options).then(function(response) {
       if (!response.ok) {
@@ -6227,12 +6388,15 @@ function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.loadRemoteData = function(data) {
     var normalized = normalizeRemoteData(data);
+    var previousSelectedRow = this.captureSelectedRowChangeState();
     if (typeof this.resetTreeState === 'function') {
       this.resetTreeState();
     }
     this.source = this.createObservedItemsSource(normalized.rows);
     this.paginationTotal = normalized.total;
     this.applyView();
+    this.emit('itemsSourceChanged', { rows: this.source, remote: true });
+    this.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
     this.resetVerticalScroll();
     this.refresh();
   };
@@ -6339,6 +6503,7 @@ function installFabGridData(FabGrid, context) {
       Promise.resolve().then(callback);
     };
     enqueue(function() {
+      var previousSelectedRow = grid._selectedRowSnapshot || grid.captureSelectedRowChangeState();
       grid._observedItemsChangeQueued = false;
       if (grid.disposed || grid._suppressObservedItemChange || grid._handlingObservedItemChange) {
         return;
@@ -6346,6 +6511,7 @@ function installFabGridData(FabGrid, context) {
       grid._handlingObservedItemChange = true;
       try {
         grid.applyView();
+        grid.raiseSelectedRowChanged('itemsSource', previousSelectedRow, true);
         grid.refresh();
       } finally {
         grid._handlingObservedItemChange = false;
@@ -6664,10 +6830,12 @@ function installFabGridData(FabGrid, context) {
     var sortStates = this.getSortStates();
     var selectionState = this.captureSelectionState();
     var indexedRows;
+    var treeSortValueCache;
     var treeOptions;
     var filtering;
 
     if (typeof this.isTreeGrid === 'function' && this.isTreeGrid()) {
+      treeSortValueCache = sortStates.length && typeof WeakMap === 'function' ? new WeakMap() : null;
       filtering = this.options.remote !== true && Boolean(filterPredicate || searchText || columnSearchValues || excelFilters);
       treeOptions = {
         filtering: filtering,
@@ -6687,16 +6855,32 @@ function installFabGridData(FabGrid, context) {
             (!excelFilters || rowMatchesExcelFilters(item, columns, excelFilters));
         },
         compare: sortStates.length && this.options.remote !== true ? function(a, b) {
+          var aValues;
+          var bValues;
           var comparison;
           var sortState;
           var i;
+          if (treeSortValueCache && a && (typeof a === 'object' || typeof a === 'function')) {
+            aValues = treeSortValueCache.get(a);
+            if (!aValues) {
+              aValues = createPreparedSortValues(a, sortStates);
+              treeSortValueCache.set(a, aValues);
+            }
+          } else {
+            aValues = createPreparedSortValues(a, sortStates);
+          }
+          if (treeSortValueCache && b && (typeof b === 'object' || typeof b === 'function')) {
+            bValues = treeSortValueCache.get(b);
+            if (!bValues) {
+              bValues = createPreparedSortValues(b, sortStates);
+              treeSortValueCache.set(b, bValues);
+            }
+          } else {
+            bValues = createPreparedSortValues(b, sortStates);
+          }
           for (i = 0; i < sortStates.length; i += 1) {
             sortState = sortStates[i];
-            comparison = compareValues(
-              getByBinding(a, sortState.column.binding),
-              getByBinding(b, sortState.column.binding),
-              sortState.column.dataType
-            ) * sortState.direction;
+            comparison = comparePreparedValues(aValues[i], bValues[i]) * sortState.direction;
             if (comparison) {
               return comparison;
             }
@@ -6735,7 +6919,11 @@ function installFabGridData(FabGrid, context) {
 
       if (sortStates.length && this.options.remote !== true) {
         indexedRows = rows.map(function(item, index) {
-          return { item: item, index: index };
+          return {
+            item: item,
+            index: index,
+            sortValues: createPreparedSortValues(item, sortStates)
+          };
         });
         indexedRows.sort(function(a, b) {
           var comparison;
@@ -6743,11 +6931,7 @@ function installFabGridData(FabGrid, context) {
           var i;
           for (i = 0; i < sortStates.length; i += 1) {
             sortState = sortStates[i];
-            comparison = compareValues(
-              getByBinding(a.item, sortState.column.binding),
-              getByBinding(b.item, sortState.column.binding),
-              sortState.column.dataType
-            ) * sortState.direction;
+            comparison = comparePreparedValues(a.sortValues[i], b.sortValues[i]) * sortState.direction;
             if (comparison) {
               return comparison;
             }
@@ -6777,6 +6961,9 @@ function installFabGridData(FabGrid, context) {
     this.restoreSelectionState(selectionState);
     this.clampSelection();
     this.syncEditingWithView();
+    if (typeof this.captureSelectedRowChangeState === 'function') {
+      this._selectedRowSnapshot = this.captureSelectedRowChangeState();
+    }
   };
 
   FabGrid.prototype.normalizePaginationOptions = function() {
@@ -6791,14 +6978,18 @@ function installFabGridData(FabGrid, context) {
 
   FabGrid.prototype.toggleSort = function(colIndex, multiSort) {
     var column = this.visibleColumns[colIndex];
-    var sortStates = this.getSortStates();
+    var sortStates;
     var sortIndex;
     var currentState;
     var nextSortStates;
+    var sortingArgs;
+    var sortingHandler;
     var direction = 1;
-    if (!column) {
-      return;
+    if (!column || column.allowSorting === false) {
+      return false;
     }
+    multiSort = multiSort === true && this.options.allowMultiSorting !== false;
+    sortStates = this.getSortStates();
     sortIndex = this.getSortIndex(column);
     currentState = sortIndex >= 0 ? sortStates[sortIndex] : null;
     if (currentState) {
@@ -6808,13 +6999,18 @@ function installFabGridData(FabGrid, context) {
         direction = 0;
       }
     }
-    if (this.emit('sortingColumn', {
+    sortingArgs = {
       column: column,
       direction: direction,
       multiSort: multiSort === true,
       sortIndex: sortIndex
-    }) === false) {
-      return;
+    };
+    sortingHandler = this.options && this.options.sortingColumn;
+    if (typeof sortingHandler === 'function' && sortingHandler.call(this, this, sortingArgs) === false) {
+      sortingArgs.cancel = true;
+    }
+    if (this.emit('sortingColumn', sortingArgs) === false) {
+      return false;
     }
     nextSortStates = multiSort === true ? sortStates.slice() : [];
     if (direction) {
@@ -7129,11 +7325,26 @@ function installFabGridTree(FabGrid, context) {
 
   FabGrid.prototype.resetTreeState = function() {
     this._treeCollapsedItems = [];
+    this._treeCollapsedSet = typeof WeakSet === 'function' ? new WeakSet() : null;
     this._treeRowInfos = [];
     this._treeInfoItems = [];
     this._treeInfoValues = [];
     this._treeInfoMap = typeof WeakMap === 'function' ? new WeakMap() : null;
     this._treeRootCount = 0;
+  };
+
+  FabGrid.prototype.rebuildTreeCollapsedSet = function() {
+    var items = this._treeCollapsedItems || [];
+    var set = typeof WeakSet === 'function' ? new WeakSet() : null;
+    var i;
+    if (set) {
+      for (i = 0; i < items.length; i += 1) {
+        if (items[i] && (typeof items[i] === 'object' || typeof items[i] === 'function')) {
+          set.add(items[i]);
+        }
+      }
+    }
+    this._treeCollapsedSet = set;
   };
 
   FabGrid.prototype.getTreeChildren = function(item) {
@@ -7264,6 +7475,9 @@ function installFabGridTree(FabGrid, context) {
   };
 
   FabGrid.prototype.isTreeItemCollapsed = function(item) {
+    if (this._treeCollapsedSet && item && (typeof item === 'object' || typeof item === 'function')) {
+      return this._treeCollapsedSet.has(item);
+    }
     return this._treeCollapsedItems.indexOf(item) >= 0;
   };
 
@@ -7271,8 +7485,14 @@ function installFabGridTree(FabGrid, context) {
     var index = this._treeCollapsedItems.indexOf(item);
     if (collapsed && index < 0) {
       this._treeCollapsedItems.push(item);
+      if (this._treeCollapsedSet && item && (typeof item === 'object' || typeof item === 'function')) {
+        this._treeCollapsedSet.add(item);
+      }
     } else if (!collapsed && index >= 0) {
       this._treeCollapsedItems.splice(index, 1);
+      if (this._treeCollapsedSet && item && (typeof item === 'object' || typeof item === 'function')) {
+        this._treeCollapsedSet.delete(item);
+      }
     }
   };
 
@@ -7487,6 +7707,7 @@ function installFabGridTree(FabGrid, context) {
     this.selection.row = rowIndex;
     this.selectionAnchor = { row: rowIndex, col: this.selection.col };
     this.rowSelection = rowIndex;
+    this._rowSelectionCleared = false;
     this.setTreeItemCollapsed(item, nextCollapsed);
     this.applyView();
     nextRow = this.view.indexOf(item);
@@ -7494,6 +7715,7 @@ function installFabGridTree(FabGrid, context) {
       this.selection.row = nextRow;
       this.selectionAnchor = { row: nextRow, col: this.selection.col };
       this.rowSelection = nextRow;
+      this._rowSelectionCleared = false;
     }
     this.clampSelection();
     this.render();
@@ -7514,6 +7736,7 @@ function installFabGridTree(FabGrid, context) {
     }
     walk(this.source, 0);
     this._treeCollapsedItems = collapsedItems;
+    this.rebuildTreeCollapsedSet();
     this.applyView();
     this.clampSelection();
     this.render();
@@ -7545,6 +7768,7 @@ function installFabGridTree(FabGrid, context) {
       return false;
     }
     this._treeCollapsedItems = [];
+    this.rebuildTreeCollapsedSet();
     this.applyView();
     this.clampSelection();
     this.render();
@@ -9669,7 +9893,7 @@ function installFabGridView(FabGrid, context) {
     }
     this.raf = requestAnimationFrame(function() {
       self.raf = 0;
-      self.render();
+      self.render(true);
     });
   };
 
@@ -10131,6 +10355,7 @@ function installFabGridView(FabGrid, context) {
     var bodyPaneBottom;
     var headerHeight;
     var paginationHeight;
+    var renderStaticColumns;
 
     if (this.disposed) {
       return;
@@ -10166,6 +10391,7 @@ function installFabGridView(FabGrid, context) {
     scrollableViewportWidth = Math.max(0, metrics.width - fixedLeftWidth - this.frozenWidth - this.frozenRightWidth);
     scrollLeft = this.bodyScroll.scrollLeft;
     colRange = this.getColumnRange(scrollLeft, scrollableViewportWidth);
+    renderStaticColumns = this.shouldRenderStaticColumns(skipLayout, colRange);
 
     this.rowRange = rowRange;
     this.columnRange = colRange;
@@ -10262,13 +10488,17 @@ function installFabGridView(FabGrid, context) {
       this.scheduleScrollLinkedHorizontalDistanceUpdate();
     }
 
-    this.renderHeaders(colRange);
-    this.renderFooter(colRange);
+    if (renderStaticColumns) {
+      this.renderHeaders(colRange);
+      this.renderFooter(colRange);
+    }
     this.renderRowHeaders(rowRange);
     this.renderSelectionCheckboxes(rowRange);
     renderedCells = this.renderBody(rowRange, colRange);
     this.renderSelection();
-    this.renderPagination();
+    if (skipLayout !== true) {
+      this.renderPagination();
+    }
     this.empty.style.display = this.view.length ? 'none' : 'flex';
 
     this.emit('viewportChanged', {
@@ -10388,6 +10618,14 @@ function installFabGridView(FabGrid, context) {
     }
     end = Math.min(scrollEnd, end + overscanColumns);
     return { start: start, end: end };
+  };
+
+  FabGrid.prototype.shouldRenderStaticColumns = function(skipLayout, nextRange) {
+    var currentRange = this.columnRange;
+    return skipLayout !== true ||
+      !currentRange ||
+      currentRange.start !== nextRange.start ||
+      currentRange.end !== nextRange.end;
   };
 
   FabGrid.prototype.getRowHeaderWidth = function() {
@@ -11553,6 +11791,30 @@ function installFabGridFilterUi(FabGrid, context) {
   var toNumber = context.toNumber;
   var trimText = context.trimText;
 
+  FabGrid.prototype.bindPopupDocumentEvents = function() {
+    if (this.popupDocumentEventsBound || this.disposed) {
+      return;
+    }
+    this.popupDocumentEventsBound = true;
+    document.addEventListener('pointerdown', this._boundFilterMenuClick, true);
+  };
+
+  FabGrid.prototype.unbindPopupDocumentEvents = function() {
+    if (!this.popupDocumentEventsBound) {
+      return;
+    }
+    this.popupDocumentEventsBound = false;
+    document.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
+  };
+
+  FabGrid.prototype.syncPopupDocumentEvents = function() {
+    if (this.isTopLeftMenuOpen() || this.isFilterMenuOpen() || this.isColumnChooserOpen()) {
+      this.bindPopupDocumentEvents();
+    } else {
+      this.unbindPopupDocumentEvents();
+    }
+  };
+
   FabGrid.prototype.handleContextMenu = function(event) {
     var headerTitle = closest(event.target, 'fg-header-title');
     if (!headerTitle) {
@@ -11592,6 +11854,7 @@ function installFabGridFilterUi(FabGrid, context) {
     this.topLeftMenu.style.left = left + 'px';
     this.topLeftMenu.style.top = top + 'px';
     this.topLeftMenu.style.visibility = '';
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.renderActiveTopLeftMenu = function() {
@@ -11631,27 +11894,33 @@ function installFabGridFilterUi(FabGrid, context) {
           'topLeftMenu.useExcelFilter' : 'topLeftMenu.useSearchRow')
       });
     }
-    items.push(
-      {
+    if (getActiveFilterMode(this.options)) {
+      items.push({
         action: 'clear-filter',
         iconClass: 'icon-clear',
         label: this.getText('topLeftMenu.clearFilter')
-      },
-      {
+      });
+    }
+    if (this.options.showRowHeaderMenu === true) {
+      items.push({
         action: 'row-headers-menu',
         iconClass: 'icon-row-number',
         label: this.getText('topLeftMenu.rowHeaders'),
         children: rowHeaderItems
-      },
+      });
+    }
+    items.push(
       { action: 'export-excel', iconClass: 'icon-excel', label: this.getText('topLeftMenu.exportExcel') },
-      { action: 'export-csv', iconClass: 'icon-export', label: this.getText('topLeftMenu.exportCsv') },
-      {
+      { action: 'export-csv', iconClass: 'icon-export', label: this.getText('topLeftMenu.exportCsv') }
+    );
+    if (this.options.showFullscreenMenu === true) {
+      items.push({
         action: 'fullscreen',
         iconClass: 'icon-fullscreen',
         label: this.getText(this.isFullscreen() ? 'topLeftMenu.exitFullscreen' : 'topLeftMenu.fullscreen'),
         disabled: !this.isFullscreenAvailable()
-      }
-    );
+      });
+    }
     var fragment = document.createDocumentFragment();
     var item;
     var icon;
@@ -11736,6 +12005,7 @@ function installFabGridFilterUi(FabGrid, context) {
       this.topLeftMenu.style.display = 'none';
     }
     this.topLeftMenuMode = null;
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.isTopLeftMenuOpen = function() {
@@ -11869,6 +12139,7 @@ function installFabGridFilterUi(FabGrid, context) {
     if (anchor) {
       anchor.setAttribute('aria-expanded', 'true');
     }
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.renderFilterMenu = function(column) {
@@ -12277,6 +12548,7 @@ function installFabGridFilterUi(FabGrid, context) {
     this.filterMenuColumn = null;
     this.filterMenuAnchor = null;
     this.excelFilterDraft = null;
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.isFilterMenuOpen = function() {
@@ -12301,6 +12573,7 @@ function installFabGridFilterUi(FabGrid, context) {
     this.columnChooser.style.display = 'grid';
     this.positionColumnChooser(anchor);
     this.renderColumnChooserTrigger();
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.renderColumnChooser = function() {
@@ -12372,6 +12645,7 @@ function installFabGridFilterUi(FabGrid, context) {
     if (trigger) {
       trigger.setAttribute('aria-expanded', 'false');
     }
+    this.syncPopupDocumentEvents();
   };
 
   FabGrid.prototype.isColumnChooserOpen = function() {
@@ -13131,6 +13405,21 @@ function installFabGridSelection(FabGrid, context) {
     return createCellRange(anchor.row, anchor.col, this.selection.row, this.selection.col);
   };
 
+  FabGrid.prototype.selectCellRangeRows = function(anchorRow, activeRow) {
+    var lastCol = this.visibleColumns.length - 1;
+    if (!this.view.length || lastCol < 0) {
+      return false;
+    }
+    anchorRow = clamp(anchorRow, 0, this.view.length - 1);
+    activeRow = clamp(activeRow, 0, this.view.length - 1);
+    return this.applyCellSelection(anchorRow, lastCol, activeRow, 0);
+  };
+
+  FabGrid.prototype.extendCellRangeRowSelection = function(row) {
+    var anchor = this.selectionAnchor || this.selection;
+    return this.selectCellRangeRows(anchor.row, row);
+  };
+
   FabGrid.prototype.getSelectionEventArgs = function(row, col, anchorRow, anchorCol) {
     var range = createCellRange(anchorRow, anchorCol, row, col);
     return {
@@ -13146,6 +13435,49 @@ function installFabGridSelection(FabGrid, context) {
     };
   };
 
+  FabGrid.prototype.captureSelectedRowChangeState = function() {
+    var rowIndex = this.rowSelection;
+    var hasRow = rowIndex != null && rowIndex >= 0 && rowIndex < this.view.length;
+    if (hasRow && this.options.multiSelectRows === true) {
+      hasRow = this.isRowSelected(rowIndex);
+    }
+    return {
+      rowIndex: hasRow ? rowIndex : -1,
+      dataItem: hasRow ? this.view[rowIndex] : null
+    };
+  };
+
+  FabGrid.prototype.raiseSelectedRowChanged = function(reason, previousState, force) {
+    var currentState = this.captureSelectedRowChangeState();
+    var previous = previousState || this._selectedRowSnapshot || currentState;
+    var changed = previous.rowIndex !== currentState.rowIndex || previous.dataItem !== currentState.dataItem;
+    var row = null;
+    this._selectedRowSnapshot = currentState;
+    if (previous.rowIndex < 0 && currentState.rowIndex < 0) {
+      return false;
+    }
+    if (!force && !changed) {
+      return false;
+    }
+    if (currentState.rowIndex >= 0) {
+      row = this.rows[currentState.rowIndex] || null;
+    }
+    this.emit('selectedRowChanged', {
+      reason: reason,
+      row: row,
+      rowIndex: currentState.rowIndex,
+      dataItem: currentState.dataItem,
+      previousRowIndex: previous.rowIndex,
+      previousDataItem: previous.dataItem
+    });
+    return true;
+  };
+
+  FabGrid.prototype.raiseRowSelectionChanged = function(args) {
+    this.emit('rowSelectionChanged', args);
+    this.raiseSelectedRowChanged('selection');
+  };
+
   FabGrid.prototype.isCellInSelectionRange = function(row, col) {
     var range;
     if (!this.isCellRangeSelectionMode() || this.isRowGroup(this.view[row]) || this.isRowGroupFooter(this.view[row])) {
@@ -13159,7 +13491,10 @@ function installFabGridSelection(FabGrid, context) {
     if (this.options.multiSelectRows === true && this.isRowSelected(row)) {
       return true;
     }
-    return this.options.highlightActiveRow !== false && this.selection.row === row;
+    if (this.isCellRangeSelectionMode()) {
+      return false;
+    }
+    return this.options.highlightActiveRow !== false && this.rowSelection === row;
   };
 
   FabGrid.prototype.handleClick = function(event) {
@@ -13264,6 +13599,24 @@ function installFabGridSelection(FabGrid, context) {
     if (rowHeader) {
       rowIndex = toNumber(rowHeader.getAttribute('data-row'), 0);
       if (this.isRowGroup(this.view[rowIndex]) || this.isRowGroupFooter(this.view[rowIndex])) {
+        this.root.focus();
+        return;
+      }
+      if (this.isCellRangeSelectionMode()) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (this.suppressCellRangeClick) {
+          this.suppressCellRangeClick = false;
+          this.suppressCellRangeClickEvent = false;
+          this.root.focus();
+          return;
+        }
+        if (event.shiftKey === true) {
+          this.extendCellRangeRowSelection(rowIndex);
+        } else {
+          this.selectCellRangeRows(rowIndex, rowIndex);
+        }
+        this.scrollIntoView(rowIndex, 0);
         this.root.focus();
         return;
       }
@@ -13678,6 +14031,7 @@ function installFabGridSelection(FabGrid, context) {
   FabGrid.prototype.handlePointerDown = function(event) {
     var resize = closest(event.target, 'fg-resize');
     var header = closest(event.target, 'fg-header-cell');
+    var rowHeader = closest(event.target, 'fg-row-header-cell');
     var cell = closest(event.target, 'fg-cell');
     var colIndex;
     if (this.busy) {
@@ -13691,6 +14045,11 @@ function installFabGridSelection(FabGrid, context) {
     if (resize && this.options.allowResizing !== false) {
       this.startResize(event, toNumber(resize.getAttribute('data-resize-col'), 0));
       return;
+    }
+    if (rowHeader && this.isCellRangeSelectionMode() && !this.canDragRows()) {
+      if (this.startCellRangeRowDrag(event, rowHeader)) {
+        return;
+      }
     }
     if (cell && this.isCellRangeSelectionMode() && !this.canDragRows() &&
         !closest(event.target, 'fg-tree-expander') && !closest(event.target, 'fg-row-group-expander')) {
@@ -13724,6 +14083,20 @@ function installFabGridSelection(FabGrid, context) {
     return { row: row, col: col };
   };
 
+  FabGrid.prototype.getCellRangeRowTargetAtPoint = function(clientX, clientY) {
+    var target = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(clientX, clientY) : null;
+    var rowTarget = closest(target, 'fg-row-header-cell') || closest(target, 'fg-cell');
+    var row;
+    if (!rowTarget || !this.root.contains(rowTarget)) {
+      return null;
+    }
+    row = toNumber(rowTarget.getAttribute('data-row'), -1);
+    if (row < 0 || !this.view[row] || this.isRowGroup(this.view[row]) || this.isRowGroupFooter(this.view[row])) {
+      return null;
+    }
+    return { row: row };
+  };
+
   FabGrid.prototype.startCellRangeDrag = function(event, cell) {
     var row = toNumber(cell.getAttribute('data-row'), -1);
     var col = toNumber(cell.getAttribute('data-col'), -1);
@@ -13744,9 +14117,39 @@ function installFabGridSelection(FabGrid, context) {
       pointerId: event.pointerId,
       startRow: row,
       startCol: col,
+      wholeRow: false,
       clientX: event.clientX,
       clientY: event.clientY,
       isDoubleClick: isDoubleClick,
+      didMove: false
+    };
+    this.bindPointerInteractionEvents();
+    event.preventDefault();
+    this.root.focus();
+    return true;
+  };
+
+  FabGrid.prototype.startCellRangeRowDrag = function(event, rowHeader) {
+    var row = toNumber(rowHeader.getAttribute('data-row'), -1);
+    if (row < 0 || !this.view[row] || !this.visibleColumns.length ||
+        this.isRowGroup(this.view[row]) || this.isRowGroupFooter(this.view[row])) {
+      return false;
+    }
+    this.suppressCellRangeClick = false;
+    this.suppressCellRangeClickEvent = false;
+    if (event.shiftKey === true) {
+      this.extendCellRangeRowSelection(row);
+    } else {
+      this.selectCellRangeRows(row, row);
+    }
+    this.cellRangeDragState = {
+      pointerId: event.pointerId,
+      startRow: row,
+      startCol: 0,
+      wholeRow: true,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      isDoubleClick: false,
       didMove: false
     };
     this.bindPointerInteractionEvents();
@@ -13810,10 +14213,20 @@ function installFabGridSelection(FabGrid, context) {
     var rect = this.bodyScroll.getBoundingClientRect();
     var x = clamp(clientX, rect.left + 1, rect.right - 1);
     var y = clamp(clientY, rect.top + 1, rect.bottom - 1);
-    var target = this.getCellRangeTargetAtPoint(x, y);
     var state = this.cellRangeDragState;
+    var target = state && state.wholeRow ?
+      this.getCellRangeRowTargetAtPoint(x, y) :
+      this.getCellRangeTargetAtPoint(x, y);
     if (!target || !state) {
       return false;
+    }
+    if (state.wholeRow) {
+      if (target.row === this.selection.row && this.selection.col === 0) {
+        return false;
+      }
+      state.didMove = state.didMove || target.row !== state.startRow;
+      this.extendCellRangeRowSelection(target.row);
+      return true;
     }
     if (target.row === this.selection.row && target.col === this.selection.col) {
       return false;
@@ -13832,6 +14245,9 @@ function installFabGridSelection(FabGrid, context) {
       return false;
     }
     delta = this.getCellRangeAutoScrollDelta(state.clientX, state.clientY);
+    if (state.wholeRow) {
+      delta.x = 0;
+    }
     if (!delta.x && !delta.y) {
       return false;
     }
@@ -14565,11 +14981,14 @@ function installFabGridSelection(FabGrid, context) {
       return false;
     }
     this.rowSelection = nextRowSelection;
+    if (this.options.multiSelectRows !== true) {
+      this._rowSelectionCleared = false;
+    }
     this.selectionAnchor = { row: anchorRow, col: anchorCol };
     this.selection = { row: row, col: col };
     this.emit('selectionChanged', args);
     if (rowSelectionChanged && this.options.multiSelectRows !== true) {
-      this.emit('rowSelectionChanged', { row: nextRowSelection });
+      this.raiseRowSelectionChanged({ row: nextRowSelection });
     }
     this.render();
     return true;
@@ -14584,6 +15003,7 @@ function installFabGridSelection(FabGrid, context) {
       return;
     }
     this.rowSelection = row;
+    this._rowSelectionCleared = false;
     if (this.options.multiSelectRows === true) {
       this.selectedRowMap[row] = true;
       item = this.view[row];
@@ -14597,7 +15017,7 @@ function installFabGridSelection(FabGrid, context) {
     };
     this.selectionAnchor = { row: row, col: col };
     this.emit('selectionChanged', this.getSelectionEventArgs(row, col, row, col));
-    this.emit('rowSelectionChanged', { row: row });
+    this.raiseRowSelectionChanged({ row: row });
     this.render();
   };
 
@@ -14623,14 +15043,40 @@ function installFabGridSelection(FabGrid, context) {
     this.selection = { row: row, col: col };
     this.selectionAnchor = { row: row, col: col };
     this.emit('selectionChanged', this.getSelectionEventArgs(row, col, row, col));
-    this.emit('rowSelectionChanged', { row: row });
+    this.raiseRowSelectionChanged({ row: row });
     this.render();
   };
 
   FabGrid.prototype.unselectRow = function(row) {
     var item;
     var groupState;
-    if (this.options.multiSelectRows !== true || !this.view.length) {
+    var previousRow;
+    var args;
+    if (!this.view.length) {
+      return false;
+    }
+    if (this.options.multiSelectRows !== true) {
+      previousRow = this.rowSelection;
+      if (previousRow == null) {
+        return false;
+      }
+      row = row == null ? previousRow : clamp(row, 0, this.view.length - 1);
+      if (row !== previousRow) {
+        return false;
+      }
+      args = { row: null, previousRow: previousRow, selected: false };
+      if (this.emit('rowSelectionChanging', args) === false) {
+        return false;
+      }
+      this.rowSelection = null;
+      this._rowSelectionCleared = true;
+      this.emit('selectionChanged', { row: previousRow, selected: false });
+      this.raiseRowSelectionChanged(args);
+      this.render();
+      return true;
+    }
+    row = row == null ? this.rowSelection : row;
+    if (row == null) {
       return false;
     }
     row = clamp(row, 0, this.view.length - 1);
@@ -14649,7 +15095,7 @@ function installFabGridSelection(FabGrid, context) {
     }
     this.rebuildSelectedRowMap();
     this.emit('selectionChanged', { row: row, selected: false });
-    this.emit('rowSelectionChanged', { row: row, selected: false });
+    this.raiseRowSelectionChanged({ row: row, selected: false });
     this.render();
     return true;
   };
@@ -14953,7 +15399,8 @@ function installFabGridSelection(FabGrid, context) {
       this.selectionAnchor.row = this.selection.row;
       this.selectionAnchor.col = this.selection.col;
     }
-    if (this.options.multiSelectRows !== true && this.rowSelection == null && this.view.length) {
+    if (this.options.multiSelectRows !== true && this.rowSelection == null &&
+        this._rowSelectionCleared !== true && this.view.length) {
       this.rowSelection = this.selection.row;
     }
     if (this.rowSelection != null && this.rowSelection >= this.view.length) {
@@ -15220,9 +15667,11 @@ function installFabGridSelection(FabGrid, context) {
 
   FabGrid.prototype.selectAll = function() {
     this.rowSelection = null;
+    this._rowSelectionCleared = true;
     this.selection = { row: 0, col: 0 };
     this.selectionAnchor = { row: 0, col: 0 };
     this.emit('selectionChanged', Object.assign(this.getSelectionEventArgs(0, 0, 0, 0), { all: true }));
+    this.raiseSelectedRowChanged('selection');
     this.render();
   };
 }
@@ -15342,6 +15791,7 @@ function installFabGridEditorRuntime(FabGrid, context) {
     value = getByBinding(item, column.binding);
     if (shouldSelectRow) {
       this.rowSelection = row;
+      this._rowSelectionCleared = false;
       if (this.options.multiSelectRows === true) {
         this.selectedRowMap[row] = true;
         this.setItemSelectionState(item, true);
@@ -27999,6 +28449,7 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
     this._destroyed = false;
     this._loaded = false;
     this._loadController = null;
+    this._loadSequence = 0;
     this._animationStartTimer = null;
     this._animationEndTimer = null;
     this._animationComplete = null;
@@ -28295,18 +28746,23 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
     var success;
     var failure;
     var loading;
+    var sequence;
     if (!url || (this._loaded && options.cache !== false)) return Promise.resolve(this);
     if (!this._fireBefore('Load', { params: params, href: url })) return Promise.resolve(this);
     if (this._loadController) this._loadController.abort();
+    sequence = ++this._loadSequence;
     this.hostElement.textContent = '';
     loading = document.createElement('div');
     loading.className = 'fui-panel-loading';
     loading.textContent = String(options.loadingMessage || this.messages.loading);
     this.hostElement.appendChild(loading);
     success = function(data) {
-      var content = typeof options.extractor === 'function' ?
+      var content;
+      if (self._destroyed || sequence !== self._loadSequence) return self;
+      content = typeof options.extractor === 'function' ?
         options.extractor.call(self.hostElement, data) :
         data;
+      self._loadController = null;
       self.hostElement.innerHTML = content == null ? '' : String(content);
       self._loaded = true;
       self._fire('Load', { data: data });
@@ -28314,6 +28770,8 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
       return self;
     };
     failure = function(error) {
+      if (self._destroyed || sequence !== self._loadSequence) return self;
+      self._loadController = null;
       if (error && error.name === 'AbortError') return self;
       self._fire('LoadError', { error: error });
       return self;
@@ -28322,6 +28780,7 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
       request = new Promise(function(resolve, reject) {
         var result = options.loader.call(self.hostElement, params, resolve, reject);
         if (result === false) resolve(null);
+        else if (result && typeof result.then === 'function') result.then(resolve, reject);
       }).then(success, failure);
     } else if (typeof fetch === 'function') {
       this._loadController = typeof AbortController === 'function' ? new AbortController() : null;
@@ -28655,6 +29114,7 @@ function createPanelFactory(Control, registerControl, unregisterControl) {
   FabPanel.prototype.destroy = function(force) {
     if (this._destroyed || (!force && !this._fireBefore('Destroy'))) return;
     this._destroyed = true;
+    this._loadSequence += 1;
     this._cancelStateAnimation(false);
     if (this._loadController) this._loadController.abort();
     unregisterControl(this.hostElement, this);
@@ -30356,7 +30816,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
       cache: true,
       method: 'GET',
       tools: []
-    }, options || {}), loaded: false, panelTools: [] };
+    }, options || {}), loaded: false, panelTools: [], loadSequence: 0, loadController: null };
     panel.classList.add('fui-tabs-panel');
     panel.setAttribute('role', 'tabpanel');
     panel.hidden = true;
@@ -30650,21 +31110,49 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
 
   Tabs.prototype._load = function(record) {
     var self = this;
-    if (!record.options.href || (record.loaded && record.options.cache !== false)) return;
+    var sequence;
+    var requestOptions;
+    if (!record.options.href || (record.loaded && record.options.cache !== false)) return null;
+    this._cancelLoad(record);
+    sequence = record.loadSequence;
+    record.loadController = typeof AbortController === 'function' ? new AbortController() : null;
+    requestOptions = {
+      method: record.options.method || 'GET',
+      signal: record.loadController ? record.loadController.signal : undefined
+    };
     record.panel.classList.add('fui-tabs-loading');
-    fetch(record.options.href, { method: record.options.method || 'GET' }).then(function(response) {
+    return fetch(record.options.href, requestOptions).then(function(response) {
       if (!response.ok) throw new Error(formatText(self._getText('loadError'), { status: response.status }));
       return response.text();
     }).then(function(html) {
+      if (self._destroyed || sequence !== record.loadSequence ||
+          self._tabs.indexOf(record) < 0) return false;
+      record.loadController = null;
       record.panel.innerHTML = html;
       record.loaded = true;
       record.panel.classList.remove('fui-tabs-loading');
       self._invoke('onLoad', record.panel, record.options.title);
       self._emit('load', { tab: record.panel, title: record.options.title });
+      return true;
     }).catch(function(error) {
+      if (self._destroyed || sequence !== record.loadSequence ||
+          self._tabs.indexOf(record) < 0) return false;
+      record.loadController = null;
       record.panel.classList.remove('fui-tabs-loading');
+      if (error && error.name === 'AbortError') return false;
       record.panel.textContent = error.message;
+      return false;
     });
+  };
+
+  Tabs.prototype._cancelLoad = function(record) {
+    if (!record) return;
+    record.loadSequence = (record.loadSequence || 0) + 1;
+    if (record.loadController) {
+      record.loadController.abort();
+      record.loadController = null;
+    }
+    if (record.panel) record.panel.classList.remove('fui-tabs-loading');
   };
 
   Tabs.prototype._scrollTabs = function(distance) {
@@ -30784,6 +31272,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     var nextIndex;
     if (!record) return false;
     if (this._invoke('onBeforeClose', record.options.title, index, record.panel) === false) return false;
+    this._cancelLoad(record);
     record.tab.remove();
     record.panel.remove();
     this._tabs.splice(index, 1);
@@ -30810,6 +31299,10 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     var record = this._tabs[index];
     if (!record) return null;
     options = options || {};
+    if (Object.prototype.hasOwnProperty.call(options, 'content') ||
+        Object.prototype.hasOwnProperty.call(options, 'href')) {
+      this._cancelLoad(record);
+    }
     assign(record.options, options);
     if (Object.prototype.hasOwnProperty.call(options, 'content')) {
       record.panel.innerHTML = '';
@@ -30980,6 +31473,7 @@ function createTabsFactory(Control, registerControl, unregisterControl) {
     if (this._destroyed) return;
     this._clearTabDrag();
     this._destroyed = true;
+    this._tabs.forEach(this._cancelLoad.bind(this));
     this.removeEventListener();
     this.element.innerHTML = this._originalHtml;
     this.element.className = this._originalClassName;
@@ -36099,7 +36593,16 @@ function createMessagerFactory(Window, Button) {
 
 
 
-function createFabGridFactory(editorDefinitions) {
+function resolveFabGridRequestCredentials(credentials, getGlobalConfig) {
+  var config;
+  if (credentials !== undefined) {
+    return normalizeRemoteCredentials(credentials);
+  }
+  config = typeof getGlobalConfig === 'function' ? getGlobalConfig() : null;
+  return normalizeRemoteCredentials(config && config.request ? config.request.credentials : null);
+}
+
+function createFabGridFactory(editorDefinitions, getGlobalConfig) {
   'use strict';
 
   editorDefinitions = editorDefinitions || {};
@@ -36129,6 +36632,8 @@ function createFabGridFactory(editorDefinitions) {
     rowHeaderWidth: 60,
     rowHeaderHeader: '',
     showRowHeaders: true,
+    showRowHeaderMenu: false,
+    showFullscreenMenu: false,
     showColumnChooser: true,
     showFooter: false,
     footerHeight: 32,
@@ -36136,6 +36641,7 @@ function createFabGridFactory(editorDefinitions) {
     multiSelectRows: false,
     selectionCheckboxWidth: 44,
     allowSorting: true,
+    allowMultiSorting: true,
     allowFiltering: true,
     allowEditing: true,
     editOnSelect: false,
@@ -36171,6 +36677,7 @@ function createFabGridFactory(editorDefinitions) {
     remote: false,
     url: null,
     method: 'get',
+    credentials: 'same-origin',
     loader: null,
     loadMsg: null,
     pagination: false,
@@ -36196,14 +36703,19 @@ function createFabGridFactory(editorDefinitions) {
 
   function FabGrid(element, options) {
     var self = this;
+    var suppliedOptions = options || {};
     Control.call(this);
     this.host = typeof element === 'string' ? document.querySelector(element) : element;
     if (!this.host) {
       throw new Error('FabGrid host element was not found.');
     }
 
-    this.options = mergeOptions(DEFAULT_OPTIONS, options || {});
-    normalizeGridOptions(this.options, options || {});
+    this.options = mergeOptions(DEFAULT_OPTIONS, suppliedOptions);
+    this.options.credentials = resolveFabGridRequestCredentials(
+      suppliedOptions.credentials,
+      getGlobalConfig
+    );
+    normalizeGridOptions(this.options, suppliedOptions);
     this.applyPagerOptions();
     this.options.showRowHeaders = normalizeRowHeaderMode(this.options.showRowHeaders);
     this.setLocale(this.options.locale, this.options.messages, true);
@@ -36220,8 +36732,10 @@ function createFabGridFactory(editorDefinitions) {
     this.paginationTotal = 0;
     this.remoteLoading = false;
     this._remoteLoadSeq = 0;
+    this._remoteLoadController = null;
     this.rowGroupState = createDictionary();
     this._treeCollapsedItems = [];
+    this._treeCollapsedSet = typeof WeakSet === 'function' ? new WeakSet() : null;
     this._treeRowInfos = [];
     this._treeInfoItems = [];
     this._treeInfoValues = [];
@@ -36267,6 +36781,7 @@ function createFabGridFactory(editorDefinitions) {
     this.suppressCellRangeClick = false;
     this.suppressCellRangeClickEvent = false;
     this.rowSelection = null;
+    this._rowSelectionCleared = false;
     this.selectedRowMap = {};
     this.selectedItemRefs = [];
     this._selectedItemSet = typeof WeakSet === 'function' ? new WeakSet() : null;
@@ -36291,6 +36806,7 @@ function createFabGridFactory(editorDefinitions) {
     this.excelFilterDraft = null;
     this.columnChooserAnchor = null;
     this.topLeftMenuMode = null;
+    this.popupDocumentEventsBound = false;
     this.invalidItems = [];
     this._invalidItemMap = {};
     this._validationErrorSeq = 0;
@@ -36683,6 +37199,7 @@ function createFabGridFactory(editorDefinitions) {
       'rowEditStarted',
       'rowEditStarting',
       'scrollPositionChanged',
+      'selectedRowChanged',
       'selectionChanged',
       'selectionChanging',
       'sortedColumn',
@@ -36704,6 +37221,9 @@ function createFabGridFactory(editorDefinitions) {
   FabGrid.prototype.bindOptionEvent = function(name) {
     var event = this.wijmoEvents ? this.wijmoEvents[name] : null;
     var handler = this.options ? this.options[name] : null;
+    if (name === 'sortingColumn') {
+      return;
+    }
     if (event && typeof event.addHandler === 'function' && typeof handler === 'function') {
       event.addHandler(handler, this);
     }
@@ -36955,14 +37475,12 @@ function createFabGridFactory(editorDefinitions) {
     this._paginationElement.addEventListener('click', this._boundPaginationClick);
     this._paginationElement.addEventListener('change', this._boundPaginationChange);
     this._paginationElement.addEventListener('keydown', this._boundPaginationKeyDown);
-    document.addEventListener('pointerdown', this._boundFilterMenuClick, true);
-    document.addEventListener('mousedown', this._boundFilterMenuClick, true);
-    document.addEventListener('click', this._boundFilterMenuClick, true);
-    document.addEventListener('mousedown', this._boundDocumentMouseDown);
     document.addEventListener('fullscreenchange', this._boundFullscreenChange);
     document.addEventListener('webkitfullscreenchange', this._boundFullscreenChange);
     this.editor.addEventListener('beforeinput', this._boundEditorBeforeInput);
-    window.addEventListener('resize', this._boundResize);
+    if (typeof ResizeObserver !== 'function') {
+      window.addEventListener('resize', this._boundResize);
+    }
     this.bindResizeObserver();
   };
 
@@ -37031,7 +37549,8 @@ function createFabGridFactory(editorDefinitions) {
         mask: '',
         autoUnmask: null,
         maskValueIncludesLiterals: null,
-        readOnly: false
+        readOnly: false,
+        allowSorting: true
       }, columns[i]);
       defineColumnCellTemplate(this, col, col.cellTemplate);
       col.editor = normalizeEditorConfig(col.editor, col);
@@ -37217,6 +37736,7 @@ function createFabGridFactory(editorDefinitions) {
       this.resetSelectedItemSelection([]);
       if (this.rowSelection == null && this.view.length) {
         this.rowSelection = this.selection.row;
+        this._rowSelectionCleared = false;
       }
     }
     this.updateLayout();
@@ -37514,6 +38034,8 @@ function createFabGridFactory(editorDefinitions) {
       return;
     }
     this.disposed = true;
+    this._remoteLoadSeq += 1;
+    this.cancelRemoteLoad();
     unregisterControl(this.host, this);
     if (this.raf) {
       cancelAnimationFrame(this.raf);
@@ -37541,6 +38063,7 @@ function createFabGridFactory(editorDefinitions) {
     this.unbindVerticalScrollbarDragEvents();
     this.unbindHorizontalScrollbarDragEvents();
     this.unbindRowDragEvents();
+    this.unbindPopupDocumentEvents();
     this.removeEventListener();
     this.bodyScroll.removeEventListener('scroll', this._boundScroll);
     this.verticalScrollbar.removeEventListener('pointerdown', this._boundVerticalScrollbarPointerDown);
@@ -37578,10 +38101,6 @@ function createFabGridFactory(editorDefinitions) {
     this._paginationElement.removeEventListener('click', this._boundPaginationClick);
     this._paginationElement.removeEventListener('change', this._boundPaginationChange);
     this._paginationElement.removeEventListener('keydown', this._boundPaginationKeyDown);
-    document.removeEventListener('pointerdown', this._boundFilterMenuClick, true);
-    document.removeEventListener('mousedown', this._boundFilterMenuClick, true);
-    document.removeEventListener('click', this._boundFilterMenuClick, true);
-    document.removeEventListener('mousedown', this._boundDocumentMouseDown);
     document.removeEventListener('fullscreenchange', this._boundFullscreenChange);
     document.removeEventListener('webkitfullscreenchange', this._boundFullscreenChange);
     this.editor.removeEventListener('beforeinput', this._boundEditorBeforeInput);
@@ -38650,6 +39169,7 @@ function createFabGridFactory(editorDefinitions) {
       'rowEditStarted',
       'rowEditStarting',
       'scrollPositionChanged',
+      'selectedRowChanged',
       'selectionChanged',
       'selectionChanging',
       'sortedColumn',
@@ -38748,13 +39268,13 @@ function createFabGridFactory(editorDefinitions) {
             }
             return rows;
           }
-          item = this.view[this.selection.row];
+          item = this.rowSelection == null ? null : this.view[this.rowSelection];
           return item ? [item] : [];
         }
       },
       selectedRows: {
         get: function() {
-          var row = this.rowSelection != null ? this.rowSelection : this.selection.row;
+          var row = this.rowSelection;
           var item = this.view[row];
           var rowCollection = this.rows;
           var rows;
@@ -38768,7 +39288,7 @@ function createFabGridFactory(editorDefinitions) {
             }
             return rows;
           }
-          return item ? [rowCollection[row]] : [];
+          return row != null && item ? [rowCollection[row]] : [];
         }
       },
       selectedRanges: {
@@ -45661,8 +46181,23 @@ function createPivotWorkspaceFactory(
   };
 
   PivotWorkspace.prototype._handleDocumentPointerUp = function(event) {
+    var sizes;
+    var state;
     if (!this._dragState ||
         (this._dragState.pointerId != null && event.pointerId !== this._dragState.pointerId)) {
+      return;
+    }
+    if (event.type === 'pointercancel') {
+      state = this._dragState;
+      sizes = this._getActiveSizes();
+      sizes[state.kind] = state.startSize;
+      if (state.kind === 'chart' && state.layout === 'Horizontal') {
+        this._horizontalChartSize = state.startSize;
+        this.options.chartSize = state.startSize;
+      }
+      this._applyPaneSizes();
+      this._scheduleResize();
+      this._endSplitterDrag(false);
       return;
     }
     this._endSplitterDrag(true);
@@ -45941,7 +46476,9 @@ function createPivotWorkspaceFactory(
 }
 
 global.fabui = global.fabui || {};
-global.fabui.version = "2026.7.22";
+global.fabui.version = "2026.7.23";
+global.fabui.setConfig = setConfig;
+global.fabui.getConfig = getConfig;
 global.fabui.editorDefinitions = createEditorDefinitions();
 global.fabui.Control = Control;
 global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);
@@ -45967,7 +46504,7 @@ global.fabui.Tree = createTreeFactory(global.fabui.Control, registerControl, unr
 global.fabui.Tooltip = createTooltipFactory(global.fabui.Control, registerControl, unregisterControl);
 global.fabui.Layout = createLayoutFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);
 global.fabui.Messager = createMessagerFactory(global.fabui.Window, global.fabui.Button);
-global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);
+global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions, getConfig);
 global.fabui.pivot = {};
 global.fabui.pivot.PivotAggregate = PivotAggregate;
 global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);

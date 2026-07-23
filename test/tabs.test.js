@@ -62,6 +62,19 @@ test('Tabs factory returns a public control class', function() {
   assert.equal(Tabs.prototype.dispose, Tabs.prototype.destroy);
 });
 
+test('Tabs cancels stale remote content loads', function() {
+  var source = readFileSync(
+    new URL('../src/tabs/tabs.js', import.meta.url),
+    'utf8'
+  );
+  assert.match(source, /loadSequence: 0, loadController: null/);
+  assert.match(source, /Tabs\.prototype\._cancelLoad/);
+  assert.match(source, /sequence !== record\.loadSequence/);
+  assert.match(source, /self\._tabs\.indexOf\(record\) < 0/);
+  assert.match(source, /Tabs\.prototype\.close[\s\S]*this\._cancelLoad\(record\)/);
+  assert.match(source, /Tabs\.prototype\.destroy[\s\S]*this\._tabs\.forEach\(this\._cancelLoad\.bind\(this\)\)/);
+});
+
 test('Tabs scroll buttons render one sprite icon without text overlap', function() {
   var source = readFileSync(new URL('../src/tabs/tabs.js', import.meta.url), 'utf8');
   var css = readFileSync(new URL('../src/tabs/tabs.css', import.meta.url), 'utf8');

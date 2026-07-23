@@ -31,3 +31,24 @@ test('Chart keeps the public tooltip option separate from its tooltip element', 
   assert.match(source, /this\.tooltipElement\.classList\.remove/);
   assert.doesNotMatch(source, /this\.tooltip = document\.createElement/);
 });
+
+test('Chart disables polling when data observation is disabled', function() {
+  var source = fs.readFileSync('src/chart/chart.js', 'utf8');
+  assert.match(
+    source,
+    /startDataObserver[\s\S]*stopDataObserver\(\)[\s\S]*observeData === false\) return/
+  );
+  assert.match(
+    source,
+    /name === 'observeData' \|\| name === 'dataRefreshInterval'[\s\S]*startDataObserver/
+  );
+  assert.match(source, /Chart\.prototype\.stopDataObserver/);
+  assert.match(source, /Chart\.prototype\.dispose[\s\S]*this\.stopDataObserver\(\)/);
+});
+
+test('Chart reuses parsed binding paths during render and data observation', function() {
+  var source = fs.readFileSync('src/chart/chart.js', 'utf8');
+  assert.match(source, /bindingPathCache = Object\.create\(null\)/);
+  assert.match(source, /parts = bindingPathCache\[key\]/);
+  assert.match(source, /bindingPathCache\[key\] = parts/);
+});

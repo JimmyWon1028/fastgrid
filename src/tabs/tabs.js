@@ -521,7 +521,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
       cache: true,
       method: 'GET',
       tools: []
-    }, options || {}), loaded: false, panelTools: [] };
+    }, options || {}), loaded: false, panelTools: [], loadSequence: 0, loadController: null };
     panel.classList.add('fui-tabs-panel');
     panel.setAttribute('role', 'tabpanel');
     panel.hidden = true;
@@ -815,21 +815,49 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
 
   Tabs.prototype._load = function(record) {
     var self = this;
-    if (!record.options.href || (record.loaded && record.options.cache !== false)) return;
+    var sequence;
+    var requestOptions;
+    if (!record.options.href || (record.loaded && record.options.cache !== false)) return null;
+    this._cancelLoad(record);
+    sequence = record.loadSequence;
+    record.loadController = typeof AbortController === 'function' ? new AbortController() : null;
+    requestOptions = {
+      method: record.options.method || 'GET',
+      signal: record.loadController ? record.loadController.signal : undefined
+    };
     record.panel.classList.add('fui-tabs-loading');
-    fetch(record.options.href, { method: record.options.method || 'GET' }).then(function(response) {
+    return fetch(record.options.href, requestOptions).then(function(response) {
       if (!response.ok) throw new Error(formatText(self._getText('loadError'), { status: response.status }));
       return response.text();
     }).then(function(html) {
+      if (self._destroyed || sequence !== record.loadSequence ||
+          self._tabs.indexOf(record) < 0) return false;
+      record.loadController = null;
       record.panel.innerHTML = html;
       record.loaded = true;
       record.panel.classList.remove('fui-tabs-loading');
       self._invoke('onLoad', record.panel, record.options.title);
       self._emit('load', { tab: record.panel, title: record.options.title });
+      return true;
     }).catch(function(error) {
+      if (self._destroyed || sequence !== record.loadSequence ||
+          self._tabs.indexOf(record) < 0) return false;
+      record.loadController = null;
       record.panel.classList.remove('fui-tabs-loading');
+      if (error && error.name === 'AbortError') return false;
       record.panel.textContent = error.message;
+      return false;
     });
+  };
+
+  Tabs.prototype._cancelLoad = function(record) {
+    if (!record) return;
+    record.loadSequence = (record.loadSequence || 0) + 1;
+    if (record.loadController) {
+      record.loadController.abort();
+      record.loadController = null;
+    }
+    if (record.panel) record.panel.classList.remove('fui-tabs-loading');
   };
 
   Tabs.prototype._scrollTabs = function(distance) {
@@ -949,6 +977,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     var nextIndex;
     if (!record) return false;
     if (this._invoke('onBeforeClose', record.options.title, index, record.panel) === false) return false;
+    this._cancelLoad(record);
     record.tab.remove();
     record.panel.remove();
     this._tabs.splice(index, 1);
@@ -975,6 +1004,10 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     var record = this._tabs[index];
     if (!record) return null;
     options = options || {};
+    if (Object.prototype.hasOwnProperty.call(options, 'content') ||
+        Object.prototype.hasOwnProperty.call(options, 'href')) {
+      this._cancelLoad(record);
+    }
     assign(record.options, options);
     if (Object.prototype.hasOwnProperty.call(options, 'content')) {
       record.panel.innerHTML = '';
@@ -1145,6 +1178,7 @@ export function createTabsFactory(Control, registerControl, unregisterControl) {
     if (this._destroyed) return;
     this._clearTabDrag();
     this._destroyed = true;
+    this._tabs.forEach(this._cancelLoad.bind(this));
     this.removeEventListener();
     this.element.innerHTML = this._originalHtml;
     this.element.className = this._originalClassName;

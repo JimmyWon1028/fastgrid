@@ -122,6 +122,7 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
     this._destroyed = false;
     this._loaded = false;
     this._loadController = null;
+    this._loadSequence = 0;
     this._animationStartTimer = null;
     this._animationEndTimer = null;
     this._animationComplete = null;
@@ -418,18 +419,23 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
     var success;
     var failure;
     var loading;
+    var sequence;
     if (!url || (this._loaded && options.cache !== false)) return Promise.resolve(this);
     if (!this._fireBefore('Load', { params: params, href: url })) return Promise.resolve(this);
     if (this._loadController) this._loadController.abort();
+    sequence = ++this._loadSequence;
     this.hostElement.textContent = '';
     loading = document.createElement('div');
     loading.className = 'fui-panel-loading';
     loading.textContent = String(options.loadingMessage || this.messages.loading);
     this.hostElement.appendChild(loading);
     success = function(data) {
-      var content = typeof options.extractor === 'function' ?
+      var content;
+      if (self._destroyed || sequence !== self._loadSequence) return self;
+      content = typeof options.extractor === 'function' ?
         options.extractor.call(self.hostElement, data) :
         data;
+      self._loadController = null;
       self.hostElement.innerHTML = content == null ? '' : String(content);
       self._loaded = true;
       self._fire('Load', { data: data });
@@ -437,6 +443,8 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
       return self;
     };
     failure = function(error) {
+      if (self._destroyed || sequence !== self._loadSequence) return self;
+      self._loadController = null;
       if (error && error.name === 'AbortError') return self;
       self._fire('LoadError', { error: error });
       return self;
@@ -445,6 +453,7 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
       request = new Promise(function(resolve, reject) {
         var result = options.loader.call(self.hostElement, params, resolve, reject);
         if (result === false) resolve(null);
+        else if (result && typeof result.then === 'function') result.then(resolve, reject);
       }).then(success, failure);
     } else if (typeof fetch === 'function') {
       this._loadController = typeof AbortController === 'function' ? new AbortController() : null;
@@ -778,6 +787,7 @@ export function createPanelFactory(Control, registerControl, unregisterControl) 
   FabPanel.prototype.destroy = function(force) {
     if (this._destroyed || (!force && !this._fireBefore('Destroy'))) return;
     this._destroyed = true;
+    this._loadSequence += 1;
     this._cancelStateAnimation(false);
     if (this._loadController) this._loadController.abort();
     unregisterControl(this.hostElement, this);

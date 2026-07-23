@@ -62,6 +62,15 @@ test('Panel state changes use shared reduced-motion aware transitions', function
   assert.match(css, /\.fui-panel-collapsed\.fui-panel-halign-left[\s\S]*?width: fit-content !important/);
 });
 
+test('Panel ignores stale asynchronous loader results', function() {
+  var source = readFileSync(new URL('../src/panel/panel.js', import.meta.url), 'utf8');
+  assert.match(source, /this\._loadSequence = 0/);
+  assert.match(source, /sequence = \+\+this\._loadSequence/);
+  assert.match(source, /self\._destroyed \|\| sequence !== self\._loadSequence/);
+  assert.match(source, /result\.then\(resolve, reject\)/);
+  assert.match(source, /FabPanel\.prototype\.destroy[\s\S]*this\._loadSequence \+= 1/);
+});
+
 test('Panel theme styles match every EasyUI panel reference palette', function() {
   var baseCss = readFileSync(
     new URL('../src/panel/panel.css', import.meta.url),

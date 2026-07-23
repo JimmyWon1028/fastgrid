@@ -277,7 +277,7 @@ export function installFabGridView(FabGrid, context) {
     }
     this.raf = requestAnimationFrame(function() {
       self.raf = 0;
-      self.render();
+      self.render(true);
     });
   };
 
@@ -739,6 +739,7 @@ export function installFabGridView(FabGrid, context) {
     var bodyPaneBottom;
     var headerHeight;
     var paginationHeight;
+    var renderStaticColumns;
 
     if (this.disposed) {
       return;
@@ -774,6 +775,7 @@ export function installFabGridView(FabGrid, context) {
     scrollableViewportWidth = Math.max(0, metrics.width - fixedLeftWidth - this.frozenWidth - this.frozenRightWidth);
     scrollLeft = this.bodyScroll.scrollLeft;
     colRange = this.getColumnRange(scrollLeft, scrollableViewportWidth);
+    renderStaticColumns = this.shouldRenderStaticColumns(skipLayout, colRange);
 
     this.rowRange = rowRange;
     this.columnRange = colRange;
@@ -870,13 +872,17 @@ export function installFabGridView(FabGrid, context) {
       this.scheduleScrollLinkedHorizontalDistanceUpdate();
     }
 
-    this.renderHeaders(colRange);
-    this.renderFooter(colRange);
+    if (renderStaticColumns) {
+      this.renderHeaders(colRange);
+      this.renderFooter(colRange);
+    }
     this.renderRowHeaders(rowRange);
     this.renderSelectionCheckboxes(rowRange);
     renderedCells = this.renderBody(rowRange, colRange);
     this.renderSelection();
-    this.renderPagination();
+    if (skipLayout !== true) {
+      this.renderPagination();
+    }
     this.empty.style.display = this.view.length ? 'none' : 'flex';
 
     this.emit('viewportChanged', {
@@ -996,6 +1002,14 @@ export function installFabGridView(FabGrid, context) {
     }
     end = Math.min(scrollEnd, end + overscanColumns);
     return { start: start, end: end };
+  };
+
+  FabGrid.prototype.shouldRenderStaticColumns = function(skipLayout, nextRange) {
+    var currentRange = this.columnRange;
+    return skipLayout !== true ||
+      !currentRange ||
+      currentRange.start !== nextRange.start ||
+      currentRange.end !== nextRange.end;
   };
 
   FabGrid.prototype.getRowHeaderWidth = function() {

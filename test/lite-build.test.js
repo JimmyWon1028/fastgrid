@@ -47,6 +47,11 @@ test('FabUI Lite browser bundle publishes FabGrid with TreeGrid, Pivot, Chart an
   assert.equal(typeof context.fabui.FabGrid, 'function');
   assert.equal(typeof context.fabui.Chart, 'function');
   assert.equal(typeof context.fabui.Control, 'function');
+  assert.equal(typeof context.fabui.setConfig, 'function');
+  assert.equal(typeof context.fabui.getConfig, 'function');
+  assert.equal(context.fabui.getConfig().request.credentials, 'same-origin');
+  context.fabui.setConfig({ request: { credentials: 'include' } });
+  assert.equal(context.fabui.getConfig().request.credentials, 'include');
   assert.equal(typeof context.fabui.FabGrid.prototype.isTreeGrid, 'function');
   assert.equal(typeof context.fabui.FabGrid.prototype.setChildItemsPath, 'function');
   assert.equal(typeof context.fabui.FabGrid.prototype.expandAllTreeNodes, 'function');

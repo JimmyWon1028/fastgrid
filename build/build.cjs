@@ -11,6 +11,7 @@ const distDir = process.env.FABUI_DIST_DIR ?
 const buildDate = new Date();
 const buildVersion = buildDate.getFullYear() + '.' + (buildDate.getMonth() + 1) + '.' + buildDate.getDate();
 const javascriptSources = [
+  'core/config.js',
   'core/control.js',
   'button/button.js',
   'accordion/accordion.js',
@@ -151,6 +152,8 @@ function createJavascriptBundle() {
   return banner('browser global') + '(function(global) {\n' + modules + '\n' +
     'global.fabui = global.fabui || {};\n' +
     'global.fabui.version = ' + JSON.stringify(buildVersion) + ';\n' +
+    'global.fabui.setConfig = setConfig;\n' +
+    'global.fabui.getConfig = getConfig;\n' +
     'global.fabui.editorDefinitions = createEditorDefinitions();\n' +
     'global.fabui.Control = Control;\n' +
     'global.fabui.Button = createButtonFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
@@ -176,7 +179,7 @@ function createJavascriptBundle() {
     'global.fabui.Tooltip = createTooltipFactory(global.fabui.Control, registerControl, unregisterControl);\n' +
     'global.fabui.Layout = createLayoutFactory(global.fabui.Control, registerControl, unregisterControl, global.fabui.Panel);\n' +
     'global.fabui.Messager = createMessagerFactory(global.fabui.Window, global.fabui.Button);\n' +
-    'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions);\n' +
+    'global.fabui.FabGrid = createFabGridFactory(global.fabui.editorDefinitions, getConfig);\n' +
     'global.fabui.pivot = {};\n' +
     'global.fabui.pivot.PivotAggregate = PivotAggregate;\n' +
     'global.fabui.pivot.PivotChart = createPivotChartFactory(global.fabui.Control, registerControl, unregisterControl, PivotEngine, global.fabui.Chart, global.fabui.FabGrid);\n' +

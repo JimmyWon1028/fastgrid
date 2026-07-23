@@ -113,6 +113,7 @@ export function installFabGridEditorRuntime(FabGrid, context) {
     value = getByBinding(item, column.binding);
     if (shouldSelectRow) {
       this.rowSelection = row;
+      this._rowSelectionCleared = false;
       if (this.options.multiSelectRows === true) {
         this.selectedRowMap[row] = true;
         this.setItemSelectionState(item, true);

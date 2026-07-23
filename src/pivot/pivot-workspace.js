@@ -915,8 +915,23 @@ export function createPivotWorkspaceFactory(
   };
 
   PivotWorkspace.prototype._handleDocumentPointerUp = function(event) {
+    var sizes;
+    var state;
     if (!this._dragState ||
         (this._dragState.pointerId != null && event.pointerId !== this._dragState.pointerId)) {
+      return;
+    }
+    if (event.type === 'pointercancel') {
+      state = this._dragState;
+      sizes = this._getActiveSizes();
+      sizes[state.kind] = state.startSize;
+      if (state.kind === 'chart' && state.layout === 'Horizontal') {
+        this._horizontalChartSize = state.startSize;
+        this.options.chartSize = state.startSize;
+      }
+      this._applyPaneSizes();
+      this._scheduleResize();
+      this._endSplitterDrag(false);
       return;
     }
     this._endSplitterDrag(true);

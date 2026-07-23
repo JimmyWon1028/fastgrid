@@ -17,6 +17,9 @@
   --fg-row-header-text: gray;
   --fg-selected-bg: #ffdd57;
   --fg-selected-border: #66abdd;
+  --fg-range-selected-bg: var(--fg-row-selected-bg);
+  --fg-range-active-bg: var(--fg-cell-bg);
+  --fg-range-border: var(--fg-selected-border);
   --fg-editor-border: #66abdd;
   background: #feeebd;
   color: #000;

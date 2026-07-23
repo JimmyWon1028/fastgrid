@@ -36,7 +36,7 @@
       margin: 22px 0;
     }
 
-    .form-row select {
+    #calendar-theme {
       width: 280px;
       min-height: 32px;
     }
@@ -81,6 +81,8 @@
     </select>
   </div>
   <div class="form-row"><label for="edit-name">文字</label><input id="edit-name" value="王小明"></div>
+  <div class="form-row"><label for="edit-two-buttons">兩個自訂按鈕</label><input id="edit-two-buttons" value="待搜尋內容"></div>
+  <div class="form-row"><label for="edit-left-button">左側自訂按鈕</label><input id="edit-left-button" value="左側參照"></div>
   <div class="form-row"><label for="edit-amount">數字</label><input id="edit-amount" value="1280.5"></div>
   <div class="form-row"><label for="edit-spinner-true">Spinner true</label><input id="edit-spinner-true" value="10"></div>
   <div class="form-row"><label for="edit-spinner-right">Spinner right</label><input id="edit-spinner-right" value="20"></div>
@@ -99,7 +101,7 @@
 
   <pre id="editbox-output" aria-live="polite"></pre>
 
-  <script src="./js/editbox-demo.js?v=20260721-initial-filter-rules-v1"></script>
+  <script src="./js/editbox-demo.js?v=20260723-custom-buttons-v1"></script>
   <script type="module">
     import fabui from '../src/fabui.js?v=20260721-initial-filter-rules-v1';
 

@@ -90,6 +90,9 @@ test('Gantt source includes task editing, dependency and interaction contracts',
   assert.match(source, /unregisterControl\(host, this\)/);
   assert.match(source, /_renderDependencies/);
   assert.match(source, /pointercancel/);
+  assert.match(source, /Gantt\.prototype\._bindDocumentInteraction/);
+  assert.match(source, /Gantt\.prototype\._clearDocumentInteraction/);
+  assert.match(source, /Gantt\.prototype\.dispose[\s\S]*_clearDocumentInteraction\(true\)/);
   assert.match(source, /Gantt\.prototype\.setView/);
   assert.match(source, /Gantt\.prototype\.addTask/);
   assert.match(source, /Gantt\.prototype\.updateTask/);

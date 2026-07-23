@@ -25,7 +25,8 @@ function hasFieldControl(element) {
     element.__fabuiSwitchButton ||
     element.__fabuiRadioButton ||
     element.__fabuiRadioGroup ||
-    element.__fabuiFileBox
+    element.__fabuiFileBox ||
+    element.__fabuiHtmlEditor
   );
 }
 
@@ -38,7 +39,7 @@ function isComponentInternal(element) {
     '.fui-calendar, .fui-tabs, .fui-tree, .fui-menu, .fui-panel, ' +
     '.fui-window, .fui-layout, .fui-combobox-panel, .fui-colorbox-panel, ' +
     '.fui-datebox-panel, .fui-tooltip, .fui-form-validation-tip, ' +
-    '.fui-messager-host, .fg-root'
+    '.fui-messager-host, .fui-html-editor, .fg-root'
   ));
 }
 

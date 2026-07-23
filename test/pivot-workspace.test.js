@@ -321,6 +321,44 @@ test('PivotWorkspace binds document pointer handlers only during splitter drag',
   }
 });
 
+test('PivotWorkspace pointer cancel restores the pane size without committing', function() {
+  var workspace = Object.create(fabui.pivot.PivotWorkspace.prototype);
+  var applied = 0;
+  var scheduled = 0;
+  var notified = null;
+
+  workspace._layout = 'Horizontal';
+  workspace._horizontalSizes = { panel: 460, chart: 350 };
+  workspace._dragState = {
+    kind: 'panel',
+    pointerId: 9,
+    startSize: 300,
+    layout: 'Horizontal'
+  };
+  workspace.options = {};
+  workspace._applyPaneSizes = function() {
+    applied += 1;
+  };
+  workspace._scheduleResize = function() {
+    scheduled += 1;
+  };
+  workspace._endSplitterDrag = function(notify) {
+    notified = notify;
+    this._dragState = null;
+  };
+
+  workspace._handleDocumentPointerUp({
+    type: 'pointercancel',
+    pointerId: 9
+  });
+
+  assert.equal(workspace._horizontalSizes.panel, 300);
+  assert.equal(applied, 1);
+  assert.equal(scheduled, 1);
+  assert.equal(notified, false);
+  assert.equal(workspace._dragState, null);
+});
+
 test('PivotWorkspace mirrors async progress and cancellation state', function() {
   var workspace = Object.create(fabui.pivot.PivotWorkspace.prototype);
   var classes = [];

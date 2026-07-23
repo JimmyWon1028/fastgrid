@@ -23,8 +23,15 @@ test('default build compiles FabUI core without wrapper bundles', function() {
     /rmSync\(path\.join\(distDir, 'theme'\), \{ recursive: true, force: true \}\)/
   );
   assert.match(buildSource, /'editbox\/time-editbox\.js'/);
+  assert.match(buildSource, /'core\/config\.js'/);
+  assert.match(buildSource, /global\.fabui\.setConfig = setConfig/);
+  assert.match(buildSource, /global\.fabui\.getConfig = getConfig/);
   assert.match(buildSource, /buildThemeOutput\(\{/);
   assert.match(themeBuilderSource, /path\.join\(outputThemeDir, 'mono'\)/);
+  assert.match(
+    smokeSource,
+    /\(\?:diagram\|lite\|gantt\|scheduler\|htmleditor\)/
+  );
   assert.doesNotMatch(smokeSource, /wrapper outputs are incomplete/);
   assert.doesNotMatch(smokeSource, /'wrapper'/);
 });
@@ -37,6 +44,7 @@ test('all build commands omit ESM output files', function() {
     'build/build-diagram.cjs',
     'build/build-gantt.cjs',
     'build/build-scheduler.cjs',
+    'build/build-htmleditor.cjs',
     'build/build-theme.cjs',
     'build/build-vue.cjs',
     'build/build-jquery.cjs'
@@ -170,9 +178,21 @@ test('build command contract supports comma-separated scopes', function() {
 
   assert.match(agents, /`build`／`build fabui`/);
   assert.match(agents, /`build <scope>,<scope> \[min\]`/);
-  assert.match(agents, /`build fabui,diagram min`/);
+  assert.match(agents, /`build fabui,htmleditor min`/);
+  assert.match(agents, /`build htmleditor min`/);
   assert.match(agents, /逗號左右不得有空白/);
   assert.match(agents, /`all` 與 `clear` 必須單獨使用/);
-  assert.match(readme, /`build fabui,diagram min`/);
-  assert.match(readme, /`fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`theme`/);
+  assert.match(readme, /`build fabui,htmleditor min`/);
+  assert.match(
+    readme,
+    /`build htmleditor min` 對應 `npm run build:htmleditor -- min`/
+  );
+  assert.match(
+    readme,
+    /`dist\/fabui\.htmleditor\.min\.js` 與 `dist\/fabui\.htmleditor\.min\.css`/
+  );
+  assert.match(
+    readme,
+    /`fabui`、`lite`、`diagram`、`gantt`、`scheduler`、`htmleditor`、`theme`/
+  );
 });

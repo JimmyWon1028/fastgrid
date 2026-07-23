@@ -8,7 +8,7 @@
       rel="stylesheet"
       href="../dist/fabui.css?v=20260722-theme-css-split-v1"
     />
-  <script src="./js/theme-loader.js?v=20260722-theme-reload-v1"></script>
+    <script src="./js/theme-loader.js?v=20260722-filter-active-theme-v1"></script>
     <link
       rel="stylesheet"
       href="./style/my.icon.css?v=20260713-demo-style-folder-v1"
@@ -27,7 +27,10 @@
     data-grid-toolbar-icon-only="true"
   >
     <main class="page">
-      <section data-fabgrid-demo-toolbar></section>
+      <section
+        data-fabgrid-demo-toolbar
+        data-selection-range-toggle="true"
+      ></section>
 
       <section class="stats" aria-label="FabGrid stats">
         <span id="rowCount">Rows: -</span>
@@ -75,15 +78,15 @@
     </main>
 
     <script src="../dist/fabui.min.js?v=20260721-mono-theme-v2"></script>
-    <script src="./js/grid-toolbar.js?v=20260722-filter-mode-v1"></script>
-    <script src="./js/grid-data.js?v=20260721-mono-variants-v1"></script>
-    <script src="./js/grid-locales.js?v=20260721-mono-variants-v1"></script>
+    <script src="./js/grid-toolbar.js?v=20260723-selection-range-v1"></script>
+    <script src="./js/grid-data.js?v=20260721-initial-filter-rules-v1"></script>
+    <script src="./js/grid-locales.js?v=20260723-selection-range-v1"></script>
     <script src="./js/grid-query.js?v=20260722-remote-op-symbol-v1"></script>
     <script type="module">
-      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260721-mono-variants-v1";
+      import { createGrid2FabuiDemo } from "./js/grid2-components.js?v=20260723-frozen-spinner-v1";
 
       const grid2Components = createGrid2FabuiDemo(window.fabui);
-      await import("./js/grid.js?v=20260722-search-delay-400-v1");
+      await import("./js/grid.js?v=20260723-selection-range-v1");
       grid2Components.complete();
     </script>
     <script type="module" src="./js/dist-controls.js?v=20260721-mono-variants-v1"></script>

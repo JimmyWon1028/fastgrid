@@ -37,6 +37,7 @@
     rowGroupMode: "none",
     multiSelectRows: false,
     editMode: false,
+    selectionMode: "Cell",
   };
   var DEMO_LOCALES = window.FabGridDemoLocales;
   var DEMO_THEMES = [
@@ -116,6 +117,7 @@
     groupRows: document.getElementById("groupRowsInput"),
     multiSelect: document.getElementById("multiSelectInput"),
     editMode: document.getElementById("editModeInput"),
+    selectionRange: document.getElementById("selectionRangeInput"),
     demoFilter: document.getElementById("demoFilterInput"),
     demoFilterMode: document.getElementById("demoFilterMode"),
     demoFilterClear: document.getElementById("demoFilterClear"),
@@ -132,6 +134,7 @@
     groupRows: document.getElementById("groupRowsLabel"),
     multiSelect: document.getElementById("multiSelectLabel"),
     editMode: document.getElementById("editModeLabel"),
+    selectionRange: document.getElementById("selectionRangeLabel"),
     demoResultCount: document.getElementById("demoResultCount"),
     demoFilter: document.getElementById("demoFilterLabel"),
     exportCsv: document.getElementById("exportButton"),
@@ -213,6 +216,9 @@
       // showFooter: true,
       footerHeight: 32,
       multiSelectRows: settings.multiSelectRows,
+      selectionMode: controls.selectionRange
+        ? settings.selectionMode
+        : DEFAULT_DEMO_SETTINGS.selectionMode,
       itemsSource: rows,
       columns: columns,
       rowGroups: getDemoRowGroups(settings.rowGroupMode),
@@ -366,6 +372,12 @@
       grid.setEditMode(event.target.checked);
       saveCurrentDemoSettings();
     });
+    if (controls.selectionRange) {
+      controls.selectionRange.addEventListener("change", function (event) {
+        grid.selectionMode = event.target.checked ? "CellRange" : "Cell";
+        saveCurrentDemoSettings();
+      });
+    }
   }
 
   function bindExportEvents() {
@@ -1128,6 +1140,9 @@
         : DEFAULT_DEMO_SETTINGS.rowGroupMode,
       multiSelectRows: controls.multiSelect.checked,
       editMode: controls.editMode.checked,
+      selectionMode: controls.selectionRange
+        ? grid.selectionMode
+        : demoSettings.selectionMode,
     });
   }
 
@@ -1164,6 +1179,9 @@
     }
     controls.multiSelect.checked = settings.multiSelectRows;
     controls.editMode.checked = settings.editMode;
+    if (controls.selectionRange) {
+      controls.selectionRange.checked = settings.selectionMode === "CellRange";
+    }
   }
 
   function normalizeDemoSettings(settings) {
@@ -1216,6 +1234,10 @@
         settings.editMode,
         DEFAULT_DEMO_SETTINGS.editMode
       ),
+      selectionMode: normalizeSelectionModeSetting(
+        settings.selectionMode,
+        DEFAULT_DEMO_SETTINGS.selectionMode
+      ),
     };
   }
 
@@ -1258,6 +1280,17 @@
   function normalizeBooleanSetting(value, defaultValue) {
     if (value === true || value === false) {
       return value;
+    }
+    return defaultValue;
+  }
+
+  function normalizeSelectionModeSetting(value, defaultValue) {
+    var text = String(value || "").toLowerCase();
+    if (text === "cellrange") {
+      return "CellRange";
+    }
+    if (text === "cell") {
+      return "Cell";
     }
     return defaultValue;
   }
@@ -1519,6 +1552,9 @@
     updateGroupRowsOptions();
     labels.multiSelect.textContent = getDemoText("multiSelect");
     labels.editMode.textContent = getDemoText("editMode");
+    if (labels.selectionRange) {
+      labels.selectionRange.textContent = getDemoText("selectionRange");
+    }
     labels.exportCsv.textContent = toolbarIconOnly
       ? ""
       : getDemoText("exportCsv");

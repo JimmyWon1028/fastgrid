@@ -405,6 +405,7 @@ export function createGrid2FabuiDemo(fabui) {
       min: 0,
       max: 6,
       precision: 0,
+      spinner: true,
       width: 58,
       height: 34,
     },
@@ -417,6 +418,7 @@ export function createGrid2FabuiDemo(fabui) {
       min: 0,
       max: 6,
       precision: 0,
+      spinner: true,
       width: 58,
       height: 34,
     },
@@ -498,6 +500,7 @@ export function createGrid2FabuiDemo(fabui) {
   createCheckBox("remoteInput", "remoteLabel");
   createCheckBox("multiSelectInput", "multiSelectLabel");
   createCheckBox("editModeInput", "editModeLabel");
+  createCheckBox("selectionRangeInput", "selectionRangeLabel");
 
   function syncFullscreenState() {
     var element = document.getElementById("fullscreenButton");

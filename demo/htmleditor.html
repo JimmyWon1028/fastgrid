@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fabui.HtmlEditor Demo</title>
+  <link rel="stylesheet" href="../dist/fabui.css?v=20260722-theme-css-split-v1">
+  <link rel="stylesheet" href="../dist/fabui.htmleditor.css">
+  <script src="./js/theme-loader.js?v=20260722-theme-reload-v1"></script>
+  <style>
+    body {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px 20px;
+      color: #222;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+
+    .intro {
+      margin: 0 0 20px;
+      color: #666;
+    }
+
+    .demo-options,
+    .demo-actions {
+      display: flex;
+      margin-bottom: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .demo-options label {
+      margin-left: 8px;
+    }
+
+    .demo-options label:first-child {
+      margin-left: 0;
+    }
+
+    #htmleditor-theme,
+    #htmleditor-locale {
+      width: 190px;
+    }
+
+    #htmleditor-status {
+      min-height: 22px;
+      color: #555;
+    }
+
+    #htmleditor-output {
+      min-height: 100px;
+      padding: 12px;
+      overflow: auto;
+      border: 1px solid #ddd;
+      background: #f7f7f7;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body class="fg-theme-default">
+  <h1>fabui.HtmlEditor Demo</h1>
+  <p class="intro">獨立掛載的 pure JavaScript WYSIWYG HTML 編輯器，畫面與工具列規格參考 Summernote。</p>
+
+  <div class="demo-options">
+    <label for="htmleditor-theme">主題</label>
+    <select id="htmleditor-theme">
+      <option value="default" selected>Default</option>
+      <option value="bootstrap">Bootstrap</option>
+      <option value="cupertino">Cupertino</option>
+      <option value="material">Material</option>
+      <option value="material-blue">Material Blue</option>
+      <option value="material-teal">Material Teal</option>
+      <option value="metro">Metro</option>
+      <option value="metro-blue">Metro Blue</option>
+      <option value="metro-gray">Metro Gray</option>
+      <option value="metro-green">Metro Green</option>
+      <option value="metro-orange">Metro Orange</option>
+      <option value="metro-red">Metro Red</option>
+      <option value="sunny">Sunny</option>
+      <option value="pepper-grinder">Pepper Grinder</option>
+      <option value="dark-hive">Dark Hive</option>
+      <option value="black">Black</option>
+      <option value="mono">Mono</option>
+      <option value="mono-red">Mono Red</option>
+      <option value="mono-green">Mono Green</option>
+    </select>
+    <label for="htmleditor-locale">語系</label>
+    <select id="htmleditor-locale">
+      <option value="zh-TW" selected>繁體中文</option>
+      <option value="zh-CN">简体中文</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+
+  <textarea id="html-content" name="htmlContent"><h2>歡迎使用 HtmlEditor</h2><p>選取文字後可套用<strong>粗體</strong>、顏色、段落樣式，並插入表格、連結、圖片與影片。</p></textarea>
+
+  <p id="htmleditor-status" aria-live="polite"></p>
+  <div class="demo-actions">
+    <a href="javascript:void(0)" id="show-html">取得 HTML</a>
+    <a href="javascript:void(0)" id="set-html">載入範例</a>
+    <a href="javascript:void(0)" id="toggle-readonly">切換唯讀</a>
+    <a href="javascript:void(0)" id="clear-html">清除</a>
+  </div>
+  <pre id="htmleditor-output" aria-live="polite"></pre>
+
+  <script src="../dist/fabui.min.js"></script>
+  <script src="../dist/fabui.htmleditor.min.js"></script>
+  <script src="./js/htmleditor-demo.js"></script>
+  <script>
+    window.mountFabUIHtmlEditorDemo(window.fabui);
+  </script>
+  <script type="module" src="./js/dist-controls.js?v=20260721-mono-variants-v1"></script>
+</body>
+</html>

@@ -157,6 +157,8 @@ test('tree installer collapses nodes by level and exposes descriptors', function
   assert.equal(grid.getTreeRow(2).level, 1);
   assert.equal(grid.getTreeRow(2).rowNumber, 3);
   assert.equal(grid.getTreeRow(2).isCollapsed, true);
+  assert.equal(grid._treeCollapsedSet.has(grid.view[2]), true);
   assert.equal(grid.expandAllTreeNodes(), true);
   assert.equal(grid.view.length, 6);
+  assert.equal(grid._treeCollapsedSet.has(grid.source[0]), false);
 });

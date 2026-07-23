@@ -40,6 +40,9 @@ function findChartTheme(element) {
 
 export function createChartFactory() {
   var SVG_NS = 'http://www.w3.org/2000/svg';
+  var bindingPathCache = Object.create(null);
+  var bindingPathCacheSize = 0;
+  var BINDING_PATH_CACHE_LIMIT = 256;
   var DEFAULT_COLORS = [
     'rgba(136, 189, 230, .72)',
     'rgba(251, 178, 88, .72)',
@@ -124,6 +127,10 @@ export function createChartFactory() {
   Chart.prototype.setType = function(type) { this.options.chartType = type; this.options.type = type; this.refresh(); return this; };
   Chart.prototype.setItemsSource = function(itemsSource) { this.options.itemsSource = Array.isArray(itemsSource) ? itemsSource : []; this.refresh(); return this; };
   Chart.prototype.setOptions = function(options) {
+    var observerChanged = options && (
+      Object.prototype.hasOwnProperty.call(options, 'observeData') ||
+      Object.prototype.hasOwnProperty.call(options, 'dataRefreshInterval')
+    );
     this.options = mergeOptions(this.options, options || {});
     this.options.locale = resolveChartLocale(this.options.locale);
     if (Object.prototype.hasOwnProperty.call(options || {}, 'selectionSource')) {
@@ -132,6 +139,7 @@ export function createChartFactory() {
     if (Object.prototype.hasOwnProperty.call(options || {}, 'theme')) {
       this.setTheme(this.options.theme);
     }
+    if (observerChanged) this.startDataObserver();
     this.refresh();
     return this;
   };
@@ -207,16 +215,24 @@ export function createChartFactory() {
 
   Chart.prototype.startDataObserver = function() {
     var self = this;
+    this.stopDataObserver();
     this.dataSignature = getDataSignature(this.options);
+    if (this.disposed || this.options.observeData === false) return;
     this.dataObserver = setInterval(function() {
       var signature;
-      if (self.disposed || self.options.observeData === false) return;
+      if (self.disposed) return;
       signature = getDataSignature(self.options);
       if (signature !== self.dataSignature) {
         self.dataSignature = signature;
         self.refresh();
       }
     }, Math.max(50, Number(this.options.dataRefreshInterval) || 120));
+  };
+
+  Chart.prototype.stopDataObserver = function() {
+    if (!this.dataObserver) return;
+    clearInterval(this.dataObserver);
+    this.dataObserver = 0;
   };
 
   Chart.prototype.render = function() {
@@ -479,7 +495,7 @@ export function createChartFactory() {
     this.disposed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
     if (this.pieAnimationRaf) cancelAnimationFrame(this.pieAnimationRaf);
-    if (this.dataObserver) clearInterval(this.dataObserver);
+    this.stopDataObserver();
     if (this.resizeObserver) this.resizeObserver.disconnect();
     this.unbindSelectionSource();
     this.svg.removeEventListener('pointermove', this._boundPointerMove);
@@ -490,7 +506,24 @@ export function createChartFactory() {
   };
 
   function svgElement(name, attrs) { var element = document.createElementNS(SVG_NS, name); Object.keys(attrs || {}).forEach(function(key) { element.setAttribute(key, attrs[key]); }); return element; }
-  function defineOptionProperties(chart, names) { names.forEach(function(name) { Object.defineProperty(chart, name, { configurable: true, enumerable: true, get: function() { return chart.options[name]; }, set: function(value) { chart.options[name] = value; chart.invalidate(); } }); }); }
+  function defineOptionProperties(chart, names) {
+    names.forEach(function(name) {
+      Object.defineProperty(chart, name, {
+        configurable: true,
+        enumerable: true,
+        get: function() {
+          return chart.options[name];
+        },
+        set: function(value) {
+          chart.options[name] = value;
+          if (name === 'observeData' || name === 'dataRefreshInterval') {
+            chart.startDataObserver();
+          }
+          chart.invalidate();
+        }
+      });
+    });
+  }
   function mergeOptions(base, override) { var result = {}; Object.keys(base || {}).forEach(function(key) { result[key] = base[key]; }); Object.keys(override || {}).forEach(function(key) { result[key] = override[key]; }); return result; }
   function hasData(series) { return Array.isArray(series) && series.some(function(item) { return Array.isArray(item.data) && item.data.length; }); }
   function getMaxDataLength(series) { return series.reduce(function(max, item) { return Math.max(max, item.data && item.data.length || 0); }, 0); }
@@ -538,7 +571,29 @@ export function createChartFactory() {
     value = String(value || 'en').trim().replace(/_/g, '-');
     return DEFAULT_MESSAGES[value] ? value : normalizeChartLocale(value);
   }
-  function getBoundValue(item, binding) { if (!binding) return item; return String(binding).split('.').reduce(function(value, key) { return value == null ? value : value[key]; }, item); }
+  function getBoundValue(item, binding) {
+    var key;
+    var parts;
+    var value = item;
+    var i;
+    if (!binding) return item;
+    key = String(binding);
+    parts = bindingPathCache[key];
+    if (!parts) {
+      parts = key.split('.');
+      if (bindingPathCacheSize >= BINDING_PATH_CACHE_LIMIT) {
+        bindingPathCache = Object.create(null);
+        bindingPathCacheSize = 0;
+      }
+      bindingPathCache[key] = parts;
+      bindingPathCacheSize += 1;
+    }
+    for (i = 0; i < parts.length; i += 1) {
+      if (value == null) return value;
+      value = value[parts[i]];
+    }
+    return value;
+  }
   function getLegendPosition(legend) { if (legend === false || legend && String(legend.position).toLowerCase() === 'none') return 'None'; return legend && legend.position ? String(legend.position) : 'Bottom'; }
   function formatTemplate(template, data) { return template.replace(/\{(seriesName|series|x|category|y|value|name|percent)\}/g, function(_, key) { var map = { seriesName: 'series', x: 'category', y: 'value', name: 'category' }; var value = data[map[key] || key]; return value == null ? '' : value; }); }
   function formatDataLabel(template, data) { return String(template).replace(/\{(name|value|percent)\}/g, function(_, key) { return key === 'percent' ? String(Math.round(data.percent * 10) / 10) : String(data[key] == null ? '' : data[key]); }); }

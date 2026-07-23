@@ -39,6 +39,43 @@
       }],
       clearButton: true
     });
+    if (document.getElementById('edit-two-buttons')) {
+      boxes.twoButtons = new fabui.EditBox('#edit-two-buttons', {
+        editor: 'text',
+        width: 280,
+        icons: [{
+          iconCls: 'icon-search',
+          title: '搜尋',
+          ariaLabel: '搜尋',
+          width: 28,
+          onClick: function() {
+            this.setValue('搜尋結果');
+          }
+        }, {
+          iconCls: 'icon-clear',
+          title: '清除',
+          ariaLabel: '清除',
+          width: 28,
+          onClick: function() {
+            this.clear();
+          }
+        }]
+      });
+      boxes.leftButton = new fabui.EditBox('#edit-left-button', {
+        editor: 'text',
+        width: 280,
+        icons: [{
+          iconCls: 'icon-refwin',
+          title: '選擇左側參照',
+          ariaLabel: '選擇左側參照',
+          width: 28,
+          align: 'left',
+          onClick: function() {
+            this.setValue('左側參照-001');
+          }
+        }]
+      });
+    }
     boxes.amount = new fabui.EditBox('#edit-amount', {
       editor: 'number',
       width: 280,
@@ -118,6 +155,14 @@
         '姓名：' + text(boxes.name.getValue()),
         '金額：' + text(boxes.amount.getValue())
       ];
+      if (boxes.twoButtons) {
+        lines.splice(
+          2,
+          0,
+          '兩個自訂按鈕：' + text(boxes.twoButtons.getValue()),
+          '左側自訂按鈕：' + text(boxes.leftButton.getValue())
+        );
+      }
       if (boxes.spinnerTrue) {
         lines.push(
           'Spinner true：' + text(boxes.spinnerTrue.getValue()),

@@ -24,6 +24,19 @@ var themes = [
   'mono-green'
 ];
 
+test('Every FabGrid theme defines the CellRange palette variables', function() {
+  themes.forEach(function(theme) {
+    var file = theme === 'default' ?
+      '../src/grid/fabgrid.css' :
+      '../src/theme/fabgrid.' + theme + '.css';
+    var css = readFileSync(new URL(file, import.meta.url), 'utf8');
+
+    assert.match(css, /--fg-range-selected-bg:\s*var\(--fg-row-selected-bg\)/, theme);
+    assert.match(css, /--fg-range-active-bg:\s*var\(--fg-cell-bg\)/, theme);
+    assert.match(css, /--fg-range-border:\s*var\(--fg-selected-border\)/, theme);
+  });
+});
+
 test('Every FabUI theme defines the new component palette variables', function() {
   themes.forEach(function(theme) {
     var css = readFileSync(

@@ -243,11 +243,26 @@ export function installFabGridTree(FabGrid, context) {
 
   FabGrid.prototype.resetTreeState = function() {
     this._treeCollapsedItems = [];
+    this._treeCollapsedSet = typeof WeakSet === 'function' ? new WeakSet() : null;
     this._treeRowInfos = [];
     this._treeInfoItems = [];
     this._treeInfoValues = [];
     this._treeInfoMap = typeof WeakMap === 'function' ? new WeakMap() : null;
     this._treeRootCount = 0;
+  };
+
+  FabGrid.prototype.rebuildTreeCollapsedSet = function() {
+    var items = this._treeCollapsedItems || [];
+    var set = typeof WeakSet === 'function' ? new WeakSet() : null;
+    var i;
+    if (set) {
+      for (i = 0; i < items.length; i += 1) {
+        if (items[i] && (typeof items[i] === 'object' || typeof items[i] === 'function')) {
+          set.add(items[i]);
+        }
+      }
+    }
+    this._treeCollapsedSet = set;
   };
 
   FabGrid.prototype.getTreeChildren = function(item) {
@@ -378,6 +393,9 @@ export function installFabGridTree(FabGrid, context) {
   };
 
   FabGrid.prototype.isTreeItemCollapsed = function(item) {
+    if (this._treeCollapsedSet && item && (typeof item === 'object' || typeof item === 'function')) {
+      return this._treeCollapsedSet.has(item);
+    }
     return this._treeCollapsedItems.indexOf(item) >= 0;
   };
 
@@ -385,8 +403,14 @@ export function installFabGridTree(FabGrid, context) {
     var index = this._treeCollapsedItems.indexOf(item);
     if (collapsed && index < 0) {
       this._treeCollapsedItems.push(item);
+      if (this._treeCollapsedSet && item && (typeof item === 'object' || typeof item === 'function')) {
+        this._treeCollapsedSet.add(item);
+      }
     } else if (!collapsed && index >= 0) {
       this._treeCollapsedItems.splice(index, 1);
+      if (this._treeCollapsedSet && item && (typeof item === 'object' || typeof item === 'function')) {
+        this._treeCollapsedSet.delete(item);
+      }
     }
   };
 
@@ -601,6 +625,7 @@ export function installFabGridTree(FabGrid, context) {
     this.selection.row = rowIndex;
     this.selectionAnchor = { row: rowIndex, col: this.selection.col };
     this.rowSelection = rowIndex;
+    this._rowSelectionCleared = false;
     this.setTreeItemCollapsed(item, nextCollapsed);
     this.applyView();
     nextRow = this.view.indexOf(item);
@@ -608,6 +633,7 @@ export function installFabGridTree(FabGrid, context) {
       this.selection.row = nextRow;
       this.selectionAnchor = { row: nextRow, col: this.selection.col };
       this.rowSelection = nextRow;
+      this._rowSelectionCleared = false;
     }
     this.clampSelection();
     this.render();
@@ -628,6 +654,7 @@ export function installFabGridTree(FabGrid, context) {
     }
     walk(this.source, 0);
     this._treeCollapsedItems = collapsedItems;
+    this.rebuildTreeCollapsedSet();
     this.applyView();
     this.clampSelection();
     this.render();
@@ -659,6 +686,7 @@ export function installFabGridTree(FabGrid, context) {
       return false;
     }
     this._treeCollapsedItems = [];
+    this.rebuildTreeCollapsedSet();
     this.applyView();
     this.clampSelection();
     this.render();

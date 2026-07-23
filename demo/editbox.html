@@ -27,7 +27,7 @@
 
     .form-row {
       display: grid;
-      grid-template-columns: 90px minmax(0, 1fr);
+      grid-template-columns: 130px minmax(0, 1fr);
       align-items: center;
       margin-bottom: 14px;
     }
@@ -81,21 +81,28 @@
     </select>
   </div>
   <div class="form-row"><label for="edit-name">文字</label><input id="edit-name" value="王小明"></div>
+  <div class="form-row"><label for="edit-two-buttons">兩個自訂按鈕</label><input id="edit-two-buttons" value="待搜尋內容"></div>
+  <div class="form-row"><label for="edit-left-button">左側自訂按鈕</label><input id="edit-left-button" value="左側參照"></div>
   <div class="form-row"><label for="edit-amount">數字</label><input id="edit-amount" value="1280.5"></div>
+  <div class="form-row"><label for="edit-spinner-true">Spinner true</label><input id="edit-spinner-true" value="10"></div>
+  <div class="form-row"><label for="edit-spinner-right">Spinner right</label><input id="edit-spinner-right" value="20"></div>
+  <div class="form-row"><label for="edit-spinner-left">Spinner left</label><input id="edit-spinner-left" value="30"></div>
   <div class="form-row"><label for="edit-date">日期</label><input id="edit-date" value="2026/07/17"></div>
   <div class="form-row"><label for="edit-month">年月</label><input id="edit-month" value="2026/07"></div>
+  <div class="form-row"><label for="edit-time">時間</label><input id="edit-time" value="0930"></div>
+  <div class="form-row"><label for="edit-time-seconds">時間 Spinner</label><input id="edit-time-seconds" value="235959"></div>
   <div class="form-row"><label for="edit-status">清單</label><input id="edit-status" value="active"></div>
   <div class="form-row"><label for="edit-color">顏色</label><input id="edit-color" value="teal"></div>
 
   <div class="actions">
-    <a id="clear-all" href="javascript:void(0)">全部清除</a>
-    <a id="reset-all" href="javascript:void(0)">還原初始值</a>
+    <a data-fabui-button href="javascript:void(0)" id="clear-all">全部清除</a>
+    <a data-fabui-button href="javascript:void(0)" id="reset-all">還原初始值</a>
   </div>
 
   <pre id="editbox-output" aria-live="polite"></pre>
 
   <script src="../dist/fabui.min.js"></script>
-  <script src="./js/editbox-demo.js"></script>
+  <script src="./js/editbox-demo.js?v=20260723-custom-buttons-v1"></script>
   <script>
     window.mountFabUIEditBoxDemo(window.fabui);
   </script>
